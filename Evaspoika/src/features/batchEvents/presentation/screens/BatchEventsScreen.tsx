@@ -1,8 +1,11 @@
 import React from 'react';
-import { FlatList, Text, View } from 'react-native';
+import { FlatList, Text, View, Alert } from 'react-native';
 import { layout } from '@/src/shared/styles/layout';
 import { useBatchEvents } from '../hooks/useBatchEvents';
 import { BatchEvent } from '../../domain/types';
+
+
+
 
 function renderItem({ item }: { item: BatchEvent }) {
   return (
