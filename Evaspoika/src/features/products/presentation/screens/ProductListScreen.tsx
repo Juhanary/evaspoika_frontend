@@ -1,21 +1,14 @@
 import React, { useState } from 'react';
-import { Alert, Button, FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Button, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { layout } from '@/src/shared/styles/layout';
 import { useProducts } from '../hooks/useProducts';
 import { Product } from '../../domain/types';
 import { createProduct } from '../../infrastructure/productsApi';
 
-function renderItem({ item }: { item: Product }) {
-  return (
-    <View style={layout.listItem}>
-      <Text style={layout.listItemTitle}>{item.name}</Text>
-      <Text style={layout.listItemSubtitle}>Price: {item.price_per_kg}</Text>
-    </View>
-  );
-}
-
 export default function ProductListScreen() {
+  const router = useRouter();
   const { data, isLoading, error } = useProducts();
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
@@ -72,6 +65,22 @@ export default function ProductListScreen() {
     );
   }
 
+  const renderItem = ({ item }: { item: Product }) => (
+    <Pressable
+      onPress={() =>
+        router.push({
+          pathname: '/batches/[productId]',
+          params: { productId: String(item.id) },
+        })
+      }
+      style={({ pressed }) => [layout.listItem, pressed && styles.listItemPressed]}
+      accessibilityRole="button"
+    >
+      <Text style={layout.listItemTitle}>{item.name}</Text>
+      <Text style={layout.listItemSubtitle}>Price: {item.price_per_kg}</Text>
+    </Pressable>
+  );
+
   return (
     <View style={layout.screen}>
       <Text style={layout.title}>Products</Text>
@@ -125,5 +134,8 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginBottom: 8,
     backgroundColor: '#fff',
+  },
+  listItemPressed: {
+    opacity: 0.7,
   },
 });

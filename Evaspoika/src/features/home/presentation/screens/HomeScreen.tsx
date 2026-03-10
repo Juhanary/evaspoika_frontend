@@ -12,11 +12,8 @@ export default function HomeScreen() {
         <Text>Choose a section to get started.</Text>
       </View>
 
-      <CustomButton label="Products" onPress={() => router.push('/products')} />
-      <CustomButton label="Batches" onPress={() => router.push('/batches')} />
-      <CustomButton label="Batch Events" onPress={() => router.push('/batch-events')} />
+      <CustomButton label="Tuotteet" onPress={() => router.push('/products')} />
       <CustomButton label="Orders" onPress={() => router.push('/orders')} />
-      <CustomButton label="Customers" onPress={() => router.push('/customers')} />
     </ScrollView>
   );
 }

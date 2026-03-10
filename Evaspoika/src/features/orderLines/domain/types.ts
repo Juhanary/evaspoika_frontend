@@ -13,6 +13,6 @@ export type CreateOrderLineInput = {
   orderId: number;
   batchId: number;
   sold_weight: number;
-  price_per_kg: number;
+  price_per_gram: number;
   userId?: number;
 };

@@ -10,6 +10,12 @@ export type BatchEvent = {
   deleted_at?: string | null;
 };
 
+export type EventType = {
+  id: number;
+  code: string;
+  description?: string | null;
+};
+
 export type CreateBatchEventInput = {
   BatchId: number;
   EventTypeId: number;
