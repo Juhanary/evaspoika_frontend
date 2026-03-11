@@ -7,13 +7,14 @@ import { spacing } from '@/src/shared/constants/spacing';
 import { ApiError } from '@/src/infrastructure/api/error';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
-import { Product } from '@/src/features/products/domain/types';
 import { Batch } from '@/src/features/batches/domain/types';
+import { ProductList } from '@/src/shared/ui/ProductList/ProductList';
+import { BatchCard, BatchSelection } from '@/src/shared/ui/BatchCard/BatchCard';
 import {
   formatKg,
   GRAMS_PER_KG,
-  parseWeightInput,
   parseWeightToGrams,
+  MIN_REMAINING_GRAMS
 } from '@/src/shared/utils/weight';
 import { createOrder } from '../../infrastructure/ordersApi';
 import { createOrderLine } from '@/src/features/orderLines/infrastructure/orderLinesApi';
@@ -21,12 +22,8 @@ import { CreateOrderLineInput } from '@/src/features/orderLines/domain/types';
 
 type AllocationMode = 'manual' | 'auto';
 
-type BatchSelection = {
-  selected: boolean;
-  weight: string;
-};
-
 type OrderLineDraft = Omit<CreateOrderLineInput, 'orderId'>;
+
 
 const getErrorMessage = (err: unknown) => {
   if (err instanceof ApiError) {
@@ -47,6 +44,80 @@ const getErrorMessage = (err: unknown) => {
   return err instanceof Error ? err.message : 'Unknown error';
 };
 
+const sortBatchesByOldest = (a: Batch, b: Batch) => {
+  const dateA = a.production_date ? Date.parse(a.production_date) : Number.NaN;
+  const dateB = b.production_date ? Date.parse(b.production_date) : Number.NaN;
+  if (Number.isFinite(dateA) && Number.isFinite(dateB)) {
+    return dateA - dateB;
+  }
+  if (Number.isFinite(dateA)) {
+    return -1;
+  }
+  if (Number.isFinite(dateB)) {
+    return 1;
+  }
+  return a.id - b.id;
+};
+
+type AutoAllocation = {
+  allocations: { batchId: number; sold_weight: number }[];
+  error?: string;
+};
+
+const buildAutoAllocation = (totalGrams: number, candidates: Batch[]): AutoAllocation => {
+  if (!Number.isFinite(totalGrams) || totalGrams <= 0) {
+    return { allocations: [], error: 'Invalid total weight.' };
+  }
+
+  const availableTotal = candidates.reduce(
+    (sum, batch) => sum + Math.max(0, Number(batch.current_weight) || 0),
+    0
+  );
+  if (totalGrams > availableTotal) {
+    return {
+      allocations: [],
+      error: `Ei tarpeeksi varastossa. ${formatKg(availableTotal)} kg.`,
+    };
+  }
+
+  const sortedCandidates = [...candidates].sort(sortBatchesByOldest);
+  let remaining = totalGrams;
+  const allocations: { batchId: number; sold_weight: number }[] = [];
+
+  for (const batch of sortedCandidates) {
+    if (remaining <= 0) {
+      break;
+    }
+    const availableWeight = Math.max(0, Number(batch.current_weight) || 0);
+    if (availableWeight <= 0) {
+      continue;
+    }
+
+    if (remaining >= availableWeight) {
+      allocations.push({ batchId: batch.id, sold_weight: availableWeight });
+      remaining -= availableWeight;
+      continue;
+    }
+
+    const leftover = availableWeight - remaining;
+    if (leftover > 0 && leftover < MIN_REMAINING_GRAMS) {
+      return {
+        allocations: [],
+        error: `Automaatti jättää alle 500g erään. ${batch.batch_number}. Muuta manutaalisesti`,
+      };
+    }
+
+    allocations.push({ batchId: batch.id, sold_weight: remaining });
+    remaining = 0;
+  }
+
+  if (allocations.length === 0) {
+    return { allocations: [], error: 'Unable to allocate weight across batches.' };
+  }
+
+  return { allocations };
+};
+
 export default function OrderScreen() {
   const queryClient = useQueryClient();
   const { data: products, isLoading: productsLoading, error: productsError } = useProducts();
@@ -55,6 +126,7 @@ export default function OrderScreen() {
   const [allocationMode, setAllocationMode] = useState<AllocationMode>('manual');
   const [totalWeight, setTotalWeight] = useState('');
   const [batchSelections, setBatchSelections] = useState<Record<number, BatchSelection>>({});
+  const [autoAllocationError, setAutoAllocationError] = useState<string | null>(null);
 
   const createOrderMutation = useMutation({
     mutationFn: createOrder,
@@ -69,6 +141,7 @@ export default function OrderScreen() {
   useEffect(() => {
     setBatchSelections({});
     setTotalWeight('');
+    setAutoAllocationError(null);
   }, [selectedProductId]);
 
   const selectedProduct = useMemo(
@@ -98,17 +171,22 @@ export default function OrderScreen() {
     [productBatches, batchSelections]
   );
 
-  const selectedManualTotal = useMemo(() => {
-    if (allocationMode !== 'manual') {
-      return 0;
-    }
+  const selectedTotal = useMemo(
+    () =>
+      selectedBatches.reduce((sum, batch) => {
+        const rawWeight = batchSelections[batch.id]?.weight ?? '';
+        const parsedWeight = parseWeightToGrams(rawWeight);
+        return Number.isFinite(parsedWeight) ? sum + parsedWeight : sum;
+      }, 0),
+    [selectedBatches, batchSelections]
+  );
 
-    return selectedBatches.reduce((sum, batch) => {
-      const rawWeight = batchSelections[batch.id]?.weight ?? '';
-      const parsedWeight = parseWeightToGrams(rawWeight);
-      return Number.isFinite(parsedWeight) ? sum + parsedWeight : sum;
-    }, 0);
-  }, [allocationMode, selectedBatches, batchSelections]);
+  const selectedBatchIdsKey = useMemo(() => {
+    if (selectedBatches.length === 0) {
+      return '';
+    }
+    return selectedBatches.map((batch) => batch.id).join(',');
+  }, [selectedBatches]);
 
   const toggleBatchSelection = (batchId: number) => {
     setBatchSelections((prev) => {
@@ -131,7 +209,67 @@ export default function OrderScreen() {
         weight: value,
       },
     }));
+    if (allocationMode === 'auto') {
+      setAutoAllocationError(null);
+    }
   };
+
+  useEffect(() => {
+    if (allocationMode !== 'auto') {
+      setAutoAllocationError(null);
+      return;
+    }
+
+    const parsedTotal = parseWeightToGrams(totalWeight);
+    if (!Number.isFinite(parsedTotal) || parsedTotal <= 0) {
+      setAutoAllocationError(null);
+      return;
+    }
+
+    const selectedIds = selectedBatchIdsKey
+      ? selectedBatchIdsKey.split(',').map((id) => Number(id)).filter(Number.isFinite)
+      : [];
+    const selectedSet = new Set(selectedIds);
+    const candidates =
+      selectedIds.length > 0
+        ? productBatches.filter((batch) => selectedSet.has(batch.id))
+        : productBatches;
+
+    if (candidates.length === 0) {
+      setAutoAllocationError('No batches available for allocation.');
+      return;
+    }
+
+    const { allocations, error } = buildAutoAllocation(parsedTotal, candidates);
+    if (error) {
+      setAutoAllocationError(error);
+      return;
+    }
+
+    setAutoAllocationError(null);
+    const allocationById = new Map<number, number>(
+      allocations.map((allocation) => [allocation.batchId, allocation.sold_weight])
+    );
+    const selectOnlyUsed = selectedIds.length === 0;
+
+    setBatchSelections((prev) => {
+      const next = { ...prev };
+      for (const batch of candidates) {
+        const allocated = allocationById.get(batch.id);
+        if (allocated && allocated > 0) {
+          next[batch.id] = { selected: true, weight: formatKg(allocated) };
+          continue;
+        }
+
+        if (selectOnlyUsed) {
+          next[batch.id] = { selected: false, weight: '' };
+        } else if (next[batch.id]?.selected) {
+          next[batch.id] = { selected: true, weight: '' };
+        }
+      }
+      return next;
+    });
+  }, [allocationMode, totalWeight, selectedBatchIdsKey, productBatches]);
 
   const handleCreateOrder = async () => {
     if (!selectedProduct) {
@@ -151,97 +289,36 @@ export default function OrderScreen() {
       return;
     }
 
-    let lines: OrderLineDraft[] = [];
+    if (selectedBatches.length === 0) {
+      if (allocationMode === 'auto' && autoAllocationError) {
+        Alert.alert('Auto allocation error', `${autoAllocationError} Adjust manually.`);
+        return;
+      }
+      Alert.alert('Select batches', 'Choose at least one batch to create an order line.');
+      return;
+    }
 
-    if (allocationMode === 'manual') {
-      if (selectedBatches.length === 0) {
-        Alert.alert('Select batches', 'Choose at least one batch to create an order line.');
+    const lines: OrderLineDraft[] = [];
+    for (const batch of selectedBatches) {
+      const rawWeight = batchSelections[batch.id]?.weight ?? '';
+      const parsedWeight = parseWeightToGrams(rawWeight);
+      if (!Number.isFinite(parsedWeight) || parsedWeight <= 0) {
+        Alert.alert('Invalid weight', `Enter a valid weight for batch ${batch.batch_number}.`);
+        return;
+      }
+      if (parsedWeight > batch.current_weight) {
+        Alert.alert(
+          'Not enough stock',
+          `Batch ${batch.batch_number} has only ${formatKg(batch.current_weight)} kg available.`
+        );
         return;
       }
 
-      for (const batch of selectedBatches) {
-        const rawWeight = batchSelections[batch.id]?.weight ?? '';
-        const parsedWeight = parseWeightToGrams(rawWeight);
-        if (!Number.isFinite(parsedWeight) || parsedWeight <= 0) {
-          Alert.alert('Invalid weight', `Enter a valid weight for batch ${batch.batch_number}.`);
-          return;
-        }
-        if (parsedWeight > batch.current_weight) {
-          Alert.alert(
-            'Not enough stock',
-            `Batch ${batch.batch_number} has only ${formatKg(batch.current_weight)} kg available.`
-          );
-          return;
-        }
-
-        lines.push({
-          batchId: batch.id,
-          sold_weight: parsedWeight,
-          price_per_gram: pricePerGram,
-        });
-      }
-    } else {
-      const parsedTotal = parseWeightToGrams(totalWeight);
-      if (!Number.isFinite(parsedTotal) || parsedTotal <= 0) {
-        Alert.alert('Invalid weight', 'Enter a valid total weight.');
-        return;
-      }
-
-      const candidates = selectedBatches.length > 0 ? selectedBatches : productBatches;
-      if (candidates.length === 0) {
-        Alert.alert('No batches', 'Select at least one batch to allocate from.');
-        return;
-      }
-
-      const available = candidates.reduce(
-        (sum, batch) => sum + Math.max(0, Number(batch.current_weight) || 0),
-        0
-      );
-      if (parsedTotal > available) {
-        Alert.alert('Not enough stock', `Available across batches: ${formatKg(available)} kg.`);
-        return;
-      }
-
-      const sortedCandidates = [...candidates].sort((a, b) => {
-        const dateA = a.production_date ? Date.parse(a.production_date) : Number.NaN;
-        const dateB = b.production_date ? Date.parse(b.production_date) : Number.NaN;
-        if (Number.isFinite(dateA) && Number.isFinite(dateB)) {
-          return dateA - dateB;
-        }
-        if (Number.isFinite(dateA)) {
-          return -1;
-        }
-        if (Number.isFinite(dateB)) {
-          return 1;
-        }
-        return a.id - b.id;
+      lines.push({
+        batchId: batch.id,
+        sold_weight: parsedWeight,
+        price_per_gram: pricePerGram,
       });
-
-      let remaining = parsedTotal;
-      lines = [];
-      for (const batch of sortedCandidates) {
-        if (remaining <= 0) {
-          break;
-        }
-        const availableWeight = Math.max(0, Number(batch.current_weight) || 0);
-        if (availableWeight <= 0) {
-          continue;
-        }
-        const take = Math.min(remaining, availableWeight);
-        if (take > 0) {
-          lines.push({
-            batchId: batch.id,
-            sold_weight: take,
-            price_per_gram: pricePerGram,
-          });
-          remaining -= take;
-        }
-      }
-
-      if (lines.length === 0) {
-        Alert.alert('No allocation', 'Unable to allocate weight across batches.');
-        return;
-      }
     }
 
     try {
@@ -265,43 +342,13 @@ export default function OrderScreen() {
   };
 
   if (!selectedProductId) {
-    if (productsLoading) {
-      return (
-        <View style={[layout.screen, layout.center]}>
-          <Text>Loading products...</Text>
-        </View>
-      );
-    }
-
-    if (productsError) {
-      const message = productsError instanceof Error ? productsError.message : 'Unknown error';
-      return (
-        <View style={[layout.screen, layout.center]}>
-          <Text>Failed to load products: {message}</Text>
-        </View>
-      );
-    }
-
-    const renderProductItem = ({ item }: { item: Product }) => (
-      <Pressable
-        onPress={() => setSelectedProductId(item.id)}
-        style={({ pressed }) => [layout.listItem, pressed && styles.listItemPressed]}
-        accessibilityRole="button"
-      >
-        <Text style={layout.listItemTitle}>{item.name}</Text>
-        <Text style={layout.listItemSubtitle}>Price: {item.price_per_kg}</Text>
-      </Pressable>
-    );
-
     return (
-      <View style={layout.screen}>
-        <Text style={layout.title}>Select product</Text>
-        <FlatList
-          data={products ?? []}
-          renderItem={renderProductItem}
-          keyExtractor={(item) => String(item.id)}
-        />
-      </View>
+      <ProductList
+        products={products ?? []}
+        isLoading={productsLoading}
+        error={productsError}
+        onSelect={(product) => setSelectedProductId(product.id)}
+      />
     );
   }
 
@@ -330,40 +377,15 @@ export default function OrderScreen() {
     );
   }
 
-  const renderBatchItem = ({ item }: { item: Batch }) => {
-    const selection = batchSelections[item.id];
-    const isSelected = selection?.selected ?? false;
-
-    return (
-      <View style={[styles.batchCard, isSelected && styles.batchCardSelected]}>
-        <Pressable
-          onPress={() => toggleBatchSelection(item.id)}
-          style={styles.batchHeader}
-          accessibilityRole="button"
-        >
-          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-            {isSelected && <Text style={styles.checkboxLabel}>X</Text>}
-          </View>
-          <View style={styles.batchInfo}>
-            <Text style={styles.batchTitle}>Batch {item.batch_number}</Text>
-            <Text style={styles.batchSubtitle}>
-              Available: {formatKg(item.current_weight)} kg
-            </Text>
-          </View>
-        </Pressable>
-        {allocationMode === 'manual' && isSelected && (
-          <TextInput
-            placeholder="Sold weight (kg)"
-            value={selection?.weight ?? ''}
-            onChangeText={(value) => updateBatchWeight(item.id, value)}
-            style={styles.weightInput}
-            keyboardType="numeric"
-            editable={!isSubmitting}
-          />
-        )}
-      </View>
-    );
-  };
+  const renderBatchItem = ({ item }: { item: Batch }) => (
+    <BatchCard
+      batch={item}
+      selection={batchSelections[item.id]}
+      onToggle={toggleBatchSelection}
+      onWeightChange={updateBatchWeight}
+      isSubmitting={isSubmitting}
+    />
+  );
 
   const listHeader = (
     <View>
@@ -429,6 +451,9 @@ export default function OrderScreen() {
         <Text style={styles.helperText}>
           Available across batches: {formatKg(availableTotal)} kg
         </Text>
+        {allocationMode === 'auto' && autoAllocationError && (
+          <Text style={styles.errorText}>{autoAllocationError}</Text>
+        )}
         {allocationMode === 'auto' && (
           <Text style={styles.helperText}>
             If no batches are selected, all batches will be used.
@@ -442,10 +467,8 @@ export default function OrderScreen() {
 
   const listFooter = (
     <View style={styles.footer}>
-      {allocationMode === 'manual' && selectedBatches.length > 0 && (
-        <Text style={styles.helperText}>
-          Selected total: {formatKg(selectedManualTotal)} kg
-        </Text>
+      {selectedBatches.length > 0 && (
+        <Text style={styles.helperText}>Selected total: {formatKg(selectedTotal)} kg</Text>
       )}
       <Button
         title={isSubmitting ? 'Creating order...' : 'Create order'}
@@ -473,9 +496,6 @@ export default function OrderScreen() {
 }
 
 const styles = StyleSheet.create({
-  listItemPressed: {
-    opacity: 0.7,
-  },
   section: {
     marginBottom: spacing.lg,
   },
@@ -520,63 +540,13 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 12,
   },
+  errorText: {
+    color: '#B91C1C',
+    fontSize: 12,
+    marginTop: spacing.xs,
+  },
   buttonRow: {
     marginBottom: spacing.md,
-  },
-  batchCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    backgroundColor: '#fff',
-  },
-  batchCardSelected: {
-    borderColor: colors.primary,
-  },
-  batchHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 3,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginRight: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  checkboxLabel: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  batchInfo: {
-    flex: 1,
-  },
-  batchTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  batchSubtitle: {
-    fontSize: 12,
-    color: colors.muted,
-  },
-  weightInput: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: 6,
-    marginTop: spacing.sm,
-    backgroundColor: '#fff',
   },
   totalInput: {
     borderWidth: 1,

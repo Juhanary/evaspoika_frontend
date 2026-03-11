@@ -20,3 +20,5 @@ export const formatKg = (grams: number) => {
   const value = grams / GRAMS_PER_KG;
   return value.toFixed(3).replace(/\.?0+$/, '');
 };
+
+ export const MIN_REMAINING_GRAMS = 500;

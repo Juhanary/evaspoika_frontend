@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, Button, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { layout } from '@/src/shared/styles/layout';
@@ -7,13 +7,11 @@ import { useProducts } from '../hooks/useProducts';
 import { Product } from '../../domain/types';
 import { createProduct } from '../../infrastructure/productsApi';
 
+
 export default function ProductListScreen() {
   const router = useRouter();
   const { data, isLoading, error } = useProducts();
   const queryClient = useQueryClient();
-  const [name, setName] = useState('');
-  const [ean, setEan] = useState('');
-  const [pricePerKg, setPricePerKg] = useState('');
   const createMutation = useMutation({
     mutationFn: createProduct,
     onSuccess: async () => {
@@ -21,32 +19,10 @@ export default function ProductListScreen() {
     },
   });
 
-  const handleAddNew = async () => {
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      Alert.alert('Puuttuvat tiedot', 'Tuotteen nimi on pakollinen.');
-      return;
-    }
-    const parsedPrice = Number(pricePerKg);
-    if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
-      Alert.alert('Virheellinen hinta', 'Anna hinta kilogrammaa kohden numerona.');
-      return;
-    }
+  const totalWeight = data?.reduce((sum, product) => sum + (product.weight_kg ?? 0), 0) ?? 0;
 
-    try {
-      await createMutation.mutateAsync({
-        name: trimmedName,
-        ean: ean.trim() || null,
-        price_per_kg: Math.round(parsedPrice),
-      });
-      setName('');
-      setEan('');
-      setPricePerKg('');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      Alert.alert('Tuotteen lisäys epäonnistui', message);
-    }
-  };
+
+
 
   if (isLoading) {
     return (
@@ -81,40 +57,15 @@ export default function ProductListScreen() {
     </Pressable>
   );
 
+    
+
+
   return (
     <View style={layout.screen}>
-      <Text style={layout.title}>Products</Text>
+      <Text style={layout.title}>Valitse tuotekategoria
+      </Text>
       <View style={styles.form}>
-        <TextInput
-          placeholder="Tuotteen nimi"
-          value={name}
-          onChangeText={setName}
-          style={styles.input}
-          autoCapitalize="sentences"
-          autoCorrect
-        />
-        <TextInput
-          placeholder="EAN (valinnainen)"
-          value={ean}
-          onChangeText={setEan}
-          style={styles.input}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        <TextInput
-          placeholder="Hinta / kg"
-          value={pricePerKg}
-          onChangeText={setPricePerKg}
-          style={styles.input}
-          keyboardType="numeric"
-        />
-        <Button
-          onPress={handleAddNew}
-          title={createMutation.isPending ? 'Lisätään...' : 'Lisää tuote'}
-          color="#841584"
-          accessibilityLabel="Lisää uusi tuote"
-          disabled={createMutation.isPending}
-        />
+      
       </View>
      
       <FlatList data={data ?? []} renderItem={renderItem} keyExtractor={(item) => String(item.id)} />

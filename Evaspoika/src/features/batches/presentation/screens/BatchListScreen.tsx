@@ -2,10 +2,10 @@ import React, { useMemo } from 'react';
 import { Button, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { layout } from '@/src/shared/styles/layout';
+import { ProductList } from '@/src/shared/ui/ProductList/ProductList';
 import { useBatches } from '../hooks/useBatches';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
 import { Batch } from '../../domain/types';
-import { Product } from '@/src/features/products/domain/types';
 import { formatKg } from '@/src/shared/utils/weight';
 
 type BatchListScreenProps = {
@@ -31,48 +31,19 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
   }, [batches, productId]);
 
   if (!productId) {
-    if (productsLoading) {
-      return (
-        <View style={[layout.screen, layout.center]}>
-          <Text>Loading products...</Text>
-        </View>
-      );
-    }
-
-    if (productsError) {
-      const message = productsError instanceof Error ? productsError.message : 'Unknown error';
-      return (
-        <View style={[layout.screen, layout.center]}>
-          <Text>Failed to load products: {message}</Text>
-        </View>
-      );
-    }
-
-    const renderProductItem = ({ item }: { item: Product }) => (
-      <Pressable
-        onPress={() =>
+    return (
+      <ProductList
+        products={products ?? []}
+        isLoading={productsLoading}
+        error={productsError}
+        onSelect={(product) =>
           router.push({
             pathname: '/batches/[productId]',
-            params: { productId: String(item.id) },
+            params: { productId: String(product.id) },
           })
         }
-        style={({ pressed }) => [layout.listItem, pressed && styles.listItemPressed]}
-        accessibilityRole="button"
-      >
-        <Text style={layout.listItemTitle}>{item.name}</Text>
-        <Text style={layout.listItemSubtitle}>Product ID: {item.id}</Text>
-      </Pressable>
-    );
-
-    return (
-      <View style={layout.screen}>
-        <Text style={layout.title}>Select product</Text>
-        <FlatList
-          data={products ?? []}
-          renderItem={renderProductItem}
-          keyExtractor={(item) => String(item.id)}
-        />
-      </View>
+        getSubtitle={(product) => `Product ID: ${product.id}`}
+      />
     );
   }
 
@@ -104,7 +75,7 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
       style={({ pressed }) => [layout.listItem, pressed && styles.listItemPressed]}
       accessibilityRole="button"
     >
-      <Text style={layout.listItemTitle}>Batch: {item.batch_number}</Text>
+      <Text style={layout.listItemTitle}>Erä: {item.batch_number}</Text>
       <Text style={layout.listItemSubtitle}>
         Current weight: {formatKg(item.current_weight)} kg
       </Text>
