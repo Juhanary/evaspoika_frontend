@@ -13,6 +13,24 @@ import { formatDateDisplayFromIso } from '@/src/shared/utils/date';
 
 const RECENT_LIMIT = 5;
 
+const CLOSED_ORDER_STATUSES = new Set([
+  'closed',
+  'delivered',
+  'completed',
+  'cancelled',
+  'canceled',
+  'invoiced',
+]);
+
+const normalizeStatus = (value?: string | null) =>
+  typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+const isClosedOrder = (order: { status?: string | null; netvisor_status?: string | null }) => {
+  const status = normalizeStatus(order.status);
+  const netvisorStatus = normalizeStatus(order.netvisor_status);
+  return CLOSED_ORDER_STATUSES.has(status) || CLOSED_ORDER_STATUSES.has(netvisorStatus);
+};
+
 const parseDateValue = (value?: string | null) => {
   if (!value) {
     return Number.NaN;
@@ -27,7 +45,9 @@ export default function HomeScreen() {
   const { data: products } = useProducts();
 
   const recentOrders = useMemo(() => {
-    const items = orders ?? [];
+    const items = (orders ?? []).filter(
+      (order) => !order.deleted_at && !isClosedOrder(order)
+    );
     return [...items]
       .sort((a, b) => {
         const dateA = parseDateValue(a.order_date);
@@ -111,15 +131,24 @@ export default function HomeScreen() {
       </View>
 
       <CustomButton label="Varasto" onPress={() => router.push('/products')} />
-      <CustomButton label="Tilaukset" onPress={() => router.push('/orders')} />
+      <CustomButton label="Asiakkaat" onPress={() => router.push('/customers')} />
+      <CustomButton
+        label="Luo tilaus"
+        onPress={() =>
+          router.push({
+            pathname: '/orders',
+            params: { mode: 'create' },
+          })
+        }
+      />
 
       <View style={layout.section}>
         <OrderList
           orders={recentOrders}
           isLoading={ordersLoading}
           error={ordersError}
-          title="Viimeisimmat tilaukset"
-          emptyText="Ei tilauksia."
+          title="Auki olevat tilaukset"
+          emptyText="Ei auki olevia tilauksia."
           onSelect={(order) =>
             router.push({
               pathname: '/orders/[orderId]',

@@ -1,14 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { router, useLocalSearchParams } from 'expo-router';
 import { layout } from '@/src/shared/styles/layout';
 import { colors } from '@/src/shared/constants/colors';
 import { spacing } from '@/src/shared/constants/spacing';
 import { ApiError } from '@/src/infrastructure/api/error';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
+import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
+import { useOrders } from '@/src/features/orders/presentation/hooks/useOrders';
 import { Batch } from '@/src/features/batches/domain/types';
 import { ProductList } from '@/src/shared/ui/ProductList/ProductList';
+import { CustomerList } from '@/src/shared/ui/CustomerList/CustomerList';
+import { OrderList } from '@/src/shared/ui/OrderList/OrderList';
 import { BatchCard, BatchSelection } from '@/src/shared/ui/BatchCard/BatchCard';
 import {
   formatKg,
@@ -19,8 +24,16 @@ import {
 import { createOrder } from '../../infrastructure/ordersApi';
 import { createOrderLine } from '@/src/features/orderLines/infrastructure/orderLinesApi';
 import { CreateOrderLineInput } from '@/src/features/orderLines/domain/types';
+import { Customer } from '@/src/features/customers/domain/types';
+import { Order } from '@/src/features/orders/domain/types';
+import {
+  createCustomer,
+  fetchNetvisorCustomers,
+  NetvisorCustomerListResponse
+} from '@/src/features/customers/infrastructure/customersApi';
 
 type AllocationMode = 'manual' | 'auto';
+type ScreenMode = 'list' | 'create';
 
 type OrderLineDraft = Omit<CreateOrderLineInput, 'orderId'>;
 
@@ -29,11 +42,14 @@ const getErrorMessage = (err: unknown) => {
   if (err instanceof ApiError) {
     const payload = err.payload;
     if (payload && typeof payload === 'object' && 'error' in payload) {
-      const maybeError = (payload as { error?: unknown }).error;
-      if (typeof maybeError === 'string') {
-        return maybeError;
+      const typedPayload = payload as { error?: unknown; details?: unknown };
+      const maybeError = typedPayload.error;
+      const errorMessage =
+        typeof maybeError === 'string' ? maybeError : JSON.stringify(maybeError);
+      if (typeof typedPayload.details === 'string' && typedPayload.details.trim()) {
+        return `${errorMessage}: ${typedPayload.details}`;
       }
-      return JSON.stringify(maybeError);
+      return errorMessage;
     }
     if (typeof payload === 'string') {
       return payload;
@@ -62,6 +78,85 @@ const sortBatchesByOldest = (a: Batch, b: Batch) => {
 type AutoAllocation = {
   allocations: { batchId: number; sold_weight: number }[];
   error?: string;
+};
+
+const getTodayDateString = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const normalizeName = (value: string) => value.trim().toLowerCase();
+
+const toArray = <T,>(value: T | T[] | null | undefined): T[] => {
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (value == null) {
+    return [];
+  }
+  return [value];
+};
+
+const extractNetvisorCustomerNames = (response: NetvisorCustomerListResponse): string[] => {
+  const customers = toArray(response?.Root?.Customerlist?.Customer);
+  return customers
+    .map((customer) => {
+      if (!customer) {
+        return null;
+      }
+      if (typeof customer.Name === 'string') {
+        return customer.Name;
+      }
+      if (typeof customer.name === 'string') {
+        return customer.name;
+      }
+      return null;
+    })
+    .filter((name): name is string => typeof name === 'string' && name.trim().length > 0);
+};
+
+const CLOSED_ORDER_STATUSES = new Set([
+  'closed',
+  'delivered',
+  'completed',
+  'cancelled',
+  'canceled',
+  'invoiced',
+]);
+
+const normalizeStatus = (value?: string | null) =>
+  typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+const isClosedOrder = (order: Order) => {
+  const status = normalizeStatus(order.status);
+  const netvisorStatus = normalizeStatus(order.netvisor_status);
+  return CLOSED_ORDER_STATUSES.has(status) || CLOSED_ORDER_STATUSES.has(netvisorStatus);
+};
+
+const parseDateValue = (value?: string | null) => {
+  if (!value) {
+    return Number.NaN;
+  }
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? Number.NaN : parsed;
+};
+
+const sortByNewest = (a: Order, b: Order) => {
+  const dateA = parseDateValue(a.order_date);
+  const dateB = parseDateValue(b.order_date);
+  if (Number.isFinite(dateA) && Number.isFinite(dateB)) {
+    return dateB - dateA;
+  }
+  if (Number.isFinite(dateA)) {
+    return -1;
+  }
+  if (Number.isFinite(dateB)) {
+    return 1;
+  }
+  return b.id - a.id;
 };
 
 const buildAutoAllocation = (totalGrams: number, candidates: Batch[]): AutoAllocation => {
@@ -119,10 +214,17 @@ const buildAutoAllocation = (totalGrams: number, candidates: Batch[]): AutoAlloc
 };
 
 export default function OrderScreen() {
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
   const queryClient = useQueryClient();
+  const requestedMode: ScreenMode = mode === 'create' ? 'create' : 'list';
   const { data: products, isLoading: productsLoading, error: productsError } = useProducts();
+  const { data: customers, isLoading: customersLoading, error: customersError } = useCustomers();
   const { data: batches, isLoading: batchesLoading, error: batchesError } = useBatches();
+  const { data: orders, isLoading: ordersLoading, error: ordersError } = useOrders();
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [screenMode, setScreenMode] = useState<ScreenMode>(requestedMode);
+  const [orderDate, setOrderDate] = useState(getTodayDateString());
   const [allocationMode, setAllocationMode] = useState<AllocationMode>('manual');
   const [totalWeight, setTotalWeight] = useState('');
   const [batchSelections, setBatchSelections] = useState<Record<number, BatchSelection>>({});
@@ -136,13 +238,72 @@ export default function OrderScreen() {
     mutationFn: createOrderLine,
   });
 
+  const importNetvisorCustomersMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetchNetvisorCustomers();
+      const names = extractNetvisorCustomerNames(response);
+      if (names.length === 0) {
+        throw new Error('No customers returned from Netvisor.');
+      }
+      const normalizedExisting = new Set(
+        (customers ?? []).map((customer) => normalizeName(customer.name))
+      );
+      const uniqueNames = Array.from(
+        new Set(names.map((name) => name.trim()).filter((name) => name.length > 0))
+      );
+      const toCreate = uniqueNames.filter(
+        (name) => !normalizedExisting.has(normalizeName(name))
+      );
+      for (const name of toCreate) {
+        await createCustomer({ name });
+      }
+      return {
+        imported: toCreate.length,
+        total: uniqueNames.length,
+      };
+    },
+  });
+
   const isSubmitting = createOrderMutation.isPending || createOrderLineMutation.isPending;
+  const isImportingCustomers = importNetvisorCustomersMutation.isPending;
 
   useEffect(() => {
     setBatchSelections({});
     setTotalWeight('');
     setAutoAllocationError(null);
   }, [selectedProductId]);
+
+  useEffect(() => {
+    setSelectedProductId(null);
+    setScreenMode(requestedMode);
+  }, [selectedCustomerId, requestedMode]);
+
+  const selectedCustomer = useMemo(
+    () => (customers ?? []).find((customer) => customer.id === selectedCustomerId) ?? null,
+    [customers, selectedCustomerId]
+  );
+
+  const customerOrders = useMemo(() => {
+    if (!selectedCustomerId) {
+      return [];
+    }
+    const items = orders ?? [];
+    return items.filter((order) => {
+      if (order.deleted_at) {
+        return false;
+      }
+      const orderCustomerId = order.customer_id ?? order.CustomerId;
+      return Number(orderCustomerId) === selectedCustomerId;
+    });
+  }, [orders, selectedCustomerId]);
+
+  const openOrders = useMemo(() => {
+    return [...customerOrders].filter((order) => !isClosedOrder(order)).sort(sortByNewest);
+  }, [customerOrders]);
+
+  const closedOrders = useMemo(() => {
+    return [...customerOrders].filter((order) => isClosedOrder(order)).sort(sortByNewest);
+  }, [customerOrders]);
 
   const selectedProduct = useMemo(
     () => (products ?? []).find((product) => product.id === selectedProductId) ?? null,
@@ -272,6 +433,11 @@ export default function OrderScreen() {
   }, [allocationMode, totalWeight, selectedBatchIdsKey, productBatches]);
 
   const handleCreateOrder = async () => {
+    if (!selectedCustomerId) {
+      Alert.alert('Missing customer', 'Select a customer before creating an order.');
+      return;
+    }
+
     if (!selectedProduct) {
       Alert.alert('Missing product', 'Select a product before creating an order.');
       return;
@@ -321,8 +487,17 @@ export default function OrderScreen() {
       });
     }
 
+    const trimmedDate = orderDate.trim();
+    if (trimmedDate && !/^\d{4}-\d{2}-\d{2}$/.test(trimmedDate)) {
+      Alert.alert('Invalid order date', 'Use format YYYY-MM-DD.');
+      return;
+    }
+
     try {
-      const order = await createOrderMutation.mutateAsync({});
+      const order = await createOrderMutation.mutateAsync({
+        customer_id: selectedCustomerId,
+        order_date: trimmedDate || null,
+      });
       for (const line of lines) {
         await createOrderLineMutation.mutateAsync({ ...line, orderId: order.id });
       }
@@ -336,10 +511,105 @@ export default function OrderScreen() {
       setBatchSelections({});
       setTotalWeight('');
       setAllocationMode('manual');
+      setOrderDate(getTodayDateString());
+      setSelectedProductId(null);
+      setScreenMode('list');
     } catch (err) {
       Alert.alert('Failed to create order', getErrorMessage(err));
     }
   };
+
+  const handleImportNetvisorCustomers = async () => {
+    try {
+      const result = await importNetvisorCustomersMutation.mutateAsync();
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      const skipped = result.total - result.imported;
+      const skippedText = skipped > 0 ? ` (${skipped} already existed)` : '';
+      Alert.alert(
+        'Customers imported',
+        `Imported ${result.imported} customer${result.imported === 1 ? '' : 's'}${skippedText}.`
+      );
+    } catch (err) {
+      Alert.alert('Failed to import customers', getErrorMessage(err));
+    }
+  };
+
+  const handleStartCreateOrder = () => {
+    setSelectedProductId(null);
+    setScreenMode('create');
+  };
+
+  const handleBackToOrders = () => {
+    setSelectedProductId(null);
+    setScreenMode('list');
+  };
+
+  if (!selectedCustomerId) {
+    return (
+      <CustomerList
+        customers={customers ?? []}
+        isLoading={customersLoading}
+        error={customersError}
+        onSelect={(customer: Customer) => setSelectedCustomerId(customer.id)}
+        title="Select customer"
+        emptyText="No customers available."
+        emptyActionLabel={
+          isImportingCustomers ? 'Importing from Netvisor...' : 'Import from Netvisor'
+        }
+        onEmptyAction={handleImportNetvisorCustomers}
+        emptyActionDisabled={isImportingCustomers}
+      />
+    );
+  }
+
+  if (screenMode === 'list') {
+    return (
+      <View style={layout.screen}>
+        <Text style={layout.title}>Tilaukset</Text>
+        <Text style={styles.subtitle}>
+          Customer: {selectedCustomer?.name ?? `#${selectedCustomerId}`}
+        </Text>
+        <View style={styles.buttonRow}>
+          <Button title="Vaihda asiakas" onPress={() => setSelectedCustomerId(null)} color="#841584" />
+        </View>
+        <View style={styles.buttonRow}>
+          <Button title="Luo tilaus" onPress={handleStartCreateOrder} color="#841584" />
+        </View>
+
+        <View style={styles.section}>
+          <OrderList
+            orders={openOrders}
+            isLoading={ordersLoading}
+            error={ordersError}
+            title="Auki olevat tilaukset"
+            emptyText="Ei auki olevia tilauksia."
+            onSelect={(order) =>
+              router.push({
+                pathname: '/orders/[orderId]',
+                params: { orderId: String(order.id) },
+              })
+            }
+          />
+        </View>
+
+        <View style={styles.section}>
+          <OrderList
+            orders={closedOrders}
+            isLoading={ordersLoading}
+            error={ordersError}
+            title="Vanhat tilaukset"
+            emptyText="Ei vanhoja tilauksia."
+            onSelect={(order) =>
+              router.push({
+                pathname: '/orders/[orderId]',
+                params: { orderId: String(order.id) },
+              })
+            }
+          />
+        </View>
+      </View>
+    );
+  }
 
   if (!selectedProductId) {
     return (
@@ -390,11 +660,32 @@ export default function OrderScreen() {
   const listHeader = (
     <View>
       <Text style={layout.title}>Create order</Text>
+      <View style={styles.buttonRow}>
+        <Button title="Takaisin tilauksiin" onPress={handleBackToOrders} color="#841584" />
+      </View>
+      <Text style={styles.subtitle}>
+        Customer: {selectedCustomer?.name ?? `#${selectedCustomerId}`}
+      </Text>
+      <View style={styles.buttonRow}>
+        <Button title="Change customer" onPress={() => setSelectedCustomerId(null)} color="#841584" />
+      </View>
       <Text style={styles.subtitle}>
         Product: {selectedProduct.name} | Price: {selectedProduct.price_per_kg} / kg
       </Text>
       <View style={styles.buttonRow}>
         <Button title="Change product" onPress={() => setSelectedProductId(null)} color="#841584" />
+      </View>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Order date</Text>
+        <TextInput
+          placeholder="Order date (YYYY-MM-DD)"
+          value={orderDate}
+          onChangeText={setOrderDate}
+          style={styles.totalInput}
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!isSubmitting}
+        />
       </View>
 
       <View style={styles.section}>

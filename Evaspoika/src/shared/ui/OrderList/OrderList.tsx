@@ -8,6 +8,7 @@ export type OrderListItem = {
   order_date?: string | null;
   status?: string | null;
   customer_id?: number | null;
+  netvisor_status?: string | null;
 };
 
 type Props = {
@@ -31,6 +32,11 @@ const defaultSubtitle = (order: OrderListItem) => {
   if (order.status) {
     parts.push(order.status);
   }
+  const netvisorStatus =
+    order.netvisor_status && order.netvisor_status.trim()
+      ? order.netvisor_status
+      : '-';
+  parts.push(`Netvisor: ${netvisorStatus}`);
   return parts.length > 0 ? parts.join(' - ') : '-';
 };
 

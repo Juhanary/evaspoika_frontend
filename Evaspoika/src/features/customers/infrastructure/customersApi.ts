@@ -2,8 +2,26 @@ import { apiRequest } from '@/src/infrastructure/api/client';
 import { endpoints } from '@/src/infrastructure/api/endpoints';
 import { CreateCustomerInput, Customer } from '../domain/types';
 
+export type NetvisorCustomerListResponse = {
+  Root?: {
+    Customerlist?: {
+      Customer?: Array<{
+        Name?: string;
+        name?: string;
+      }> | {
+        Name?: string;
+        name?: string;
+      };
+    };
+  };
+};
+
 export function fetchCustomers() {
   return apiRequest<Customer[]>(endpoints.customers);
+}
+
+export function fetchNetvisorCustomers() {
+  return apiRequest<NetvisorCustomerListResponse>(`${endpoints.netvisor}/customers`);
 }
 
 export function createCustomer(input: CreateCustomerInput) {

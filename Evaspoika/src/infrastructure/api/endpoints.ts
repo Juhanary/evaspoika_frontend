@@ -8,4 +8,5 @@ export const endpoints = {
   eventLog: '/event-log',
   eventTypes: '/event-types',
   users: '/users',
+  netvisor: '/netvisor',
 };
