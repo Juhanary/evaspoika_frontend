@@ -101,7 +101,7 @@ const toArray = <T,>(value: T | T[] | null | undefined): T[] => {
 };
 
 const extractNetvisorCustomerNames = (response: NetvisorCustomerListResponse): string[] => {
-  const customers = toArray(response?.Root?.Customerlist?.Customer);
+  const customers = toArray(response.response?.Root?.Customerlist?.Customer);
   return customers
     .map((customer) => {
       if (!customer) {

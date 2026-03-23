@@ -1,9 +1,9 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, Button, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { layout } from '@/src/shared/styles/layout';
 import { ApiError } from '@/src/infrastructure/api/error';
-import { useOrders } from '../hooks/useOrders';
+import { useNetvisorOrder, useOrder } from '../hooks/useOrders';
 import { updateOrder } from '../../infrastructure/ordersApi';
 import { CreateOrderInput } from '../../domain/types';
 
@@ -34,15 +34,26 @@ const getErrorMessage = (err: unknown) => {
 };
 
 export default function OrderDetailScreen({ orderId }: Props) {
-  const { data: orders, isLoading, error } = useOrders();
+  const { data: order, isLoading, error } = useOrder(orderId);
   const queryClient = useQueryClient();
   const [orderDate, setOrderDate] = useState('');
   const [status, setStatus] = useState('');
   const [customerId, setCustomerId] = useState('');
 
-  const order = useMemo(
-    () => (orders ?? []).find((item) => item.id === orderId) ?? null,
-    [orders, orderId]
+  const netvisorOrderId =
+    order?.netvisor_invoice_id && order.netvisor_invoice_id.trim().length > 0
+      ? order.netvisor_invoice_id.trim()
+      : undefined;
+
+  const {
+    data: netvisorOrder,
+    isLoading: isNetvisorOrderLoading,
+    error: netvisorOrderError,
+  } = useNetvisorOrder(netvisorOrderId);
+
+  const netvisorPayloadText = useMemo(
+    () => (netvisorOrder ? JSON.stringify(netvisorOrder.response, null, 2) : null),
+    [netvisorOrder]
   );
 
   useEffect(() => {
@@ -64,7 +75,10 @@ export default function OrderDetailScreen({ orderId }: Props) {
       return updateOrder(orderId, input);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['orders'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['orders'] }),
+        queryClient.invalidateQueries({ queryKey: ['netvisor', 'orders'] }),
+      ]);
     },
   });
 
@@ -132,8 +146,11 @@ export default function OrderDetailScreen({ orderId }: Props) {
     );
   }
 
+  const netvisorErrorMessage =
+    netvisorOrderError instanceof Error ? netvisorOrderError.message : 'Unknown error';
+
   return (
-    <View style={layout.screen}>
+    <ScrollView style={layout.screen} contentContainerStyle={styles.content}>
       <Text style={layout.title}>Order #{order.id}</Text>
       <View style={styles.netvisorBlock}>
         <View style={styles.netvisorRow}>
@@ -149,6 +166,39 @@ export default function OrderDetailScreen({ orderId }: Props) {
           </Text>
         </View>
       </View>
+
+      <View style={styles.netvisorSection}>
+        <Text style={styles.sectionTitle}>Netvisor order details</Text>
+        {!netvisorOrderId ? (
+          <Text style={styles.helperText}>Order has not been linked to Netvisor yet.</Text>
+        ) : null}
+        {netvisorOrderId && isNetvisorOrderLoading ? (
+          <Text style={styles.helperText}>Loading Netvisor order...</Text>
+        ) : null}
+        {netvisorOrderId && netvisorOrderError ? (
+          <Text style={styles.errorText}>Failed to load Netvisor order: {netvisorErrorMessage}</Text>
+        ) : null}
+        {netvisorOrder ? (
+          <View style={styles.netvisorDetailsCard}>
+            <View style={styles.netvisorRow}>
+              <Text style={styles.netvisorLabel}>Request ID</Text>
+              <Text style={styles.netvisorValue}>{netvisorOrder.requestId ?? '-'}</Text>
+            </View>
+            <View style={styles.netvisorRow}>
+              <Text style={styles.netvisorLabel}>Transaction</Text>
+              <Text style={styles.netvisorValue}>{netvisorOrder.transactionId ?? '-'}</Text>
+            </View>
+            {netvisorPayloadText ? (
+              <View style={styles.payloadBox}>
+                <Text selectable style={styles.payloadText}>
+                  {netvisorPayloadText}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+
       <View style={styles.form}>
         <TextInput
           placeholder="Order date (YYYY-MM-DD)"
@@ -179,11 +229,14 @@ export default function OrderDetailScreen({ orderId }: Props) {
           disabled={updateMutation.isPending}
         />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  content: {
+    paddingBottom: 24,
+  },
   netvisorBlock: {
     marginTop: 8,
     marginBottom: 8,
@@ -198,6 +251,42 @@ const styles = StyleSheet.create({
   },
   netvisorValue: {
     color: '#4B5563',
+    flex: 1,
+    textAlign: 'right',
+    marginLeft: 12,
+  },
+  netvisorSection: {
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  helperText: {
+    color: '#4B5563',
+  },
+  errorText: {
+    color: '#B91C1C',
+  },
+  netvisorDetailsCard: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    padding: 12,
+    marginTop: 8,
+  },
+  payloadBox: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 6,
+    backgroundColor: '#111827',
+  },
+  payloadText: {
+    color: '#F9FAFB',
+    fontSize: 12,
   },
   form: {
     marginTop: 12,
