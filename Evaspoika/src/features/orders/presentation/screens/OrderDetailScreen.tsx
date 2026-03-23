@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { layout } from '@/src/shared/styles/layout';
 import { ApiError } from '@/src/infrastructure/api/error';
 import { useNetvisorOrder, useOrder } from '../hooks/useOrders';
 import { updateOrder } from '../../infrastructure/ordersApi';
 import { CreateOrderInput } from '../../domain/types';
+import { fetchOrderLines } from '@/src/features/orderLines/infrastructure/orderLinesApi';
+import { formatKg } from '@/src/shared/utils/weight';
 
 type Props = {
   orderId?: number;
@@ -50,6 +52,12 @@ export default function OrderDetailScreen({ orderId }: Props) {
     isLoading: isNetvisorOrderLoading,
     error: netvisorOrderError,
   } = useNetvisorOrder(netvisorOrderId);
+
+  const { data: orderLines } = useQuery({
+    queryKey: ['orderLines', orderId],
+    queryFn: () => fetchOrderLines(orderId!),
+    enabled: !!orderId,
+  });
 
   const netvisorPayloadText = useMemo(
     () => (netvisorOrder ? JSON.stringify(netvisorOrder.response, null, 2) : null),
@@ -199,6 +207,26 @@ export default function OrderDetailScreen({ orderId }: Props) {
         ) : null}
       </View>
 
+      {orderLines && orderLines.length > 0 && (
+        <View style={styles.linesSection}>
+          <Text style={styles.sectionTitle}>Tilausrivit</Text>
+          {orderLines.map((line) => (
+            <View key={line.id} style={styles.lineCard}>
+              <Text style={styles.lineProduct}>
+                {line.Batch?.Product?.name ?? `Tuote #${line.BatchId}`}
+              </Text>
+              <Text style={styles.lineBatch}>Erä: {line.Batch?.batch_number ?? '-'}</Text>
+              <Text style={styles.lineDetail}>
+                Paino: {formatKg(line.sold_weight)} kg
+                {line.price_per_gram != null
+                  ? `  |  Hinta: ${(line.price_per_gram * 1000).toFixed(2)} €/kg`
+                  : ''}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       <View style={styles.form}>
         <TextInput
           placeholder="Order date (YYYY-MM-DD)"
@@ -299,5 +327,30 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginBottom: 8,
     backgroundColor: '#fff',
+  },
+  linesSection: {
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  lineCard: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 6,
+    backgroundColor: '#F9FAFB',
+  },
+  lineProduct: {
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  lineBatch: {
+    color: '#6B7280',
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  lineDetail: {
+    color: '#374151',
+    fontSize: 13,
   },
 });
