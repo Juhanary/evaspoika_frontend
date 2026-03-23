@@ -1,3 +1,15 @@
+export type OrderLineProduct = {
+  id: number;
+  name: string;
+  ean?: string | null;
+};
+
+export type OrderLineBatch = {
+  id: number;
+  batch_number: string;
+  Product?: OrderLineProduct | null;
+};
+
 export type OrderLine = {
   id: number;
   OrderId?: number | null;
@@ -7,6 +19,7 @@ export type OrderLine = {
   price_per_kg?: number | null;
   deleted_at?: string | null;
   deleted_by_user_id?: number | null;
+  Batch?: OrderLineBatch | null;
 };
 
 export type CreateOrderLineInput = {
