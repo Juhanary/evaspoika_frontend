@@ -5,6 +5,7 @@ import { CreateOrderLineInput, OrderLine } from '../domain/types';
 export function createOrderLine(input: CreateOrderLineInput) {
   return apiRequest<OrderLine>(endpoints.orderLines, {
     method: 'POST',
+    auth: 'netvisorWrite',
     body: JSON.stringify(input),
   });
 }

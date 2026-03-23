@@ -9,7 +9,12 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "extra": {
-      "apiBaseUrl": "http://10.0.2.2:3000/api"
+      "apiBaseUrl": "http://10.0.2.2:3000/api",
+      "apiReadToken": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12",
+      "apiWriteToken": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12",
+      "netvisorReadToken": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12",
+      "netvisorWriteToken": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12",
+      "apiAdminToken": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12"
     },
     "ios": {
       "supportsTablet": true
@@ -47,8 +52,5 @@
       "typedRoutes": true,
       "reactCompiler": true
     }
-
-
-    
   }
 }
