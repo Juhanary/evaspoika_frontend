@@ -1,13 +1,16 @@
 import React from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useRefreshAll } from '@/src/shared/hooks/useRefreshAll';
 import { layout } from '@/src/shared/styles/layout';
 import { useProducts } from '../hooks/useProducts';
 import { Product } from '../../domain/types';
+import { routes } from '@/src/shared/navigation/routes';
 
 export default function ProductListScreen() {
   const router = useRouter();
   const { data, isLoading, error } = useProducts();
+  const { refreshing, onRefresh } = useRefreshAll();
 
   if (isLoading) {
     return (
@@ -28,13 +31,8 @@ export default function ProductListScreen() {
 
   const renderItem = ({ item }: { item: Product }) => (
     <Pressable
-      onPress={() =>
-        router.push({
-          pathname: '/batches/[productId]',
-          params: { productId: String(item.id) },
-        })
-      }
-      style={({ pressed }) => [layout.listItem, pressed && styles.listItemPressed]}
+      onPress={() => router.push(routes.inventoryProduct(item.id))}
+      style={({ pressed }) => [layout.listItem, pressed && layout.listItemPressed]}
       accessibilityRole="button"
     >
       <Text style={layout.listItemTitle}>{item.name}</Text>
@@ -45,17 +43,12 @@ export default function ProductListScreen() {
   return (
     <View style={layout.screen}>
       <Text style={layout.title}>Valitse tuotekategoria</Text>
-      <View style={styles.form} />
-      <FlatList data={data ?? []} renderItem={renderItem} keyExtractor={(item) => String(item.id)} />
+      <FlatList
+        data={data ?? []}
+        renderItem={renderItem}
+        keyExtractor={(item) => String(item.id)}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  form: {
-    marginBottom: 16,
-  },
-  listItemPressed: {
-    opacity: 0.7,
-  },
-});

@@ -80,3 +80,17 @@ export function deleteCustomer(id: number) {
     method: 'DELETE',
   });
 }
+
+export type CustomerSyncResult = {
+  total: number;
+  created: number;
+  updated: number;
+  skipped: number;
+};
+
+export function syncCustomersFromNetvisor() {
+  return apiRequest<CustomerSyncResult>(`${endpoints.netvisor}/sync-customers`, {
+    method: 'POST',
+    auth: 'netvisorWrite',
+  });
+}

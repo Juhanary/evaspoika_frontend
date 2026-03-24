@@ -1,13 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Button, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { layout } from '@/src/shared/styles/layout';
+import { components } from '@/src/shared/styles/components';
+import { colors } from '@/src/shared/constants/colors';
+import { spacing } from '@/src/shared/constants/spacing';
+import { typography } from '@/src/shared/constants/typography';
+import { radii } from '@/src/shared/constants/radii';
 import { ApiError } from '@/src/infrastructure/api/error';
 import { useNetvisorOrder, useOrder } from '../hooks/useOrders';
 import { updateOrder } from '../../infrastructure/ordersApi';
 import { CreateOrderInput } from '../../domain/types';
 import { fetchOrderLines } from '@/src/features/orderLines/infrastructure/orderLinesApi';
 import { formatKg } from '@/src/shared/utils/weight';
+import { routes } from '@/src/shared/navigation/routes';
 
 type Props = {
   orderId?: number;
@@ -36,6 +43,7 @@ const getErrorMessage = (err: unknown) => {
 };
 
 export default function OrderDetailScreen({ orderId }: Props) {
+  const router = useRouter();
   const { data: order, isLoading, error } = useOrder(orderId);
   const queryClient = useQueryClient();
   const [orderDate, setOrderDate] = useState('');
@@ -160,14 +168,21 @@ export default function OrderDetailScreen({ orderId }: Props) {
   return (
     <ScrollView style={layout.screen} contentContainerStyle={styles.content}>
       <Text style={layout.title}>Order #{order.id}</Text>
-      <View style={styles.netvisorBlock}>
-        <View style={styles.netvisorRow}>
-          <Text style={styles.netvisorLabel}>Netvisor ID</Text>
-          <Text style={styles.netvisorValue}>{order.netvisor_invoice_id ?? '-'}</Text>
+      <TouchableOpacity
+        style={styles.scanBtn}
+        onPress={() => router.push(routes.orderScan(orderId))}
+      >
+        <Text style={styles.scanBtnText}>Skannaa laatikoita</Text>
+      </TouchableOpacity>
+
+      <View style={styles.metaBlock}>
+        <View style={components.metaRow}>
+          <Text style={components.metaLabel}>Netvisor ID</Text>
+          <Text style={components.metaValue}>{order.netvisor_invoice_id ?? '-'}</Text>
         </View>
-        <View style={styles.netvisorRow}>
-          <Text style={styles.netvisorLabel}>Netvisor</Text>
-          <Text style={styles.netvisorValue}>
+        <View style={components.metaRow}>
+          <Text style={components.metaLabel}>Netvisor</Text>
+          <Text style={components.metaValue}>
             {order.netvisor_status && order.netvisor_status.trim()
               ? order.netvisor_status
               : '-'}
@@ -176,29 +191,29 @@ export default function OrderDetailScreen({ orderId }: Props) {
       </View>
 
       <View style={styles.netvisorSection}>
-        <Text style={styles.sectionTitle}>Netvisor order details</Text>
+        <Text style={components.sectionHeader}>Netvisor order details</Text>
         {!netvisorOrderId ? (
-          <Text style={styles.helperText}>Order has not been linked to Netvisor yet.</Text>
+          <Text style={components.helperText}>Order has not been linked to Netvisor yet.</Text>
         ) : null}
         {netvisorOrderId && isNetvisorOrderLoading ? (
-          <Text style={styles.helperText}>Loading Netvisor order...</Text>
+          <Text style={components.helperText}>Loading Netvisor order...</Text>
         ) : null}
         {netvisorOrderId && netvisorOrderError ? (
-          <Text style={styles.errorText}>Failed to load Netvisor order: {netvisorErrorMessage}</Text>
+          <Text style={components.errorText}>Failed to load Netvisor order: {netvisorErrorMessage}</Text>
         ) : null}
         {netvisorOrder ? (
-          <View style={styles.netvisorDetailsCard}>
-            <View style={styles.netvisorRow}>
-              <Text style={styles.netvisorLabel}>Request ID</Text>
-              <Text style={styles.netvisorValue}>{netvisorOrder.requestId ?? '-'}</Text>
+          <View style={components.cardWhite}>
+            <View style={components.metaRow}>
+              <Text style={components.metaLabel}>Request ID</Text>
+              <Text style={components.metaValue}>{netvisorOrder.requestId ?? '-'}</Text>
             </View>
-            <View style={styles.netvisorRow}>
-              <Text style={styles.netvisorLabel}>Transaction</Text>
-              <Text style={styles.netvisorValue}>{netvisorOrder.transactionId ?? '-'}</Text>
+            <View style={components.metaRow}>
+              <Text style={components.metaLabel}>Transaction</Text>
+              <Text style={components.metaValue}>{netvisorOrder.transactionId ?? '-'}</Text>
             </View>
             {netvisorPayloadText ? (
-              <View style={styles.payloadBox}>
-                <Text selectable style={styles.payloadText}>
+              <View style={components.codeBlock}>
+                <Text selectable style={components.codeText}>
                   {netvisorPayloadText}
                 </Text>
               </View>
@@ -209,9 +224,9 @@ export default function OrderDetailScreen({ orderId }: Props) {
 
       {orderLines && orderLines.length > 0 && (
         <View style={styles.linesSection}>
-          <Text style={styles.sectionTitle}>Tilausrivit</Text>
+          <Text style={components.sectionHeader}>Tilausrivit</Text>
           {orderLines.map((line) => (
-            <View key={line.id} style={styles.lineCard}>
+            <View key={line.id} style={components.card}>
               <Text style={styles.lineProduct}>
                 {line.Batch?.Product?.name ?? `Tuote #${line.BatchId}`}
               </Text>
@@ -232,7 +247,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
           placeholder="Order date (YYYY-MM-DD)"
           value={orderDate}
           onChangeText={setOrderDate}
-          style={styles.input}
+          style={components.input}
           autoCapitalize="none"
           autoCorrect={false}
         />
@@ -240,19 +255,19 @@ export default function OrderDetailScreen({ orderId }: Props) {
           placeholder="Status"
           value={status}
           onChangeText={setStatus}
-          style={styles.input}
+          style={components.input}
         />
         <TextInput
           placeholder="Customer ID"
           value={customerId}
           onChangeText={setCustomerId}
-          style={styles.input}
+          style={components.input}
           keyboardType="numeric"
         />
         <Button
           title={updateMutation.isPending ? 'Saving...' : 'Save changes'}
           onPress={handleSave}
-          color="#841584"
+          color={colors.purple}
           accessibilityLabel="Save order"
           disabled={updateMutation.isPending}
         />
@@ -263,94 +278,47 @@ export default function OrderDetailScreen({ orderId }: Props) {
 
 const styles = StyleSheet.create({
   content: {
-    paddingBottom: 24,
+    paddingBottom: spacing.xl,
   },
-  netvisorBlock: {
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  netvisorRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  netvisorLabel: {
-    fontWeight: '600',
-  },
-  netvisorValue: {
-    color: '#4B5563',
-    flex: 1,
-    textAlign: 'right',
-    marginLeft: 12,
+  metaBlock: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
   },
   netvisorSection: {
-    marginTop: 8,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  helperText: {
-    color: '#4B5563',
-  },
-  errorText: {
-    color: '#B91C1C',
-  },
-  netvisorDetailsCard: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    padding: 12,
-    marginTop: 8,
-  },
-  payloadBox: {
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 6,
-    backgroundColor: '#111827',
-  },
-  payloadText: {
-    color: '#F9FAFB',
-    fontSize: 12,
-  },
-  form: {
-    marginTop: 12,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    marginBottom: 8,
-    backgroundColor: '#fff',
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
   },
   linesSection: {
-    marginTop: 8,
-    marginBottom: 12,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
   },
-  lineCard: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 6,
-    padding: 10,
-    marginBottom: 6,
-    backgroundColor: '#F9FAFB',
+  form: {
+    marginTop: spacing.md,
+  },
+  scanBtn: {
+    backgroundColor: colors.success,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  scanBtnText: {
+    color: colors.white,
+    fontWeight: typography.weights.bold,
+    fontSize: typography.sizes.lg,
   },
   lineProduct: {
-    fontWeight: '600',
-    marginBottom: 2,
+    fontWeight: typography.weights.semibold,
+    marginBottom: spacing.xs / 2,
   },
   lineBatch: {
-    color: '#6B7280',
-    fontSize: 13,
-    marginBottom: 2,
+    color: colors.muted,
+    fontSize: typography.sizes.md,
+    marginBottom: spacing.xs / 2,
   },
   lineDetail: {
-    color: '#374151',
-    fontSize: 13,
+    color: colors.textSecondary,
+    fontSize: typography.sizes.md,
   },
 });

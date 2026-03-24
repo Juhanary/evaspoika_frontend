@@ -5,5 +5,6 @@ export function useBatchEvents() {
   return useQuery({
     queryKey: ['batchEvents'],
     queryFn: fetchBatchEvents,
+    refetchInterval: 5_000,
   });
 }

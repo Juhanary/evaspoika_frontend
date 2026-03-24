@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { layout } from '@/src/shared/styles/layout';
+import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
 
 export type ProductListItem = {
   id: number;
   name: string;
+  ean?: string | null;
   price_per_kg?: number;
 };
 
@@ -19,10 +21,10 @@ type Props = {
 };
 
 const defaultSubtitle = (product: ProductListItem) => {
-  if (typeof product.price_per_kg === 'number') {
-    return `Price: ${product.price_per_kg}`;
-  }
-  return `Product ID: ${product.id}`;
+  const parts: string[] = [];
+  if (product.ean) parts.push(`EAN: ${product.ean}`);
+  if (typeof product.price_per_kg === 'number') parts.push(`Price: ${product.price_per_kg}`);
+  return parts.length > 0 ? parts.join('  ·  ') : `Product ID: ${product.id}`;
 };
 
 export function ProductList({
@@ -34,6 +36,8 @@ export function ProductList({
   getSubtitle = defaultSubtitle,
   emptyText,
 }: Props) {
+  const [query, setQuery] = useState('');
+
   if (isLoading) {
     return (
       <View style={[layout.screen, layout.center]}>
@@ -51,7 +55,10 @@ export function ProductList({
     );
   }
 
-  const items = products ?? [];
+  const q = query.trim().toLowerCase();
+  const items = (products ?? []).filter(
+    (p) => !q || p.name.toLowerCase().includes(q) || (p.ean ?? '').toLowerCase().includes(q)
+  );
 
   const renderProductItem = ({ item }: { item: ProductListItem }) => (
     <Pressable
@@ -67,6 +74,7 @@ export function ProductList({
   return (
     <View style={layout.screen}>
       <Text style={layout.title}>{title}</Text>
+      <SearchInput value={query} onChangeText={setQuery} placeholder="Hae tuotetta..." />
       <FlatList
         data={items}
         renderItem={renderProductItem}

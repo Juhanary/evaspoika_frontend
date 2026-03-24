@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { layout } from '@/src/shared/styles/layout';
+import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
 
 export type CustomerListItem = {
   id: number;
@@ -40,6 +41,8 @@ export function CustomerList({
   onEmptyAction,
   emptyActionDisabled,
 }: Props) {
+  const [query, setQuery] = useState('');
+
   if (isLoading) {
     return (
       <View style={[layout.screen, layout.center]}>
@@ -57,7 +60,10 @@ export function CustomerList({
     );
   }
 
-  const items = customers ?? [];
+  const q = query.trim().toLowerCase();
+  const items = (customers ?? []).filter(
+    (c) => !q || c.name.toLowerCase().includes(q)
+  );
 
   const renderCustomerItem = ({ item }: { item: CustomerListItem }) => (
     <Pressable
@@ -73,6 +79,7 @@ export function CustomerList({
   return (
     <View style={layout.screen}>
       <Text style={layout.title}>{title}</Text>
+      <SearchInput value={query} onChangeText={setQuery} placeholder="Hae asiakasta..." />
       <FlatList
         data={items}
         renderItem={renderCustomerItem}
