@@ -1,27 +1,21 @@
-export type BatchEvent = {
+export type BatchLog = {
   id: number;
   BatchId: number;
-  EventTypeId: number;
-  UserId?: number | null;
-  event_date?: string | null;
+  event_code: string;
   weight_change: number;
   description?: string | null;
+  user_id?: number | null;
   reference_id?: number | null;
-  deleted_at?: string | null;
-};
-
-export type EventType = {
-  id: number;
-  code: string;
-  description?: string | null;
-};
-
-export type CreateBatchEventInput = {
-  BatchId: number;
-  EventTypeId: number;
-  UserId?: number | null;
   event_date?: string | null;
-  weight_change: number;
-  description?: string | null;
-  reference_id?: number | null;
+  Batch?: {
+    id: number;
+    batch_number: string;
+    production_date?: string | null;
+    current_weight: number;
+    Product?: {
+      id: number;
+      name: string;
+      ean?: string | null;
+    } | null;
+  } | null;
 };

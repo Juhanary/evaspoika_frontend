@@ -5,5 +5,6 @@ export function useBatches() {
   return useQuery({
     queryKey: ['batches'],
     queryFn: fetchBatches,
+    refetchInterval: 10_000,
   });
 }

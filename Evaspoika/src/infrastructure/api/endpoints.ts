@@ -5,8 +5,8 @@ export const endpoints = {
   batchEvents: '/batch-events',
   orders: '/orders',
   orderLines: '/order-lines',
-  eventLog: '/event-log',
-  eventTypes: '/event-types',
   users: '/users',
   netvisor: '/netvisor',
+  scan: '/scan',
+  weighing: '/weighing',
 };

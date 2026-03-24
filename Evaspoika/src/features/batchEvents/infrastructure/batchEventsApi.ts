@@ -1,14 +1,11 @@
 import { apiRequest } from '@/src/infrastructure/api/client';
 import { endpoints } from '@/src/infrastructure/api/endpoints';
-import { BatchEvent, CreateBatchEventInput } from '../domain/types';
+import { BatchLog } from '../domain/types';
 
 export function fetchBatchEvents() {
-  return apiRequest<BatchEvent[]>(endpoints.batchEvents);
+  return apiRequest<BatchLog[]>(endpoints.batchEvents);
 }
 
-export function createBatchEvent(input: CreateBatchEventInput) {
-  return apiRequest<BatchEvent>(endpoints.batchEvents, {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
+export function fetchBatchLog(batchId: number) {
+  return apiRequest<BatchLog[]>(`${endpoints.batchEvents}/batch/${batchId}`);
 }

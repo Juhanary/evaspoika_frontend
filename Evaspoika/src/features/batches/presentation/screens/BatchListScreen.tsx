@@ -1,12 +1,16 @@
-import React, { useMemo } from 'react';
-import { Button, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Button, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
 import { useRouter } from 'expo-router';
+import { useRefreshAll } from '@/src/shared/hooks/useRefreshAll';
 import { layout } from '@/src/shared/styles/layout';
+import { colors } from '@/src/shared/constants/colors';
 import { ProductList } from '@/src/shared/ui/ProductList/ProductList';
 import { useBatches } from '../hooks/useBatches';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
 import { Batch } from '../../domain/types';
 import { formatKg } from '@/src/shared/utils/weight';
+import { routes } from '@/src/shared/navigation/routes';
 
 type BatchListScreenProps = {
   productId?: number;
@@ -14,8 +18,10 @@ type BatchListScreenProps = {
 
 export default function BatchListScreen({ productId }: BatchListScreenProps) {
   const router = useRouter();
+  const { refreshing, onRefresh } = useRefreshAll();
   const { data: batches, isLoading: batchesLoading, error: batchesError } = useBatches();
   const { data: products, isLoading: productsLoading, error: productsError } = useProducts();
+  const [query, setQuery] = useState('');
 
   const selectedProduct = useMemo(
     () => (products ?? []).find((product) => product.id === productId) ?? null,
@@ -26,9 +32,12 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
     if (!productId) {
       return [];
     }
-
-    return (batches ?? []).filter((batch) => batch.ProductId === productId);
-  }, [batches, productId]);
+    const q = query.trim().toLowerCase();
+    return (batches ?? []).filter(
+      (batch) => batch.ProductId === productId &&
+        (!q || String(batch.batch_number).toLowerCase().includes(q))
+    );
+  }, [batches, productId, query]);
 
   if (!productId) {
     return (
@@ -36,12 +45,7 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
         products={products ?? []}
         isLoading={productsLoading}
         error={productsError}
-        onSelect={(product) =>
-          router.push({
-            pathname: '/batches/[productId]',
-            params: { productId: String(product.id) },
-          })
-        }
+        onSelect={(product) => router.push(routes.inventoryProduct(product.id))}
         getSubtitle={(product) => `Product ID: ${product.id}`}
       />
     );
@@ -66,13 +70,8 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
 
   const renderItem = ({ item }: { item: Batch }) => (
     <Pressable
-      onPress={() =>
-        router.push({
-          pathname: '/batch-events/[batchId]',
-          params: { batchId: String(item.id), batchNumber: item.batch_number },
-        })
-      }
-      style={({ pressed }) => [layout.listItem, pressed && styles.listItemPressed]}
+      onPress={() => router.push(routes.inventoryBatch(item.id, item.batch_number))}
+      style={({ pressed }) => [layout.listItem, pressed && layout.listItemPressed]}
       accessibilityRole="button"
     >
       <Text style={layout.listItemTitle}>Erä: {item.batch_number}</Text>
@@ -87,19 +86,15 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
   return (
     <View style={layout.screen}>
       <Text style={layout.title}>{selectedProduct?.name ?? `Product #${productId}`}</Text>
-      <Button title="Change product" onPress={() => router.push('/batches')} color="#841584" />
+      <Button title="Change product" onPress={() => router.push(routes.inventory)} color={colors.purple} />
+      <SearchInput value={query} onChangeText={setQuery} placeholder="Hae erää..." />
       <FlatList
         data={filteredBatches}
         renderItem={renderItem}
         keyExtractor={(item) => String(item.id)}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       />
       <Text style={layout.title}>Painoa yhteensä: {formatKg(totalWeight)} kg</Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  listItemPressed: {
-    opacity: 0.7,
-  },
-});

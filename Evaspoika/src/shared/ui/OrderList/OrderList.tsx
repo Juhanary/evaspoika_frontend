@@ -1,7 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { layout } from '@/src/shared/styles/layout';
-import { formatDateDisplayFromIso } from '@/src/shared/utils/date';
+import { spacing } from '@/src/shared/constants/spacing';
 
 export type OrderListItem = {
   id: number;
@@ -22,22 +22,24 @@ type Props = {
   getSubtitle?: (order: OrderListItem) => string;
 };
 
-const defaultTitle = (order: OrderListItem) => `Order #${order.id}`;
+const defaultTitle = (order: OrderListItem) =>
+  order.order_date
+    ? new Date(order.order_date).toLocaleDateString('fi-FI', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })
+    : `Tilaus #${order.id}`;
 
 const defaultSubtitle = (order: OrderListItem) => {
-  const parts: string[] = [];
-  if (order.order_date) {
-    parts.push(formatDateDisplayFromIso(order.order_date));
-  }
-  if (order.status) {
-    parts.push(order.status);
-  }
-  const netvisorStatus =
-    order.netvisor_status && order.netvisor_status.trim()
-      ? order.netvisor_status
-      : '-';
-  parts.push(`Netvisor: ${netvisorStatus}`);
-  return parts.length > 0 ? parts.join(' - ') : '-';
+  const parts: string[] = [`#${order.id}`];
+  if (order.status) parts.push(order.status);
+  parts.push(
+    order.netvisor_status?.trim()
+      ? `Netvisor: ${order.netvisor_status}`
+      : 'Odottaa laskutusta'
+  );
+  return parts.join(' · ');
 };
 
 export function OrderList({
@@ -54,7 +56,7 @@ export function OrderList({
     return (
       <View style={styles.container}>
         {title ? <Text style={layout.title}>{title}</Text> : null}
-        <Text>Loading orders...</Text>
+        <Text>Ladataan tilauksia...</Text>
       </View>
     );
   }
@@ -64,7 +66,7 @@ export function OrderList({
     return (
       <View style={styles.container}>
         {title ? <Text style={layout.title}>{title}</Text> : null}
-        <Text>Failed to load orders: {message}</Text>
+        <Text>Tilausten lataus epäonnistui: {message}</Text>
       </View>
     );
   }
@@ -77,7 +79,7 @@ export function OrderList({
         <Pressable
           key={item.id}
           onPress={() => onSelect(item)}
-          style={({ pressed }) => [layout.listItem, pressed && styles.listItemPressed]}
+          style={({ pressed }) => [layout.listItem, pressed && layout.listItemPressed]}
           accessibilityRole="button"
         >
           <Text style={layout.listItemTitle}>{getTitle(item)}</Text>
@@ -110,10 +112,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 0,
   },
-  listItemPressed: {
-    opacity: 0.7,
-  },
   emptyText: {
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
 });
