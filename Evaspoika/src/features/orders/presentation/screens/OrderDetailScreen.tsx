@@ -1,324 +1,455 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { layout } from '@/src/shared/styles/layout';
-import { components } from '@/src/shared/styles/components';
-import { colors } from '@/src/shared/constants/colors';
-import { spacing } from '@/src/shared/constants/spacing';
-import { typography } from '@/src/shared/constants/typography';
-import { radii } from '@/src/shared/constants/radii';
-import { ApiError } from '@/src/infrastructure/api/error';
-import { useNetvisorOrder, useOrder } from '../hooks/useOrders';
-import { updateOrder } from '../../infrastructure/ordersApi';
-import { CreateOrderInput } from '../../domain/types';
+import React, { useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  FlatList,
+  Modal,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
+import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
+import { useOrder } from '../hooks/useOrders';
 import { fetchOrderLines } from '@/src/features/orderLines/infrastructure/orderLinesApi';
+import { OrderLine } from '@/src/features/orderLines/domain/types';
+import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
+import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
+import { previewScan, confirmScan } from '@/src/features/scan/infrastructure/scanApi';
+import { colors } from '@/src/shared/constants/colors';
 import { formatKg } from '@/src/shared/utils/weight';
-import { routes } from '@/src/shared/navigation/routes';
+import { components } from '@/src/shared/styles/components';
+import { screen } from '@/src/shared/styles/screen';
+import { ScreenCloseButton } from '@/src/shared/ui/ScreenCloseButton/ScreenCloseButton';
 
-type Props = {
-  orderId?: number;
+type Props = { orderId?: number };
+
+type BoxLineState = {
+  boxId: number;
+  productId: number;
+  productName: string;
+  defaultWeightKg: number;
+  selectedBatchId: number;
+  selectedBatchNumber: string;
+  isPartial: boolean;
+  partialWeightKg: string;
+  pricePerKg: number;
 };
 
-const getErrorMessage = (err: unknown) => {
-  if (err instanceof ApiError) {
-    const payload = err.payload;
-    if (payload && typeof payload === 'object' && 'error' in payload) {
-      const typedPayload = payload as { error?: unknown; details?: unknown };
-      const maybeError = typedPayload.error;
-      const errorMessage =
-        typeof maybeError === 'string' ? maybeError : JSON.stringify(maybeError);
-      if (typeof typedPayload.details === 'string' && typedPayload.details.trim()) {
-        return `${errorMessage}: ${typedPayload.details}`;
-      }
-      return errorMessage;
-    }
-    if (typeof payload === 'string') {
-      return payload;
-    }
-    return err.message;
-  }
+const gramsToKgStr = (g: number) => (g / 1000).toFixed(3);
+const kgStrToGrams = (s: string) => Math.round(parseFloat(s.replace(',', '.')) * 1000);
 
-  return err instanceof Error ? err.message : 'Unknown error';
+const toFinnishDate = (s?: string | null) => {
+  if (!s) return null;
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('fi-FI', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 export default function OrderDetailScreen({ orderId }: Props) {
-  const router = useRouter();
-  const { data: order, isLoading, error } = useOrder(orderId);
   const queryClient = useQueryClient();
-  const [orderDate, setOrderDate] = useState('');
-  const [status, setStatus] = useState('');
-  const [customerId, setCustomerId] = useState('');
-
-  const netvisorOrderId =
-    order?.netvisor_invoice_id && order.netvisor_invoice_id.trim().length > 0
-      ? order.netvisor_invoice_id.trim()
-      : undefined;
-
-  const {
-    data: netvisorOrder,
-    isLoading: isNetvisorOrderLoading,
-    error: netvisorOrderError,
-  } = useNetvisorOrder(netvisorOrderId);
-
+  const { data: order, isLoading, error } = useOrder(orderId);
   const { data: orderLines } = useQuery({
     queryKey: ['orderLines', orderId],
     queryFn: () => fetchOrderLines(orderId!),
     enabled: !!orderId,
   });
+  const { data: customers } = useCustomers();
+  const { data: allBatches } = useBatches();
 
-  const netvisorPayloadText = useMemo(
-    () => (netvisorOrder ? JSON.stringify(netvisorOrder.response, null, 2) : null),
-    [netvisorOrder]
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [eanInput, setEanInput] = useState('');
+  const [scannedBoxes, setScannedBoxes] = useState<BoxLineState[]>([]);
+  const [batchPickerFor, setBatchPickerFor] = useState<number | null>(null);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const eanRef = useRef<TextInput>(null);
+
+  const customerName = useMemo(() => {
+    if (!order || !customers) return null;
+    const cid = order.customer_id ?? (order as any).CustomerId;
+    return customers.find((c) => c.id === cid)?.name ?? null;
+  }, [order, customers]);
+
+  const activeLines = useMemo<OrderLine[]>(
+    () => (orderLines ?? []).filter((l) => !l.deleted_at),
+    [orderLines]
   );
 
-  useEffect(() => {
-    if (!order) {
+  const totalWeight = activeLines.reduce((s, l) => s + (l.sold_weight ?? 0), 0);
+
+  const batchesForPicker = useMemo(() => {
+    if (batchPickerFor == null || !allBatches) return [];
+    const productId = scannedBoxes[batchPickerFor]?.productId;
+    return allBatches.filter(
+      (b) => b.ProductId === productId && !b.deleted_at && b.current_weight > 0
+    );
+  }, [batchPickerFor, allBatches, scannedBoxes]);
+
+  const scanTotalWeight = useMemo(
+    () =>
+      scannedBoxes.reduce((s, box) => {
+        const g = box.isPartial
+          ? kgStrToGrams(box.partialWeightKg)
+          : Math.round(box.defaultWeightKg * 1000);
+        return s + (isFinite(g) ? g : 0);
+      }, 0),
+    [scannedBoxes]
+  );
+
+  const handleEanChange = (v: string) => {
+    setEanInput(v);
+    if (v.trim().length === 13) handleScan(v.trim());
+  };
+
+  const handleScan = async (ean: string) => {
+    if (!/^\d{13}$/.test(ean)) {
+      Alert.alert('Virheellinen koodi', 'EAN-13 on 13-numeroinen.');
+      setEanInput('');
       return;
     }
-
-    setOrderDate(order.order_date ?? '');
-    setStatus(order.status ?? '');
-    const rawCustomerId = order.customer_id ?? order.CustomerId ?? null;
-    setCustomerId(rawCustomerId != null ? String(rawCustomerId) : '');
-  }, [order]);
-
-  const updateMutation = useMutation({
-    mutationFn: (input: Partial<CreateOrderInput>) => {
-      if (!orderId) {
-        throw new Error('Missing order id');
-      }
-      return updateOrder(orderId, input);
-    },
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['orders'] }),
-        queryClient.invalidateQueries({ queryKey: ['netvisor', 'orders'] }),
-      ]);
-    },
-  });
-
-  const handleSave = async () => {
-    if (!orderId || !order) {
-      return;
-    }
-
-    const trimmedStatus = status.trim();
-    const trimmedDate = orderDate.trim();
-    const trimmedCustomer = customerId.trim();
-
-    let parsedCustomerId: number | null = null;
-    if (trimmedCustomer) {
-      const parsed = Number(trimmedCustomer);
-      if (!Number.isFinite(parsed)) {
-        Alert.alert('Invalid customer id', 'Customer id must be a number.');
-        return;
-      }
-      parsedCustomerId = parsed;
-    }
-
+    setScanLoading(true);
     try {
-      await updateMutation.mutateAsync({
-        status: trimmedStatus || null,
-        order_date: trimmedDate || null,
-        customer_id: parsedCustomerId,
-      });
-      Alert.alert('Order updated', `Order #${orderId} was updated.`);
+      const preview = await previewScan([{ ean, count: 1 }]);
+      const newBoxes: BoxLineState[] = preview.flatMap((item) =>
+        item.boxes.map((box) => ({
+          boxId: box.id,
+          productId: item.productId,
+          productName: item.productName,
+          defaultWeightKg: box.weight / 1000,
+          selectedBatchId: item.batchId,
+          selectedBatchNumber: item.batchNumber,
+          isPartial: false,
+          partialWeightKg: gramsToKgStr(box.weight),
+          pricePerKg: item.pricePerKg,
+        }))
+      );
+      setScannedBoxes((prev) => [...prev, ...newBoxes]);
     } catch (err) {
-      Alert.alert('Update failed', getErrorMessage(err));
+      Alert.alert('Virhe', err instanceof Error ? err.message : 'Skannaus epäonnistui');
+    } finally {
+      setScanLoading(false);
+      setEanInput('');
+      setTimeout(() => eanRef.current?.focus(), 50);
     }
   };
 
-  if (!orderId) {
+  const handleSave = async () => {
+    if (scannedBoxes.length === 0) {
+      Alert.alert('Tyhjä', 'Ei laatikoita tallennettavaksi.');
+      return;
+    }
+    for (const box of scannedBoxes) {
+      if (box.isPartial) {
+        const g = kgStrToGrams(box.partialWeightKg);
+        if (!isFinite(g) || g <= 0) {
+          Alert.alert('Virheellinen paino', `Tarkista paino: ${box.productName}`);
+          return;
+        }
+        if (g > Math.round(box.defaultWeightKg * 1000)) {
+          Alert.alert(
+            'Liian suuri paino',
+            `${box.productName}: enintään ${box.defaultWeightKg.toFixed(3)} kg.`
+          );
+          return;
+        }
+      }
+    }
+    setSaving(true);
+    try {
+      await confirmScan(
+        orderId!,
+        scannedBoxes.map((box) => ({
+          batchId: box.selectedBatchId,
+          boxIds: [box.boxId],
+          soldWeight: box.isPartial
+            ? kgStrToGrams(box.partialWeightKg)
+            : Math.round(box.defaultWeightKg * 1000),
+          pricePerGram: Math.round(box.pricePerKg),
+        }))
+      );
+      await queryClient.invalidateQueries({
+        queryKey: ['orderLines', orderId],
+        exact: true,
+      });
+      await queryClient.refetchQueries({
+        queryKey: ['orderLines', orderId],
+        exact: true,
+      });
+      setBatchPickerFor(null);
+      setEanInput('');
+      setScannedBoxes([]);
+      setShowScanModal(false);
+    } catch (err) {
+      Alert.alert('Virhe', err instanceof Error ? err.message : 'Tallennus epäonnistui');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!orderId || (!isLoading && (error || !order))) {
     return (
-      <View style={[layout.screen, layout.center]}>
-        <Text>Order not found.</Text>
-      </View>
+      <ScreenLayout title="TILAUS">
+        <View style={screen.centered}>
+          <Text style={screen.muted}>Tilausta ei löydy.</Text>
+        </View>
+      </ScreenLayout>
     );
   }
 
   if (isLoading) {
     return (
-      <View style={[layout.screen, layout.center]}>
-        <Text>Loading order...</Text>
-      </View>
+      <ScreenLayout title="TILAUS">
+        <View style={screen.centered}>
+          <Text style={screen.muted}>Ladataan...</Text>
+        </View>
+      </ScreenLayout>
     );
   }
 
-  if (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return (
-      <View style={[layout.screen, layout.center]}>
-        <Text>Failed to load order: {message}</Text>
-      </View>
-    );
-  }
-
-  if (!order) {
-    return (
-      <View style={[layout.screen, layout.center]}>
-        <Text>Order not found.</Text>
-      </View>
-    );
-  }
-
-  const netvisorErrorMessage =
-    netvisorOrderError instanceof Error ? netvisorOrderError.message : 'Unknown error';
+  const dateStr = toFinnishDate(order!.order_date);
 
   return (
-    <ScrollView style={layout.screen} contentContainerStyle={styles.content}>
-      <Text style={layout.title}>Order #{order.id}</Text>
-      <TouchableOpacity
-        style={styles.scanBtn}
-        onPress={() => router.push(routes.orderScan(orderId))}
+    <ScreenLayout title="TILAUS">
+      <ScrollView
+        style={components.odScroll}
+        contentContainerStyle={components.odScrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.scanBtnText}>Skannaa laatikoita</Text>
-      </TouchableOpacity>
-
-      <View style={styles.metaBlock}>
-        <View style={components.metaRow}>
-          <Text style={components.metaLabel}>Netvisor ID</Text>
-          <Text style={components.metaValue}>{order.netvisor_invoice_id ?? '-'}</Text>
-        </View>
-        <View style={components.metaRow}>
-          <Text style={components.metaLabel}>Netvisor</Text>
-          <Text style={components.metaValue}>
-            {order.netvisor_status && order.netvisor_status.trim()
-              ? order.netvisor_status
-              : '-'}
+        {/* Customer name pill */}
+        <View style={components.odCustomerPill}>
+          <Text style={components.odCustomerPillText} numberOfLines={1}>
+            {customerName ?? `Tilaus #${order!.id}`}
           </Text>
+          {dateStr ? <Text style={components.odDateText}>{dateStr}</Text> : null}
         </View>
-      </View>
 
-      <View style={styles.netvisorSection}>
-        <Text style={components.sectionHeader}>Netvisor order details</Text>
-        {!netvisorOrderId ? (
-          <Text style={components.helperText}>Order has not been linked to Netvisor yet.</Text>
-        ) : null}
-        {netvisorOrderId && isNetvisorOrderLoading ? (
-          <Text style={components.helperText}>Loading Netvisor order...</Text>
-        ) : null}
-        {netvisorOrderId && netvisorOrderError ? (
-          <Text style={components.errorText}>Failed to load Netvisor order: {netvisorErrorMessage}</Text>
-        ) : null}
-        {netvisorOrder ? (
-          <View style={components.cardWhite}>
-            <View style={components.metaRow}>
-              <Text style={components.metaLabel}>Request ID</Text>
-              <Text style={components.metaValue}>{netvisorOrder.requestId ?? '-'}</Text>
-            </View>
-            <View style={components.metaRow}>
-              <Text style={components.metaLabel}>Transaction</Text>
-              <Text style={components.metaValue}>{netvisorOrder.transactionId ?? '-'}</Text>
-            </View>
-            {netvisorPayloadText ? (
-              <View style={components.codeBlock}>
-                <Text selectable style={components.codeText}>
-                  {netvisorPayloadText}
-                </Text>
-              </View>
-            ) : null}
+        {/* Table section */}
+        <View style={components.odTableSection}>
+          {/* Column headers */}
+          <View style={components.odTableHeaders}>
+            <Text style={[components.odTableHeaderText, { flex: 3 }]}>TUOTE</Text>
+            <Text style={[components.odTableHeaderText, { flex: 3, textAlign: 'center' }]}>ERÄ</Text>
+            <Text style={[components.odTableHeaderText, { flex: 2, textAlign: 'right' }]}>PAINO</Text>
           </View>
-        ) : null}
-      </View>
 
-      {orderLines && orderLines.length > 0 && (
-        <View style={styles.linesSection}>
-          <Text style={components.sectionHeader}>Tilausrivit</Text>
-          {orderLines.map((line) => (
-            <View key={line.id} style={components.card}>
-              <Text style={styles.lineProduct}>
-                {line.Batch?.Product?.name ?? `Tuote #${line.BatchId}`}
-              </Text>
-              <Text style={styles.lineBatch}>Erä: {line.Batch?.batch_number ?? '-'}</Text>
-              <Text style={styles.lineDetail}>
-                Paino: {formatKg(line.sold_weight)} kg
-                {line.price_per_gram != null
-                  ? `  |  Hinta: ${(line.price_per_gram * 1000).toFixed(2)} €/kg`
-                  : ''}
-              </Text>
-            </View>
-          ))}
+          {/* White table background */}
+          <View style={components.odTableBody}>
+            {activeLines.length === 0 ? (
+              <Text style={components.odTableEmptyText}>Ei tilausrivejä vielä.</Text>
+            ) : (
+              activeLines.map((line, i) => (
+                <View key={line.id}>
+                  <View style={components.odTableRow}>
+                    <Text style={[components.odTableRowText, { flex: 3 }]} numberOfLines={1}>
+                      {line.Batch?.Product?.name ?? `Erä #${line.BatchId}`}
+                    </Text>
+                    <Text style={[components.odTableRowText, { flex: 3, textAlign: 'center' }]}>
+                      {line.Batch?.batch_number ?? '-'}
+                    </Text>
+                    <Text style={[components.odTableRowText, { flex: 2, textAlign: 'right' }]}>
+                      {formatKg(line.sold_weight)} kg
+                    </Text>
+                  </View>
+                  {i < activeLines.length - 1 && <View style={components.odTableRowDivider} />}
+                </View>
+              ))
+            )}
+
+            {/* Total row */}
+            {totalWeight > 0 && (
+              <>
+                <View style={components.odTotalDivider} />
+                <View style={components.odTotalRow}>
+                  <Text style={components.odTotalText}>YHTEENSÄ</Text>
+                  <Text style={components.odTotalWeight}>{formatKg(totalWeight)} kg</Text>
+                </View>
+              </>
+            )}
+          </View>
         </View>
-      )}
 
-      <View style={styles.form}>
-        <TextInput
-          placeholder="Order date (YYYY-MM-DD)"
-          value={orderDate}
-          onChangeText={setOrderDate}
-          style={components.input}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        <TextInput
-          placeholder="Status"
-          value={status}
-          onChangeText={setStatus}
-          style={components.input}
-        />
-        <TextInput
-          placeholder="Customer ID"
-          value={customerId}
-          onChangeText={setCustomerId}
-          style={components.input}
-          keyboardType="numeric"
-        />
-        <Button
-          title={updateMutation.isPending ? 'Saving...' : 'Save changes'}
-          onPress={handleSave}
-          color={colors.purple}
-          accessibilityLabel="Save order"
-          disabled={updateMutation.isPending}
-        />
-      </View>
-    </ScrollView>
+        {/* SKANNAA button */}
+        <Pressable
+          style={({ pressed }) => [components.odSkannaaBtn, pressed && screen.pressed]}
+          onPress={() => setShowScanModal(true)}
+        >
+          <Text style={components.odSkaannaaBtnText}>SKANNAA</Text>
+        </Pressable>
+      </ScrollView>
+
+      {/* Scan modal */}
+      <Modal
+        visible={showScanModal}
+        animationType="slide"
+        onRequestClose={() => setShowScanModal(false)}
+      >
+        <SafeAreaView style={components.smContainer}>
+          <View style={components.smHeader}>
+            <Text style={components.smTitle}>Skannaa laatikoita</Text>
+            <ScreenCloseButton onPress={() => setShowScanModal(false)} />
+          </View>
+
+          <TextInput
+            ref={eanRef}
+            style={components.smEanInput}
+            value={eanInput}
+            onChangeText={handleEanChange}
+            onSubmitEditing={() => handleScan(eanInput)}
+            placeholder="Skannaa EAN-13..."
+            keyboardType="numeric"
+            autoFocus
+            returnKeyType="done"
+          />
+          {scanLoading && (
+            <Text style={components.smScanningText}>Haetaan tietoja...</Text>
+          )}
+
+          <FlatList
+            data={scannedBoxes}
+            keyExtractor={(_, i) => String(i)}
+            style={components.smBoxList}
+            keyboardShouldPersistTaps="handled"
+            renderItem={({ item, index }) => (
+              <View style={components.smBoxCard}>
+                <View style={components.smBoxCardHeader}>
+                  <Text style={components.smBoxProductName}>{item.productName}</Text>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setScannedBoxes((prev) => prev.filter((_, i) => i !== index))
+                    }
+                  >
+                    <Ionicons name="trash-outline" size={20} color={colors.danger} />
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  style={components.smBatchRow}
+                  onPress={() => setBatchPickerFor(index)}
+                >
+                  <Text style={components.smBatchLabel}>Erä: </Text>
+                  <Text style={components.smBatchValue}>{item.selectedBatchNumber}</Text>
+                  <Text style={components.smBatchChange}> (vaihda ▾)</Text>
+                </TouchableOpacity>
+
+                <View style={components.smPartialRow}>
+                  <Text style={components.smPartialLabel}>Vajaa</Text>
+                  <Switch
+                    value={item.isPartial}
+                    onValueChange={(v) =>
+                      setScannedBoxes((prev) =>
+                        prev.map((b, i) =>
+                          i === index ? { ...b, isPartial: v } : b
+                        )
+                      )
+                    }
+                    trackColor={{ true: colors.primary }}
+                  />
+                </View>
+
+                <View style={components.smWeightRow}>
+                  <Text style={components.smWeightLabel}>Paino (kg):</Text>
+                  {item.isPartial ? (
+                    <TextInput
+                      style={components.smWeightInput}
+                      value={item.partialWeightKg}
+                      onChangeText={(v) =>
+                        setScannedBoxes((prev) =>
+                          prev.map((b, i) =>
+                            i === index ? { ...b, partialWeightKg: v } : b
+                          )
+                        )
+                      }
+                      keyboardType="decimal-pad"
+                      selectTextOnFocus
+                    />
+                  ) : (
+                    <Text style={components.smWeightStatic}>
+                      {item.defaultWeightKg.toFixed(3)}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            )}
+            ListEmptyComponent={
+              <Text style={components.smScanEmpty}>
+                Skannaa laatikoita yläpuolella olevalla kentällä.
+              </Text>
+            }
+          />
+
+          <View style={components.smFooter}>
+            <Text style={components.smScanTotal}>
+              Yhteensä: {formatKg(scanTotalWeight)} kg
+            </Text>
+            <TouchableOpacity
+              style={[
+                components.smSaveBtn,
+                (saving || scannedBoxes.length === 0) && components.smSaveBtnDisabled,
+              ]}
+              onPress={handleSave}
+              disabled={saving || scannedBoxes.length === 0}
+            >
+              <Text style={components.smSaveBtnText}>
+                {saving ? 'Tallennetaan...' : 'Tallenna'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+
+        {/* Nested batch picker */}
+        <Modal
+          visible={batchPickerFor != null}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setBatchPickerFor(null)}
+        >
+          <View style={components.modalOverlay}>
+            <View style={components.modalCard}>
+              <Text style={components.modalTitle}>Valitse erä</Text>
+              {batchesForPicker.length === 0 ? (
+                <Text style={components.modalEmpty}>Ei saatavilla olevia eriä.</Text>
+              ) : (
+                batchesForPicker.map((b) => (
+                  <TouchableOpacity
+                    key={b.id}
+                    style={components.modalRow}
+                    onPress={() => {
+                      setScannedBoxes((prev) =>
+                        prev.map((box, i) =>
+                          i === batchPickerFor
+                            ? {
+                                ...box,
+                                selectedBatchId: b.id,
+                                selectedBatchNumber: b.batch_number,
+                              }
+                            : box
+                        )
+                      );
+                      setBatchPickerFor(null);
+                    }}
+                  >
+                    <Text style={components.modalRowText}>
+                      Erä {b.batch_number} — {formatKg(b.current_weight)} kg jäljellä
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              )}
+              <TouchableOpacity
+                style={components.modalCancelBtn}
+                onPress={() => setBatchPickerFor(null)}
+              >
+                <Text style={components.modalCancelText}>Peruuta</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </Modal>
+    </ScreenLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    paddingBottom: spacing.xl,
-  },
-  metaBlock: {
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  netvisorSection: {
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  linesSection: {
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  form: {
-    marginTop: spacing.md,
-  },
-  scanBtn: {
-    backgroundColor: colors.success,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    alignItems: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  scanBtnText: {
-    color: colors.white,
-    fontWeight: typography.weights.bold,
-    fontSize: typography.sizes.lg,
-  },
-  lineProduct: {
-    fontWeight: typography.weights.semibold,
-    marginBottom: spacing.xs / 2,
-  },
-  lineBatch: {
-    color: colors.muted,
-    fontSize: typography.sizes.md,
-    marginBottom: spacing.xs / 2,
-  },
-  lineDetail: {
-    color: colors.textSecondary,
-    fontSize: typography.sizes.md,
-  },
-});

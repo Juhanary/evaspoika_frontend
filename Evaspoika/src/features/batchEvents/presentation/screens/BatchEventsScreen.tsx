@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { layout } from '@/src/shared/styles/layout';
 import { components } from '@/src/shared/styles/components';
 import { colors } from '@/src/shared/constants/colors';
+import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { formatDateDisplayFromIso } from '@/src/shared/utils/date';
 import { useBatchEvents } from '../hooks/useBatchEvents';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
@@ -95,22 +96,6 @@ export default function BatchEventsScreen({ batchId, batchNumber }: Props) {
     }
   };
 
-  if (isLoading) {
-    return (
-      <View style={[layout.screen, layout.center]}>
-        <Text>Ladataan tapahtumia...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={[layout.screen, layout.center]}>
-        <Text>Virhe: {error instanceof Error ? error.message : 'Tuntematon'}</Text>
-      </View>
-    );
-  }
-
   const renderItem = ({ item }: { item: BatchLog }) => {
     const label = EVENT_LABELS[item.event_code] ?? item.event_code;
     const dateLabel = formatDateDisplayFromIso(item.event_date) || '-';
@@ -128,43 +113,59 @@ export default function BatchEventsScreen({ batchId, batchNumber }: Props) {
     );
   };
 
-  const title = batchNumber ? `Erä ${batchNumber}` : batchId ? `Erä #${batchId}` : 'Tapahtumat';
+  const headerTitle = batchNumber
+    ? `ERÄ ${batchNumber.toUpperCase()}`
+    : batchId
+      ? `ERÄ #${batchId}`
+      : 'TAPAHTUMAT';
 
   return (
-    <View style={layout.screen}>
-      <Text style={layout.title}>{title}</Text>
-      {batch && (
-        <View style={layout.section}>
-          <Text style={components.metaLabel}>
-            Nykyinen paino: {formatKg(batch.current_weight)} kg
-          </Text>
-          <TextInput
-            placeholder="Muutos kg:ssa (miinus = vähennys)"
-            value={adjustmentKg}
-            onChangeText={setAdjustmentKg}
-            style={components.input}
-            keyboardType="numeric"
-          />
-          <TextInput
-            placeholder="Selitys muutokselle (pakollinen)"
-            value={adjustmentNote}
-            onChangeText={setAdjustmentNote}
-            style={components.input}
-          />
-          <Button
-            title={updateMutation.isPending ? 'Tallennetaan...' : 'Tallenna muutos'}
-            onPress={handleAdjustment}
-            color={colors.purple}
-            disabled={updateMutation.isPending}
+    <ScreenLayout title={headerTitle}>
+      {isLoading ? (
+        <View style={[layout.screen, layout.center]}>
+          <Text>Ladataan tapahtumia...</Text>
+        </View>
+      ) : error ? (
+        <View style={[layout.screen, layout.center]}>
+          <Text>Virhe: {error instanceof Error ? error.message : 'Tuntematon'}</Text>
+        </View>
+      ) : (
+        <View style={layout.screen}>
+          {batch && (
+            <View style={layout.section}>
+              <Text style={components.metaLabel}>
+                Nykyinen paino: {formatKg(batch.current_weight)} kg
+              </Text>
+              <TextInput
+                placeholder="Muutos kg:ssa (miinus = vähennys)"
+                value={adjustmentKg}
+                onChangeText={setAdjustmentKg}
+                style={components.input}
+                keyboardType="numeric"
+              />
+              <TextInput
+                placeholder="Selitys muutokselle (pakollinen)"
+                value={adjustmentNote}
+                onChangeText={setAdjustmentNote}
+                style={components.input}
+              />
+              <Button
+                title={updateMutation.isPending ? 'Tallennetaan...' : 'Tallenna muutos'}
+                onPress={handleAdjustment}
+                color={colors.purple}
+                disabled={updateMutation.isPending}
+              />
+            </View>
+          )}
+          <FlatList
+            data={filteredEvents}
+            renderItem={renderItem}
+            keyExtractor={(item) => String(item.id)}
+            style={components.listFlex}
+            ListEmptyComponent={<Text style={components.emptyText}>Ei tapahtumia.</Text>}
           />
         </View>
       )}
-      <FlatList
-        data={filteredEvents}
-        renderItem={renderItem}
-        keyExtractor={(item) => String(item.id)}
-        ListEmptyComponent={<Text style={components.emptyText}>Ei tapahtumia.</Text>}
-      />
-    </View>
+    </ScreenLayout>
   );
 }

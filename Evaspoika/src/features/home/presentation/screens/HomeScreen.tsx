@@ -1,26 +1,32 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
-import { colors } from '@/src/shared/constants/colors';
-import { typography } from '@/src/shared/constants/typography';
+import {
+  Image,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
+import { useQueries } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useRefreshAll } from '@/src/shared/hooks/useRefreshAll';
-import { CustomButton } from '@/src/shared/ui/Button/CustomButton';
-import { layout } from '@/src/shared/styles/layout';
-import { OrderList, type OrderListItem } from '@/src/shared/ui/OrderList/OrderList';
-import { useOrders } from '@/src/features/orders/presentation/hooks/useOrders';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
-import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
 import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
-import { Batch } from '@/src/features/batches/domain/types';
-import { formatKg } from '@/src/shared/utils/weight';
-import { formatDateDisplayFromIso } from '@/src/shared/utils/date';
-import { spacing } from '@/src/shared/constants/spacing';
+import { fetchOrderLines } from '@/src/features/orderLines/infrastructure/orderLinesApi';
+import { useOrders } from '@/src/features/orders/presentation/hooks/useOrders';
+import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
+import { useRefreshAll } from '@/src/shared/hooks/useRefreshAll';
 import { routes } from '@/src/shared/navigation/routes';
+import { dark } from '@/src/shared/styles/dark';
+import { homeStyles } from '@/src/shared/styles/home';
+import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
+import { GlassNavButton } from '@/src/shared/ui/GlassNavButton/GlassNavButton';
+import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
+import { buildOrderLineSummary } from '@/src/shared/utils/orderSummary';
+import { formatKg } from '@/src/shared/utils/weight';
 
-const RECENT_LIMIT = 5;
+const LOGO = require('@/src/assets/images/Logo.png');
 
-const CLOSED_ORDER_STATUSES = new Set([
+const CLOSED_STATUSES = new Set([
   'closed',
   'delivered',
   'completed',
@@ -32,255 +38,307 @@ const CLOSED_ORDER_STATUSES = new Set([
 const normalizeStatus = (value?: string | null) =>
   typeof value === 'string' ? value.trim().toLowerCase() : '';
 
-const isClosedOrder = (order: { status?: string | null; netvisor_status?: string | null }) => {
-  const status = normalizeStatus(order.status);
-  const netvisorStatus = normalizeStatus(order.netvisor_status);
-  return CLOSED_ORDER_STATUSES.has(status) || CLOSED_ORDER_STATUSES.has(netvisorStatus);
-};
+const isClosedOrder = (order: {
+  status?: string | null;
+  netvisor_status?: string | null;
+}) =>
+  CLOSED_STATUSES.has(normalizeStatus(order.status)) ||
+  CLOSED_STATUSES.has(normalizeStatus(order.netvisor_status));
 
 const parseDateValue = (value?: string | null) => {
   if (!value) {
-    return Number.NaN;
+    return NaN;
   }
+
   const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? Number.NaN : parsed;
+  return Number.isNaN(parsed) ? NaN : parsed;
 };
 
 export default function HomeScreen() {
-  const { data: orders, isLoading: ordersLoading, error: ordersError } = useOrders();
-  const { data: batches, isLoading: batchesLoading, error: batchesError } = useBatches();
+  const { data: orders, isLoading: ordersLoading } = useOrders();
+  const { data: batches } = useBatches();
   const { data: products } = useProducts();
   const { data: customers } = useCustomers();
   const { refreshing, onRefresh } = useRefreshAll();
   const [query, setQuery] = useState('');
 
   const recentOrders = useMemo(() => {
-    const items = (orders ?? []).filter(
-      (order) => !order.deleted_at && !isClosedOrder(order)
-    );
-    return [...items]
+    return (orders ?? [])
+      .filter((order) => !order.deleted_at && !isClosedOrder(order))
       .sort((a, b) => {
-        const dateA = parseDateValue(a.order_date);
-        const dateB = parseDateValue(b.order_date);
-        if (Number.isFinite(dateA) && Number.isFinite(dateB)) {
-          return dateB - dateA;
+        const leftDate = parseDateValue(a.order_date);
+        const rightDate = parseDateValue(b.order_date);
+
+        if (Number.isFinite(leftDate) && Number.isFinite(rightDate)) {
+          return rightDate - leftDate;
         }
-        if (Number.isFinite(dateA)) {
+
+        if (Number.isFinite(leftDate)) {
           return -1;
         }
-        if (Number.isFinite(dateB)) {
+
+        if (Number.isFinite(rightDate)) {
           return 1;
         }
+
         return b.id - a.id;
       })
-      .slice(0, RECENT_LIMIT);
+      .slice(0, 3);
   }, [orders]);
-
-  const recentBatches = useMemo(() => {
-    const items = batches ?? [];
-    return [...items]
-      .sort((a, b) => {
-        const dateA = parseDateValue(a.production_date);
-        const dateB = parseDateValue(b.production_date);
-        if (Number.isFinite(dateA) && Number.isFinite(dateB)) {
-          return dateB - dateA;
-        }
-        if (Number.isFinite(dateA)) {
-          return -1;
-        }
-        if (Number.isFinite(dateB)) {
-          return 1;
-        }
-        return b.id - a.id;
-      })
-      .slice(0, RECENT_LIMIT);
-  }, [batches]);
-
-  const searchResults = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return null;
-
-    const matchedProducts = (products ?? []).filter(
-      (p) => p.name.toLowerCase().includes(q) || (p.ean ?? '').toLowerCase().includes(q)
-    );
-    const matchedCustomers = (customers ?? []).filter(
-      (c) => c.name.toLowerCase().includes(q) || (c.email ?? '').toLowerCase().includes(q) || (c.netvisor_code ?? '').toLowerCase().includes(q)
-    );
-    const matchedBatches = (batches ?? []).filter(
-      (b) => b.batch_number.toLowerCase().includes(q)
-    );
-    const matchedOrders = (orders ?? []).filter(
-      (o) => !o.deleted_at && (String(o.id).includes(q) || (o.order_date ?? '').includes(q))
-    );
-
-    return { matchedProducts, matchedCustomers, matchedBatches, matchedOrders };
-  }, [query, products, customers, batches, orders]);
 
   const customerNameById = useMemo(() => {
     const map = new Map<number, string>();
-    (customers ?? []).forEach((c) => map.set(c.id, c.name));
+
+    (customers ?? []).forEach((customer) => {
+      map.set(customer.id, customer.name);
+    });
+
     return map;
   }, [customers]);
 
-  const getOrderTitle = (order: OrderListItem) => {
-    const customerName = order.customer_id ? customerNameById.get(order.customer_id) : null;
-    const dateStr = order.order_date
-      ? new Date(order.order_date).toLocaleDateString('fi-FI', { day: '2-digit', month: '2-digit', year: 'numeric' })
-      : `#${order.id}`;
-    return customerName ? `${customerName} — ${dateStr}` : dateStr;
-  };
+  const orderLineQueries = useQueries({
+    queries: recentOrders.map((order) => ({
+      queryKey: ['orderLines', order.id],
+      queryFn: () => fetchOrderLines(order.id),
+    })),
+  });
 
-  const productNameById = useMemo(() => {
+  const orderLineSummaries = useMemo(() => {
     const map = new Map<number, string>();
-    (products ?? []).forEach((product) => {
-      map.set(product.id, product.name);
+
+    recentOrders.forEach((order, index) => {
+      const query = orderLineQueries[index];
+
+      if (!query || query.isPending || query.isLoading) {
+        map.set(order.id, 'Ladataan tuotteita...');
+        return;
+      }
+
+      if (query.error) {
+        map.set(order.id, 'Tuotteita ei voitu ladata.');
+        return;
+      }
+
+      map.set(order.id, buildOrderLineSummary(query.data));
     });
+
     return map;
-  }, [products]);
+  }, [orderLineQueries, recentOrders]);
 
-  const renderBatchItem = (item: Batch) => {
-    const dateLabel = item.production_date
-      ? formatDateDisplayFromIso(item.production_date)
-      : null;
-    const weightLabel = `${formatKg(item.current_weight)} kg`;
-    const subtitle = dateLabel ? `${dateLabel} - ${weightLabel}` : weightLabel;
-    const productLabel = item.ProductId
-      ? productNameById.get(item.ProductId) ?? `Product #${item.ProductId}`
-      : 'Product';
-    const title = `${productLabel} - Era ${item.batch_number}`;
+  const searchResults = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
 
-    return (
-      <Pressable
-        key={item.id}
-        onPress={() => router.push(routes.inventoryBatch(item.id, item.batch_number))}
-        style={({ pressed }) => [layout.listItem, pressed && layout.listItemPressed]}
-        accessibilityRole="button"
-      >
-        <Text style={layout.listItemTitle}>{title}</Text>
-        <Text style={layout.listItemSubtitle}>{subtitle}</Text>
-      </Pressable>
-    );
-  };
+    if (!normalizedQuery) {
+      return null;
+    }
+
+    return {
+      products: (products ?? []).filter(
+        (product) =>
+          product.name.toLowerCase().includes(normalizedQuery) ||
+          (product.ean ?? '').toLowerCase().includes(normalizedQuery),
+      ),
+      customers: (customers ?? []).filter(
+        (customer) =>
+          customer.name.toLowerCase().includes(normalizedQuery) ||
+          (customer.email ?? '').toLowerCase().includes(normalizedQuery) ||
+          (customer.netvisor_code ?? '').toLowerCase().includes(normalizedQuery),
+      ),
+      batches: (batches ?? []).filter((batch) =>
+        batch.batch_number.toLowerCase().includes(normalizedQuery),
+      ),
+      orders: (orders ?? []).filter(
+        (order) =>
+          !order.deleted_at &&
+          (String(order.id).includes(normalizedQuery) ||
+            (order.order_date ?? '').includes(normalizedQuery)),
+      ),
+    };
+  }, [batches, customers, orders, products, query]);
 
   return (
-    <ScrollView
-      contentContainerStyle={layout.screen}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+    <ScreenLayout
+      headerSearch={{
+        value: query,
+        onChangeText: setQuery,
+        placeholder: 'Hae...',
+      }}
+      showCloseButton={false}
+      showHomeButton={false}
+      wrapInCard={false}
     >
-      <View style={layout.section}>
-        <Text style={layout.title}>Warehouse Dashboard</Text>
-        <SearchInput value={query} onChangeText={setQuery} placeholder="Hae tuotetta, asiakasta, erää tai tilausta..." />
-      </View>
+      <ScrollView
+        contentContainerStyle={homeStyles.outerScrollContent}
+        refreshControl={
+          <RefreshControl
+            onRefresh={onRefresh}
+            refreshing={refreshing}
+            tintColor="#F0F0F0"
+          />
+        }
+        showsVerticalScrollIndicator={false}
+        style={homeStyles.outerScroll}
+      >
+        <GlassCard blurRadius={18} style={homeStyles.card}>
+          {searchResults ? (
+            <View style={homeStyles.searchResultsPadding}>
+              <SearchSection
+                empty={searchResults.products.length === 0}
+                label={`Tuotteet (${searchResults.products.length})`}
+              >
+                {searchResults.products.map((product) => (
+                  <Pressable
+                    key={product.id}
+                    onPress={() => router.push(routes.inventoryProduct(product.id))}
+                    style={({ pressed }) => [dark.row, pressed && dark.pressed]}
+                  >
+                    <Text style={dark.rowTitle}>{product.name}</Text>
+                    {product.ean ? <Text style={dark.rowSub}>EAN: {product.ean}</Text> : null}
+                  </Pressable>
+                ))}
+              </SearchSection>
 
-      {searchResults ? (
-        <>
-          <Text style={styles.sectionLabel}>Tuotteet ({searchResults.matchedProducts.length})</Text>
-          {searchResults.matchedProducts.length === 0 ? (
-            <Text style={styles.emptyText}>Ei tuloksia.</Text>
-          ) : searchResults.matchedProducts.map((p) => (
-            <Pressable
-              key={p.id}
-              onPress={() => router.push(routes.inventoryProduct(p.id))}
-              style={({ pressed }) => [layout.listItem, pressed && layout.listItemPressed]}
-              accessibilityRole="button"
-            >
-              <Text style={layout.listItemTitle}>{p.name}</Text>
-              {p.ean ? <Text style={layout.listItemSubtitle}>EAN: {p.ean}</Text> : null}
-            </Pressable>
-          ))}
+              <SearchSection
+                empty={searchResults.customers.length === 0}
+                label={`Asiakkaat (${searchResults.customers.length})`}
+              >
+                {searchResults.customers.map((customer) => (
+                  <View key={customer.id} style={dark.row}>
+                    <Text style={dark.rowTitle}>{customer.name}</Text>
+                    {customer.email ? <Text style={dark.rowSub}>{customer.email}</Text> : null}
+                  </View>
+                ))}
+              </SearchSection>
 
-          <Text style={styles.sectionLabel}>Asiakkaat ({searchResults.matchedCustomers.length})</Text>
-          {searchResults.matchedCustomers.length === 0 ? (
-            <Text style={styles.emptyText}>Ei tuloksia.</Text>
-          ) : searchResults.matchedCustomers.map((c) => (
-            <View key={c.id} style={layout.listItem}>
-              <Text style={layout.listItemTitle}>{c.name}</Text>
-              {c.email ? <Text style={layout.listItemSubtitle}>{c.email}</Text> : null}
+              <SearchSection
+                empty={searchResults.batches.length === 0}
+                label={`Erät (${searchResults.batches.length})`}
+              >
+                {searchResults.batches.map((batch) => (
+                  <Pressable
+                    key={batch.id}
+                    onPress={() =>
+                      router.push(routes.inventoryBatch(batch.id, batch.batch_number))
+                    }
+                    style={({ pressed }) => [dark.row, pressed && dark.pressed]}
+                  >
+                    <Text style={dark.rowTitle}>Erä: {batch.batch_number}</Text>
+                    <Text style={dark.rowSub}>{formatKg(batch.current_weight)} kg</Text>
+                  </Pressable>
+                ))}
+              </SearchSection>
+
+              <SearchSection
+                empty={searchResults.orders.length === 0}
+                label={`Tilaukset (${searchResults.orders.length})`}
+              >
+                {searchResults.orders.map((order) => (
+                  <Pressable
+                    key={order.id}
+                    onPress={() => router.push(routes.orderDetail(order.id))}
+                    style={({ pressed }) => [dark.row, pressed && dark.pressed]}
+                  >
+                    <Text style={dark.rowTitle}>
+                      {order.customer_id
+                        ? (customerNameById.get(order.customer_id) ?? `#${order.id}`)
+                        : `#${order.id}`}
+                    </Text>
+                    <Text style={dark.rowSub}>
+                      #{order.id}
+                      {order.status ? ` · ${order.status}` : ''}
+                    </Text>
+                  </Pressable>
+                ))}
+              </SearchSection>
             </View>
-          ))}
+          ) : (
+            <>
+              <View style={homeStyles.logoSection}>
+                <Image resizeMode="contain" source={LOGO} style={homeStyles.logo} />
+                <Text style={homeStyles.logoSubtitle}>KOTI</Text>
+              </View>
 
-          <Text style={styles.sectionLabel}>Erät ({searchResults.matchedBatches.length})</Text>
-          {searchResults.matchedBatches.length === 0 ? (
-            <Text style={styles.emptyText}>Ei tuloksia.</Text>
-          ) : searchResults.matchedBatches.map((b) => (
-            <Pressable
-              key={b.id}
-              onPress={() => router.push(routes.inventoryBatch(b.id, b.batch_number))}
-              style={({ pressed }) => [layout.listItem, pressed && layout.listItemPressed]}
-              accessibilityRole="button"
-            >
-              <Text style={layout.listItemTitle}>Erä: {b.batch_number}</Text>
-              <Text style={layout.listItemSubtitle}>{formatKg(b.current_weight)} kg</Text>
-            </Pressable>
-          ))}
+              <View style={homeStyles.topArea}>
+                <View style={homeStyles.btnGroup}>
+                  <GlassNavButton label="TILAUS" onPress={() => router.push(routes.orders)} />
+                  <GlassNavButton label="VARASTO" onPress={() => router.push(routes.inventory)} />
+                  <GlassNavButton label="LOKI" onPress={() => router.push(routes.logs)} />
+                </View>
+              </View>
+            </>
+          )}
+        </GlassCard>
 
-          <Text style={styles.sectionLabel}>Tilaukset ({searchResults.matchedOrders.length})</Text>
-          {searchResults.matchedOrders.length === 0 ? (
-            <Text style={styles.emptyText}>Ei tuloksia.</Text>
-          ) : searchResults.matchedOrders.map((o) => (
-            <Pressable
-              key={o.id}
-              onPress={() => router.push(routes.orderDetail(o.id))}
-              style={({ pressed }) => [layout.listItem, pressed && layout.listItemPressed]}
-              accessibilityRole="button"
-            >
-              <Text style={layout.listItemTitle}>{getOrderTitle(o)}</Text>
-              <Text style={layout.listItemSubtitle}>#{o.id}{o.status ? ` · ${o.status}` : ''}</Text>
-            </Pressable>
-          ))}
-        </>
-      ) : (
-        <>
-          <CustomButton label="Punnitus" onPress={() => router.push(routes.weighing)} />
-          <CustomButton label="Varasto" onPress={() => router.push(routes.inventory)} />
-          <CustomButton label="Asiakkaat" onPress={() => router.push(routes.moreCustomers)} />
-          <CustomButton label="Tapahtumaloki" onPress={() => router.push(routes.moreLogs)} />
-          <CustomButton label="Luo tilaus" onPress={() => router.push(routes.orders)} />
+        {!searchResults && (ordersLoading || recentOrders.length > 0) ? (
+          <GlassCard blurRadius={18} style={homeStyles.ordersCard}>
+            <View style={homeStyles.ordersSection}>
+              <Text style={homeStyles.ordersSectionLabel}>Avoimet tilaukset</Text>
+              <View style={homeStyles.ordersSectionDivider} />
 
-          <View style={layout.section}>
-            <OrderList
-              orders={recentOrders}
-              isLoading={ordersLoading}
-              error={ordersError}
-              title="Auki olevat tilaukset"
-              emptyText="Ei auki olevia tilauksia."
-              getTitle={getOrderTitle}
-              onSelect={(order) => router.push(routes.orderDetail(order.id))}
-            />
-          </View>
+              {ordersLoading ? (
+                <Text style={dark.muted}>Ladataan...</Text>
+              ) : (
+                recentOrders.map((order, index) => {
+                  const customerName = order.customer_id
+                    ? customerNameById.get(order.customer_id)
+                    : null;
+                  const dateLabel = order.order_date
+                    ? new Date(order.order_date).toLocaleDateString('fi-FI', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                      })
+                    : `#${order.id}`;
+                  const orderSummary = orderLineSummaries.get(order.id);
 
-          <View style={layout.section}>
-            <Text style={layout.title}>Viimeisimmat erat</Text>
-            {batchesLoading ? (
-              <Text>Loading batches...</Text>
-            ) : batchesError ? (
-              <Text>
-                Failed to load batches:{' '}
-                {batchesError instanceof Error ? batchesError.message : 'Unknown error'}
-              </Text>
-            ) : recentBatches.length === 0 ? (
-              <Text style={{ marginTop: spacing.sm }}>Ei eria.</Text>
-            ) : (
-              recentBatches.map(renderBatchItem)
-            )}
-          </View>
-        </>
-      )}
-    </ScrollView>
+                  return (
+                    <React.Fragment key={order.id}>
+                      <Pressable
+                        onPress={() => router.push(routes.orderDetail(order.id))}
+                        style={({ pressed }) => [
+                          homeStyles.ordersRow,
+                          pressed && dark.pressed,
+                        ]}
+                      >
+                        <View style={homeStyles.ordersRowBody}>
+                          <Text numberOfLines={1} style={homeStyles.ordersRowName}>
+                            {customerName ?? `Tilaus #${order.id}`}
+                          </Text>
+                          <Text numberOfLines={2} style={homeStyles.ordersRowSummary}>
+                            {orderSummary ?? 'Ladataan tuotteita...'}
+                          </Text>
+                        </View>
+                        <Text style={homeStyles.ordersRowDate}>{dateLabel}</Text>
+                      </Pressable>
+
+                      {index < recentOrders.length - 1 ? (
+                        <View style={homeStyles.ordersRowDivider} />
+                      ) : null}
+                    </React.Fragment>
+                  );
+                })
+              )}
+            </View>
+          </GlassCard>
+        ) : null}
+      </ScrollView>
+    </ScreenLayout>
   );
 }
 
-const styles = StyleSheet.create({
-  sectionLabel: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
-    color: colors.muted,
-    marginTop: spacing.lg,
-    marginBottom: spacing.xs,
-  },
-  emptyText: {
-    color: colors.muted,
-    fontSize: typography.sizes.md,
-    marginBottom: spacing.xs,
-  },
-});
+function SearchSection({
+  label,
+  empty,
+  children,
+}: {
+  label: string;
+  empty: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <>
+      <Text style={dark.sectionLabel}>{label}</Text>
+      {empty ? <Text style={dark.muted}>Ei tuloksia.</Text> : children}
+    </>
+  );
+}

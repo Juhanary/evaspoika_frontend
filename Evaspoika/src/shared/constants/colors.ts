@@ -47,4 +47,14 @@ export const colors = {
 
   // Misc
   purple: '#9333EA',
+
+  // Dark theme
+  darkBg: '#111827',
+  darkSurface: '#1F2937',
+  darkCard: 'rgba(217, 217, 217, 0.2)',
+  darkBorder: 'rgba(255,255,255,0.08)',
+  darkOverlay: 'rgba(0,0,0,0.65)',
+  textOnDark: '#F0F0F0',
+  textOnDarkMuted: '#9CA3AF',
+  barFill: '#4ADE80',
 } as const;
