@@ -1,10 +1,6 @@
 import { apiRequest } from '@/src/infrastructure/api/client';
 import { endpoints } from '@/src/infrastructure/api/endpoints';
-import { ConfirmLine, ScanPreviewItem, VirtualBox } from '../domain/types';
-
-export function fetchBoxes() {
-  return apiRequest<VirtualBox[]>(`${endpoints.scan}/boxes`);
-}
+import { ConfirmLine, ScanPreviewItem } from '../domain/types';
 
 export function previewScan(items: { ean: string; count: number }[]) {
   return apiRequest<ScanPreviewItem[]>(`${endpoints.scan}/preview`, {

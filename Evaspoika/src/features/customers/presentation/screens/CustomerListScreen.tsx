@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { FlatList, RefreshControl, Text, View } from 'react-native';
-import { layout } from '@/src/shared/styles/layout';
-import { components } from '@/src/shared/styles/components';
+import { Customer } from '../../domain/types';
 import { useCustomers } from '../hooks/useCustomers';
 import { useRefreshAll } from '@/src/shared/hooks/useRefreshAll';
-import { Customer } from '../../domain/types';
+import { components } from '@/src/shared/styles/components';
+import { layout } from '@/src/shared/styles/layout';
+import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 
 function renderItem({ item }: { item: Customer }) {
   return (
@@ -12,7 +13,7 @@ function renderItem({ item }: { item: Customer }) {
       <Text style={layout.listItemTitle}>{item.name}</Text>
       <Text style={layout.listItemSubtitle}>
         {item.netvisor_code ? `Koodi: ${item.netvisor_code}` : 'Ei Netvisor-koodia'}
-        {item.email ? `  ·  ${item.email}` : ''}
+        {item.email ? ` · ${item.email}` : ''}
       </Text>
     </View>
   );
@@ -21,34 +22,47 @@ function renderItem({ item }: { item: Customer }) {
 export default function CustomerListScreen() {
   const { data, isLoading, error } = useCustomers();
   const { refreshing, onRefresh } = useRefreshAll();
+  const [query, setQuery] = useState('');
 
-  if (isLoading) {
-    return (
-      <View style={[layout.screen, layout.center]}>
-        <Text>Ladataan asiakkaita...</Text>
-      </View>
-    );
-  }
+  const filtered = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
 
-  if (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return (
-      <View style={[layout.screen, layout.center]}>
-        <Text>Virhe: {message}</Text>
-      </View>
+    return (data ?? []).filter((customer) =>
+      !normalizedQuery ||
+      customer.name.toLowerCase().includes(normalizedQuery) ||
+      (customer.netvisor_code ?? '').toLowerCase().includes(normalizedQuery) ||
+      (customer.email ?? '').toLowerCase().includes(normalizedQuery),
     );
-  }
+  }, [data, query]);
 
   return (
-    <View style={layout.screen}>
-      <Text style={layout.title}>Asiakkaat</Text>
-      <FlatList
-        data={data ?? []}
-        renderItem={renderItem}
-        keyExtractor={(item) => String(item.id)}
-        ListEmptyComponent={<Text style={components.emptyText}>Ei asiakkaita.</Text>}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      />
-    </View>
+    <ScreenLayout
+      headerSearch={{
+        value: query,
+        onChangeText: setQuery,
+        placeholder: 'Hae asiakasta...',
+      }}
+      title="ASIAKKAAT"
+    >
+      {isLoading ? (
+        <View style={[layout.screen, layout.center]}>
+          <Text>Ladataan asiakkaita...</Text>
+        </View>
+      ) : error ? (
+        <View style={[layout.screen, layout.center]}>
+          <Text>Virhe: {error instanceof Error ? error.message : 'Unknown error'}</Text>
+        </View>
+      ) : (
+        <View style={layout.screen}>
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => String(item.id)}
+            ListEmptyComponent={<Text style={components.emptyText}>Ei asiakkaita.</Text>}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            renderItem={renderItem}
+          />
+        </View>
+      )}
+    </ScreenLayout>
   );
 }

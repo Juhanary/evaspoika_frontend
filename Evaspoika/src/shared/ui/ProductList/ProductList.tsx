@@ -1,7 +1,5 @@
-import React, { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { layout } from '@/src/shared/styles/layout';
-import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
+import React from 'react';
+import { SelectableSearchList } from '@/src/shared/ui/SelectableSearchList/SelectableSearchList';
 
 export type ProductListItem = {
   id: number;
@@ -18,13 +16,23 @@ type Props = {
   title?: string;
   getSubtitle?: (product: ProductListItem) => string;
   emptyText?: string;
+  query?: string;
+  onQueryChange?: (text: string) => void;
+  showSearchInput?: boolean;
 };
 
 const defaultSubtitle = (product: ProductListItem) => {
   const parts: string[] = [];
-  if (product.ean) parts.push(`EAN: ${product.ean}`);
-  if (typeof product.price_per_kg === 'number') parts.push(`Price: ${product.price_per_kg}`);
-  return parts.length > 0 ? parts.join('  ·  ') : `Product ID: ${product.id}`;
+
+  if (product.ean) {
+    parts.push(`EAN: ${product.ean}`);
+  }
+
+  if (typeof product.price_per_kg === 'number') {
+    parts.push(`Price: ${product.price_per_kg}`);
+  }
+
+  return parts.length > 0 ? parts.join(' | ') : `Product ID: ${product.id}`;
 };
 
 export function ProductList({
@@ -32,66 +40,35 @@ export function ProductList({
   isLoading,
   error,
   onSelect,
-  title = 'Select product',
+  title,
   getSubtitle = defaultSubtitle,
   emptyText,
+  query,
+  onQueryChange,
+  showSearchInput = true,
 }: Props) {
-  const [query, setQuery] = useState('');
-
-  if (isLoading) {
-    return (
-      <View style={[layout.screen, layout.center]}>
-        <Text>Loading products...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return (
-      <View style={[layout.screen, layout.center]}>
-        <Text>Failed to load products: {message}</Text>
-      </View>
-    );
-  }
-
-  const q = query.trim().toLowerCase();
-  const items = (products ?? []).filter(
-    (p) => !q || p.name.toLowerCase().includes(q) || (p.ean ?? '').toLowerCase().includes(q)
-  );
-
-  const renderProductItem = ({ item }: { item: ProductListItem }) => (
-    <Pressable
-      onPress={() => onSelect(item)}
-      style={({ pressed }) => [layout.listItem, pressed && styles.listItemPressed]}
-      accessibilityRole="button"
-    >
-      <Text style={layout.listItemTitle}>{item.name}</Text>
-      <Text style={layout.listItemSubtitle}>{getSubtitle(item)}</Text>
-    </Pressable>
-  );
-
   return (
-    <View style={layout.screen}>
-      <Text style={layout.title}>{title}</Text>
-      <SearchInput value={query} onChangeText={setQuery} placeholder="Hae tuotetta..." />
-      <FlatList
-        data={items}
-        renderItem={renderProductItem}
-        keyExtractor={(item) => String(item.id)}
-        ListEmptyComponent={
-          emptyText ? <Text style={styles.emptyText}>{emptyText}</Text> : null
-        }
-      />
-    </View>
+    <SelectableSearchList
+      emptyText={emptyText}
+      error={error}
+      errorPrefix="Failed to load products"
+      filterItem={(product, activeQuery) =>
+        !activeQuery ||
+        product.name.toLowerCase().includes(activeQuery) ||
+        (product.ean ?? '').toLowerCase().includes(activeQuery)
+      }
+      getSubtitle={getSubtitle}
+      getTitle={(product) => product.name}
+      isLoading={isLoading}
+      items={products}
+      keyExtractor={(product) => String(product.id)}
+      loadingText="Loading products..."
+      onQueryChange={onQueryChange}
+      onSelect={onSelect}
+      query={query}
+      searchPlaceholder="Hae tuotetta..."
+      showSearchInput={showSearchInput}
+      title={title}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  listItemPressed: {
-    opacity: 0.7,
-  },
-  emptyText: {
-    marginTop: 12,
-  },
-});

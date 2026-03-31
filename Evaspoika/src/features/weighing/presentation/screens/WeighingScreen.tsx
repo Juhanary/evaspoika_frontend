@@ -3,7 +3,6 @@ import {
   Alert,
   FlatList,
   RefreshControl,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -16,10 +15,7 @@ import { useBatchEvents } from '@/src/features/batchEvents/presentation/hooks/us
 import { submitWeighing } from '../../infrastructure/weighingApi';
 import { layout } from '@/src/shared/styles/layout';
 import { components } from '@/src/shared/styles/components';
-import { colors } from '@/src/shared/constants/colors';
-import { spacing } from '@/src/shared/constants/spacing';
-import { typography } from '@/src/shared/constants/typography';
-import { radii } from '@/src/shared/constants/radii';
+import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { Product } from '@/src/features/products/domain/types';
 import { BatchLog } from '@/src/features/batchEvents/domain/types';
 import { formatKg } from '@/src/shared/utils/weight';
@@ -151,70 +147,68 @@ export default function WeighingScreen() {
       : '-';
     const sign = item.weight_change >= 0 ? '+' : '';
     return (
-      <View style={styles.eventRow}>
-        <View style={styles.eventLeft}>
-          <Text style={styles.eventCode}>{label}</Text>
-          {item.description ? <Text style={styles.eventDesc}>{item.description}</Text> : null}
+      <View style={components.eventRow}>
+        <View style={components.eventLeft}>
+          <Text style={components.eventCode}>{label}</Text>
+          {item.description ? <Text style={components.eventDesc}>{item.description}</Text> : null}
         </View>
-        <View style={styles.eventRight}>
-          <Text style={styles.eventWeight}>{sign}{formatKg(item.weight_change)} kg</Text>
-          <Text style={styles.eventDate}>{dateStr}</Text>
+        <View style={components.eventRight}>
+          <Text style={components.eventWeight}>{sign}{formatKg(item.weight_change)} kg</Text>
+          <Text style={components.eventDate}>{dateStr}</Text>
         </View>
       </View>
     );
   };
 
-  // Tuotelista — kun ei ole valintaa
-  if (mode.type === 'idle') {
-    return (
-      <View style={layout.screen}>
-        <Text style={layout.screenTitle}>Punnitus</Text>
-        <FlatList
-          data={products?.filter((p) => !p.deleted_at) ?? []}
-          keyExtractor={(p) => String(p.id)}
-          keyboardShouldPersistTaps="handled"
-          ListHeaderComponent={
-            <TouchableOpacity style={styles.newProductRow} onPress={startNewProduct}>
-              <Text style={styles.newProductRowText}>+ Uusi tuote</Text>
-            </TouchableOpacity>
-          }
-          renderItem={({ item }) => (
-            <TouchableOpacity style={styles.productRow} onPress={() => selectProduct(item)}>
-              <Text style={styles.productName}>{item.name}</Text>
-              {item.ean ? <Text style={styles.productEan}>{item.ean}</Text> : null}
-            </TouchableOpacity>
-          )}
-          ListEmptyComponent={<Text style={components.emptyText}>Ei tuotteita.</Text>}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        />
-      </View>
-    );
-  }
-
-  // Punnituskaavake — olemassa oleva tai uusi tuote
   return (
-    <View style={layout.screen}>
-      <Text style={layout.screenTitle}>Punnitus</Text>
+    <ScreenLayout title="PUNNITUS">
+
+      {/* Tuotelista — kun ei ole valintaa */}
+      {mode.type === 'idle' ? (
+        <View style={layout.screen}>
+          <FlatList
+            data={products?.filter((p) => !p.deleted_at) ?? []}
+            keyExtractor={(p) => String(p.id)}
+            keyboardShouldPersistTaps="handled"
+            ListHeaderComponent={
+              <TouchableOpacity style={components.newProductRow} onPress={startNewProduct}>
+                <Text style={components.newProductRowText}>+ Uusi tuote</Text>
+              </TouchableOpacity>
+            }
+            renderItem={({ item }) => (
+              <TouchableOpacity style={components.productRow} onPress={() => selectProduct(item)}>
+                <Text style={components.productName}>{item.name}</Text>
+                {item.ean ? <Text style={components.productEan}>{item.ean}</Text> : null}
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={<Text style={components.emptyText}>Ei tuotteita.</Text>}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          />
+        </View>
+      ) : (
+
+      /* Punnituskaavake — olemassa oleva tai uusi tuote */
+      <View style={layout.screen}>
 
       {/* Tuotetiedot */}
-      <View style={mode.type === 'existing' ? components.cardSuccess : styles.newCard}>
-        <View style={styles.cardHeader}>
+      <View style={mode.type === 'existing' ? components.cardSuccess : components.weighingCard}>
+        <View style={components.cardHeader}>
           {mode.type === 'existing' ? (
             <View style={{ flex: 1 }}>
-              <Text style={styles.selectedName}>{activeProduct!.name}</Text>
+              <Text style={components.selectedName}>{activeProduct!.name}</Text>
               {currentBatch ? (
-                <Text style={styles.batchStatus}>
+                <Text style={components.batchStatus}>
                   Tämän päivän erä {currentBatch.batch_number}: {formatKg(currentBatch.current_weight)} kg
                 </Text>
               ) : (
-                <Text style={styles.batchStatus}>Uusi erä luodaan tänään</Text>
+                <Text style={components.batchStatus}>Uusi erä luodaan tänään</Text>
               )}
             </View>
           ) : (
             <View style={{ flex: 1 }}>
               <TextInput
                 ref={nameRef}
-                style={styles.nameInput}
+                style={components.nameInput}
                 value={newName}
                 onChangeText={setNewName}
                 placeholder="Tuotteen nimi *"
@@ -222,7 +216,7 @@ export default function WeighingScreen() {
                 onSubmitEditing={() => weightRef.current?.focus()}
               />
               <TextInput
-                style={styles.priceInput}
+                style={components.priceInput}
                 value={newPrice}
                 onChangeText={setNewPrice}
                 placeholder="Hinta (€/kg)"
@@ -232,16 +226,16 @@ export default function WeighingScreen() {
               />
             </View>
           )}
-          <TouchableOpacity onPress={handleReset} style={styles.changeBtn}>
-            <Text style={styles.changeBtnText}>Vaihda</Text>
+          <TouchableOpacity onPress={handleReset} style={components.changeBtn}>
+            <Text style={components.changeBtnText}>Vaihda</Text>
           </TouchableOpacity>
         </View>
 
         {/* EAN — auto-täytetty tai auto-generoitu */}
-        <View style={styles.eanRow}>
-          <Text style={styles.eanLabel}>EAN</Text>
+        <View style={components.eanRow}>
+          <Text style={components.eanLabel}>EAN</Text>
           <TextInput
-            style={styles.eanInput}
+            style={components.eanInput}
             value={ean}
             onChangeText={setEan}
             keyboardType="numeric"
@@ -253,10 +247,10 @@ export default function WeighingScreen() {
 
       {/* Erät */}
       {allProductBatches.length > 0 && (
-        <View style={styles.batchesRow}>
+        <View style={components.batchesRow}>
           {allProductBatches.map((b) => (
-            <View key={b.id} style={styles.batchChip}>
-              <Text style={styles.batchChipText}>
+            <View key={b.id} style={components.batchChip}>
+              <Text style={components.batchChipText}>
                 {b.batch_number}: {formatKg(b.current_weight)} kg
               </Text>
             </View>
@@ -265,10 +259,10 @@ export default function WeighingScreen() {
       )}
 
       {/* Paino + nappi */}
-      <View style={styles.weightRow}>
+      <View style={components.weightRow}>
         <TextInput
           ref={weightRef}
-          style={styles.weightInput}
+          style={components.weightInput}
           value={weightInput}
           onChangeText={setWeightInput}
           onSubmitEditing={handleWeigh}
@@ -279,214 +273,28 @@ export default function WeighingScreen() {
           autoFocus={mode.type === 'existing'}
         />
         <TouchableOpacity
-          style={[styles.weighBtn, (refreshing || !weightInput) && layout.disabled]}
+          style={[components.weighBtn, (refreshing || !weightInput) && layout.disabled]}
           onPress={handleWeigh}
           disabled={refreshing || !weightInput}
         >
-          <Text style={styles.weighBtnText}>{refreshing ? '...' : 'Punnitse'}</Text>
+          <Text style={components.weighBtnText}>{refreshing ? '...' : 'Punnitse'}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Tapahtumat */}
       {recentEvents.length > 0 && (
         <>
-          <Text style={styles.eventsTitle}>Tapahtumat</Text>
+          <Text style={components.eventsTitle}>Tapahtumat</Text>
           <FlatList
             data={recentEvents}
             keyExtractor={(e) => String(e.id)}
             renderItem={renderEvent}
+            style={components.listFlex}
           />
         </>
       )}
     </View>
+    )}
+    </ScreenLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  productRow: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xs,
-    borderBottomWidth: 1,
-    borderColor: colors.surfaceMid,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  productName: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
-    color: colors.textDark,
-    flex: 1,
-  },
-  productEan: {
-    fontSize: typography.sizes.md,
-    color: colors.muted,
-  },
-  newProductRow: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xs,
-    borderBottomWidth: 1,
-    borderColor: colors.surfaceMid,
-  },
-  newProductRowText: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.semibold,
-    color: colors.primary,
-  },
-
-  newCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.borderMid,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  selectedName: {
-    fontSize: typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
-    color: colors.successDark,
-  },
-  batchStatus: {
-    fontSize: typography.sizes.md,
-    color: colors.successMid,
-    marginTop: spacing.xs / 2,
-  },
-  nameInput: {
-    borderWidth: 1,
-    borderColor: colors.borderMid,
-    borderRadius: radii.md,
-    padding: spacing.sm,
-    fontSize: typography.sizes.lg,
-    backgroundColor: colors.white,
-    marginBottom: spacing.xs,
-  },
-  priceInput: {
-    borderWidth: 1,
-    borderColor: colors.borderMid,
-    borderRadius: radii.md,
-    padding: spacing.sm,
-    fontSize: typography.sizes.base,
-    backgroundColor: colors.white,
-  },
-  changeBtn: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    backgroundColor: colors.white,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.borderMid,
-  },
-  changeBtnText: {
-    color: colors.muted,
-    fontWeight: typography.weights.semibold,
-    fontSize: typography.sizes.md,
-  },
-  eanRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  eanLabel: {
-    fontSize: typography.sizes.md,
-    color: colors.muted,
-    width: 40,
-  },
-  eanInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.borderMid,
-    borderRadius: radii.md,
-    padding: spacing.xs + 2,
-    fontSize: typography.sizes.md,
-    backgroundColor: colors.white,
-    color: colors.textSecondary,
-  },
-
-  batchesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs + 2,
-    marginBottom: spacing.sm,
-  },
-  batchChip: {
-    backgroundColor: colors.surfaceMid,
-    borderRadius: radii.full,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs,
-  },
-  batchChipText: {
-    fontSize: typography.sizes.sm,
-    color: colors.textSecondary,
-  },
-
-  weightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  weightInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.borderMid,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    fontSize: typography.sizes['3xl'],
-    backgroundColor: colors.white,
-  },
-  weighBtn: {
-    backgroundColor: colors.success,
-    borderRadius: radii.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-  },
-  weighBtnText: {
-    color: colors.white,
-    fontWeight: typography.weights.bold,
-    fontSize: typography.sizes.xl,
-  },
-
-  eventsTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.bold,
-    color: colors.textDark,
-    marginBottom: spacing.xs + 2,
-    marginTop: spacing.sm,
-  },
-  eventRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  eventLeft: { flex: 1 },
-  eventCode: {
-    fontSize: typography.sizes.base,
-    fontWeight: typography.weights.semibold,
-    color: colors.textDark,
-  },
-  eventDesc: {
-    fontSize: typography.sizes.sm,
-    color: colors.muted,
-    marginTop: spacing.xs / 2,
-  },
-  eventRight: { alignItems: 'flex-end' },
-  eventWeight: {
-    fontSize: typography.sizes.base,
-    fontWeight: typography.weights.semibold,
-    color: colors.textSecondary,
-  },
-  eventDate: {
-    fontSize: typography.sizes.xs,
-    color: colors.textTertiary,
-    marginTop: spacing.xs / 2,
-  },
-});

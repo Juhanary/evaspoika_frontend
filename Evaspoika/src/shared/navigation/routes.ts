@@ -9,30 +9,13 @@ export const routes = {
   orders: '/orders' as Href,
   inventory: '/inventory' as Href,
   weighing: '/weighing' as Href,
+  logs: '/logs' as Href,
   more: '/more' as Href,
   moreCustomers: '/more/customers' as Href,
   moreLogs: '/more/logs' as Href,
   orderDetail(orderId: RouteParam) {
     return {
       pathname: '/orders/[orderId]',
-      params: { orderId: toParam(orderId) },
-    } as Href;
-  },
-  orderScan(orderId: RouteParam) {
-    return {
-      pathname: '/orders/scan',
-      params: { orderId: toParam(orderId) },
-    } as Href;
-  },
-  orderScanConfirm(orderId: RouteParam) {
-    return {
-      pathname: '/orders/scan-confirm',
-      params: { orderId: toParam(orderId) },
-    } as Href;
-  },
-  orderVirtualScanner(orderId: RouteParam) {
-    return {
-      pathname: '/orders/virtual-scanner',
       params: { orderId: toParam(orderId) },
     } as Href;
   },

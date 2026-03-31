@@ -4,57 +4,42 @@ import { spacing } from '@/src/shared/constants/spacing';
 import { typography } from '@/src/shared/constants/typography';
 
 export const layout = StyleSheet.create({
-  // Containers
   screen: {
     flex: 1,
-    padding: spacing.lg,
-    backgroundColor: colors.background,
-  },
-  screenCompact: {
-    flex: 1,
-    padding: spacing.md,
-    backgroundColor: colors.background,
+    padding: spacing.xl,
   },
   center: {
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  // Sections
   section: {
     marginBottom: spacing.lg,
   },
-
-  // Titles
   title: {
     fontSize: typography.sizes['4xl'],
     fontWeight: typography.weights.semibold,
-    color: colors.text,
+    color: colors.textOnDark,
     marginBottom: spacing.md,
   },
   screenTitle: {
     fontSize: typography.sizes['5xl'],
     fontWeight: typography.weights.bold,
-    color: colors.textDark,
+    color: colors.textOnDark,
     marginBottom: spacing.md,
   },
-
-  // List items
   listItem: {
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: 'rgba(255,255,255,0.07)',
   },
   listItemTitle: {
     fontSize: typography.sizes.xl,
-    color: colors.text,
+    color: colors.textOnDark,
   },
   listItemSubtitle: {
     fontSize: typography.sizes.md,
-    color: colors.muted,
+    color: colors.textOnDarkMuted,
   },
-
-  // Press states
   listItemPressed: {
     opacity: 0.7,
   },
@@ -64,14 +49,12 @@ export const layout = StyleSheet.create({
   disabled: {
     opacity: 0.4,
   },
-
-  // Row
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
+    borderBottomColor: 'rgba(255,255,255,0.07)',
   },
 });
