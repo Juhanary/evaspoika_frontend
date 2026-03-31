@@ -30,8 +30,17 @@ yarn-error.*
 .DS_Store
 *.pem
 
+#mcp
+.mcp/
+*.mcpignore
+*.mcp.json
+.mcp.json
 # local env files
 .env*.local
+
+*.env
+
+
 
 # typescript
 *.tsbuildinfo
