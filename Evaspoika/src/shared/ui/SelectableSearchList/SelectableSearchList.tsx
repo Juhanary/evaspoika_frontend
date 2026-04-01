@@ -67,11 +67,13 @@ export function SelectableSearchList<T>({
   }
 
   if (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    if (__DEV__) {
+      console.error(errorPrefix, error);
+    }
 
     return (
       <View style={[layout.screen, layout.center]}>
-        <Text>{errorPrefix}: {message}</Text>
+        <Text>{errorPrefix}</Text>
       </View>
     );
   }

@@ -54,6 +54,24 @@ const parseDateValue = (value?: string | null) => {
   return Number.isNaN(parsed) ? NaN : parsed;
 };
 
+const formatOrderDate = (value?: string | null) => {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toLocaleDateString('fi-FI', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
+
 export default function HomeScreen() {
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const { data: batches } = useBatches();
@@ -163,8 +181,7 @@ export default function HomeScreen() {
         onChangeText: setQuery,
         placeholder: 'Hae...',
       }}
-      showCloseButton={false}
-      showHomeButton={false}
+      leftAction="none"
       wrapInCard={false}
     >
       <ScrollView
@@ -240,12 +257,13 @@ export default function HomeScreen() {
                   >
                     <Text style={dark.rowTitle}>
                       {order.customer_id
-                        ? (customerNameById.get(order.customer_id) ?? `#${order.id}`)
-                        : `#${order.id}`}
+                        ? (customerNameById.get(order.customer_id) ?? 'Tilaus')
+                        : 'Tilaus'}
                     </Text>
                     <Text style={dark.rowSub}>
-                      #{order.id}
-                      {order.status ? ` · ${order.status}` : ''}
+                      {[formatOrderDate(order.order_date), order.status]
+                        .filter(Boolean)
+                        .join(' / ') || 'Tilaus'}
                     </Text>
                   </Pressable>
                 ))}
@@ -282,13 +300,7 @@ export default function HomeScreen() {
                   const customerName = order.customer_id
                     ? customerNameById.get(order.customer_id)
                     : null;
-                  const dateLabel = order.order_date
-                    ? new Date(order.order_date).toLocaleDateString('fi-FI', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                      })
-                    : `#${order.id}`;
+                  const dateLabel = formatOrderDate(order.order_date) ?? '';
                   const orderSummary = orderLineSummaries.get(order.id);
 
                   return (
@@ -302,7 +314,7 @@ export default function HomeScreen() {
                       >
                         <View style={homeStyles.ordersRowBody}>
                           <Text numberOfLines={1} style={homeStyles.ordersRowName}>
-                            {customerName ?? `Tilaus #${order.id}`}
+                            {customerName ?? 'Tilaus'}
                           </Text>
                           <Text numberOfLines={2} style={homeStyles.ordersRowSummary}>
                             {orderSummary ?? 'Ladataan tuotteita...'}

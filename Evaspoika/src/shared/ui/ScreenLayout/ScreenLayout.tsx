@@ -6,9 +6,12 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { router } from 'expo-router';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
 import { spacing } from '@/src/shared/constants/spacing';
+import { goBackOrHome } from '@/src/shared/navigation/goBackOrHome';
+import { routes } from '@/src/shared/navigation/routes';
 import { dark } from '@/src/shared/styles/dark';
 import {
   AppHeader,
@@ -17,14 +20,15 @@ import {
 } from '@/src/shared/ui/AppHeader/AppHeader';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import { InventorySummaryModal } from '@/src/shared/ui/InventorySummaryModal/InventorySummaryModal';
-import { ScreenCloseButtonRow } from '@/src/shared/ui/ScreenCloseButton/ScreenCloseButton';
+import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
 import { buildInventorySummary } from '@/src/shared/utils/inventory';
+
+export type ScreenLayoutLeftAction = 'home' | 'back' | 'none';
 
 type Props = {
   title?: string;
-  showHomeButton?: boolean;
-  showCloseButton?: boolean;
-  onClose?: () => void;
+  leftAction?: ScreenLayoutLeftAction;
+  onBack?: () => void;
   rightActions?: AppHeaderAction[];
   headerSearch?: AppHeaderSearch;
   showInventoryAction?: boolean;
@@ -37,9 +41,8 @@ const BG = require('@/src/assets/images/home_bg-50c5c1.png');
 
 export function ScreenLayout({
   title,
-  showHomeButton = true,
-  showCloseButton = true,
-  onClose,
+  leftAction = 'home',
+  onBack,
   rightActions = [],
   headerSearch,
   showInventoryAction = true,
@@ -55,6 +58,22 @@ export function ScreenLayout({
     () => buildInventorySummary(products, batches),
     [products, batches],
   );
+  const inlineSearch = wrapInCard ? headerSearch : undefined;
+
+  const headerLeftAction: AppHeaderAction | null =
+    leftAction === 'home'
+      ? {
+          icon: 'home',
+          onPress: () => router.navigate(routes.home),
+          accessibilityLabel: 'Koti',
+        }
+      : leftAction === 'back'
+        ? {
+            icon: 'arrow-back',
+            onPress: onBack ?? goBackOrHome,
+            accessibilityLabel: 'Takaisin',
+          }
+        : null;
 
   const headerRightActions: AppHeaderAction[] = showInventoryAction
     ? [
@@ -70,20 +89,25 @@ export function ScreenLayout({
   return (
     <ImageBackground resizeMode="cover" source={BG} style={dark.screen}>
       <AppHeader
+        leftAction={headerLeftAction}
         rightActions={headerRightActions}
-        search={headerSearch}
-        showHomeButton={showHomeButton}
+        search={wrapInCard ? undefined : headerSearch}
         title={title}
       />
 
       <View style={styles.contentContainer}>
         {wrapInCard ? (
           <GlassCard blurRadius={18} style={[styles.card, cardStyle]}>
-            {showCloseButton ? (
-              <ScreenCloseButtonRow
-                onPress={onClose}
-                style={styles.closeButtonInsideCard}
-              />
+            {inlineSearch ? (
+              <View style={styles.inlineSearchContainer}>
+                <SearchInput
+                  onChangeText={inlineSearch.onChangeText}
+                  placeholder={inlineSearch.placeholder ?? 'Hae...'}
+                  style={styles.inlineSearch}
+                  value={inlineSearch.value}
+                  variant="dark"
+                />
+              </View>
             ) : null}
             {children}
           </GlassCard>
@@ -105,16 +129,22 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
   },
-  closeButtonInsideCard: {
-    paddingTop: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    marginBottom: spacing.sm,
-  },
   card: {
     flex: 1,
     marginHorizontal: spacing.lg,
     marginBottom: spacing.lg,
     padding: 0,
+  },
+  inlineSearchContainer: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
+    alignItems: 'center',
+  },
+  inlineSearch: {
+    width: '100%',
+    maxWidth: 720,
+    marginBottom: 0,
   },
   plainContent: {
     flex: 1,

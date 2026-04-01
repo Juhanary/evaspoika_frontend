@@ -1,6 +1,10 @@
 import { apiRequest } from '@/src/infrastructure/api/client';
 import { endpoints } from '@/src/infrastructure/api/endpoints';
-import { ConfirmLine, ScanPreviewItem } from '../domain/types';
+import { ConfirmLine, ScanInventoryBox, ScanPreviewItem } from '../domain/types';
+
+export function fetchScanBoxes() {
+  return apiRequest<ScanInventoryBox[]>(`${endpoints.scan}/boxes`);
+}
 
 export function previewScan(items: { ean: string; count: number }[]) {
   return apiRequest<ScanPreviewItem[]>(`${endpoints.scan}/preview`, {

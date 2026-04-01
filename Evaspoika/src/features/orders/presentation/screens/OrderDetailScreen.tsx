@@ -6,7 +6,6 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
-  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -19,36 +18,74 @@ import { useOrder } from '../hooks/useOrders';
 import { fetchOrderLines } from '@/src/features/orderLines/infrastructure/orderLinesApi';
 import { OrderLine } from '@/src/features/orderLines/domain/types';
 import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
-import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
-import { previewScan, confirmScan } from '@/src/features/scan/infrastructure/scanApi';
+import { confirmScan, fetchScanBoxes } from '@/src/features/scan/infrastructure/scanApi';
+import { ScanInventoryBox } from '@/src/features/scan/domain/types';
 import { colors } from '@/src/shared/constants/colors';
 import { formatKg } from '@/src/shared/utils/weight';
 import { components } from '@/src/shared/styles/components';
 import { screen } from '@/src/shared/styles/screen';
-import { ScreenCloseButton } from '@/src/shared/ui/ScreenCloseButton/ScreenCloseButton';
 
 type Props = { orderId?: number };
 
 type BoxLineState = {
-  boxId: number;
+  id: string;
   productId: number;
   productName: string;
-  defaultWeightKg: number;
-  selectedBatchId: number;
-  selectedBatchNumber: string;
-  isPartial: boolean;
-  partialWeightKg: string;
+  weightKg: string;
+  weightEdited: boolean;
+  selectedBatchId: number | null;
+  selectedBatchNumber: string | null;
+  assignedBoxId: number | null;
+  assignedBoxWeightKg: number | null;
   pricePerKg: number;
 };
 
-const gramsToKgStr = (g: number) => (g / 1000).toFixed(3);
-const kgStrToGrams = (s: string) => Math.round(parseFloat(s.replace(',', '.')) * 1000);
+type BatchPickerOption = {
+  batchId: number;
+  batchNumber: string;
+  productionDate?: string | null;
+  currentWeight: number;
+  availableCount: number;
+  nextBox: ScanInventoryBox | null;
+};
 
-const toFinnishDate = (s?: string | null) => {
-  if (!s) return null;
-  const d = new Date(s);
-  if (isNaN(d.getTime())) return null;
-  return d.toLocaleDateString('fi-FI', { day: '2-digit', month: '2-digit', year: 'numeric' });
+type ProductBatchSummary = {
+  batchKey: string;
+  batchLabel: string;
+  totalWeight: number;
+};
+
+type ProductLineGroup = {
+  productKey: string;
+  productName: string;
+  totalWeight: number;
+  batches: ProductBatchSummary[];
+};
+
+const gramsToKgStr = (grams: number) => (grams / 1000).toFixed(3);
+
+const kgStrToGrams = (value: string) =>
+  Math.round(parseFloat(value.replace(',', '.')) * 1000);
+
+const getUsedAssignedBoxIds = (rows: BoxLineState[], excludeRowId?: string) =>
+  new Set(
+    rows
+      .filter((box) => box.id !== excludeRowId && box.assignedBoxId != null)
+      .map((box) => box.assignedBoxId as number),
+  );
+
+const toFinnishDate = (value?: string | null) => {
+  if (!value) return null;
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date.toLocaleDateString('fi-FI', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 };
 
 export default function OrderDetailScreen({ orderId }: Props) {
@@ -60,133 +97,374 @@ export default function OrderDetailScreen({ orderId }: Props) {
     enabled: !!orderId,
   });
   const { data: customers } = useCustomers();
-  const { data: allBatches } = useBatches();
 
   const [showScanModal, setShowScanModal] = useState(false);
   const [eanInput, setEanInput] = useState('');
   const [scannedBoxes, setScannedBoxes] = useState<BoxLineState[]>([]);
-  const [batchPickerFor, setBatchPickerFor] = useState<number | null>(null);
-  const [scanLoading, setScanLoading] = useState(false);
+  const [batchPickerFor, setBatchPickerFor] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const eanRef = useRef<TextInput>(null);
+  const nextScannedRowId = useRef(1);
+
+  const { data: scanBoxes, isLoading: scanBoxesLoading } = useQuery({
+    queryKey: ['scanBoxes'],
+    queryFn: fetchScanBoxes,
+    enabled: showScanModal,
+  });
 
   const customerName = useMemo(() => {
     if (!order || !customers) return null;
-    const cid = order.customer_id ?? (order as any).CustomerId;
-    return customers.find((c) => c.id === cid)?.name ?? null;
+
+    const customerId = order.customer_id ?? (order as { CustomerId?: number | null }).CustomerId;
+    return customers.find((customer) => customer.id === customerId)?.name ?? null;
   }, [order, customers]);
 
   const activeLines = useMemo<OrderLine[]>(
-    () => (orderLines ?? []).filter((l) => !l.deleted_at),
-    [orderLines]
+    () => (orderLines ?? []).filter((line) => !line.deleted_at),
+    [orderLines],
   );
 
-  const totalWeight = activeLines.reduce((s, l) => s + (l.sold_weight ?? 0), 0);
+  const groupedLines = useMemo<ProductLineGroup[]>(() => {
+    const groups = new Map<
+      string,
+      ProductLineGroup & { batchMap: Map<string, ProductBatchSummary> }
+    >();
 
-  const batchesForPicker = useMemo(() => {
-    if (batchPickerFor == null || !allBatches) return [];
-    const productId = scannedBoxes[batchPickerFor]?.productId;
-    return allBatches.filter(
-      (b) => b.ProductId === productId && !b.deleted_at && b.current_weight > 0
+    activeLines.forEach((line) => {
+      const productId = line.Batch?.Product?.id ?? line.BatchId ?? line.id;
+      const productKey = String(productId);
+      const productName = line.Batch?.Product?.name ?? 'Tuote / erä';
+      const batchKey = String(line.BatchId ?? line.id);
+      const batchLabel = line.Batch?.batch_number ?? '-';
+      const soldWeight = line.sold_weight ?? 0;
+
+      const group =
+        groups.get(productKey) ??
+        {
+          productKey,
+          productName,
+          totalWeight: 0,
+          batches: [],
+          batchMap: new Map<string, ProductBatchSummary>(),
+        };
+
+      const batchSummary =
+        group.batchMap.get(batchKey) ??
+        {
+          batchKey,
+          batchLabel,
+          totalWeight: 0,
+        };
+
+      batchSummary.totalWeight += soldWeight;
+      group.batchMap.set(batchKey, batchSummary);
+      group.totalWeight += soldWeight;
+      groups.set(productKey, group);
+    });
+
+    return [...groups.values()]
+      .map(({ batchMap, ...group }) => ({
+        ...group,
+        batches: [...batchMap.values()].sort((left, right) =>
+          left.batchLabel.localeCompare(right.batchLabel, 'fi', { sensitivity: 'base' }),
+        ),
+      }))
+      .sort((left, right) =>
+        left.productName.localeCompare(right.productName, 'fi', { sensitivity: 'base' }),
+      );
+  }, [activeLines]);
+
+  const boxesByProductId = useMemo(() => {
+    const grouped = new Map<number, ScanInventoryBox[]>();
+
+    (scanBoxes ?? []).forEach((box) => {
+      const productId = box.Batch?.Product?.id;
+
+      if (!productId || !box.Batch?.Product) {
+        return;
+      }
+
+      const existing = grouped.get(productId) ?? [];
+      existing.push(box);
+      grouped.set(productId, existing);
+    });
+
+    return grouped;
+  }, [scanBoxes]);
+
+  const boxesByEan = useMemo(() => {
+    const grouped = new Map<string, ScanInventoryBox[]>();
+
+    (scanBoxes ?? []).forEach((box) => {
+      const ean = box.Batch?.Product?.ean?.trim();
+
+      if (!ean || !box.Batch?.Product) {
+        return;
+      }
+
+      const existing = grouped.get(ean) ?? [];
+      existing.push(box);
+      grouped.set(ean, existing);
+    });
+
+    return grouped;
+  }, [scanBoxes]);
+
+  const findNextAvailableBox = (
+    productId: number,
+    batchId: number,
+    excludeRowId?: string,
+  ) => {
+    const usedIds = getUsedAssignedBoxIds(scannedBoxes, excludeRowId);
+
+    return (
+      (boxesByProductId.get(productId) ?? []).find(
+        (box) => box.Batch?.id === batchId && !usedIds.has(box.id),
+      ) ?? null
     );
-  }, [batchPickerFor, allBatches, scannedBoxes]);
+  };
+
+  const batchPickerRow = useMemo(
+    () => scannedBoxes.find((box) => box.id === batchPickerFor) ?? null,
+    [batchPickerFor, scannedBoxes],
+  );
+
+  const batchPickerOptions = useMemo<BatchPickerOption[]>(() => {
+    if (!batchPickerRow) {
+      return [];
+    }
+
+    const optionsByBatchId = new Map<number, BatchPickerOption>();
+    const usedIds = getUsedAssignedBoxIds(scannedBoxes, batchPickerRow.id);
+
+    (boxesByProductId.get(batchPickerRow.productId) ?? []).forEach((box) => {
+      const batch = box.Batch;
+
+      if (!batch) {
+        return;
+      }
+
+      const existing =
+        optionsByBatchId.get(batch.id) ??
+        {
+          batchId: batch.id,
+          batchNumber: batch.batch_number,
+          productionDate: batch.production_date,
+          currentWeight: batch.current_weight,
+          availableCount: 0,
+          nextBox: null,
+        };
+
+      if (!usedIds.has(box.id)) {
+        existing.availableCount += 1;
+        if (!existing.nextBox) {
+          existing.nextBox = box;
+        }
+      }
+
+      optionsByBatchId.set(batch.id, existing);
+    });
+
+    return [...optionsByBatchId.values()]
+      .filter((option) => option.nextBox != null && option.availableCount > 0)
+      .sort((left, right) => {
+        const leftDate = left.productionDate ? Date.parse(left.productionDate) : Number.NaN;
+        const rightDate = right.productionDate ? Date.parse(right.productionDate) : Number.NaN;
+
+        if (Number.isFinite(leftDate) && Number.isFinite(rightDate)) {
+          return leftDate - rightDate;
+        }
+
+        if (Number.isFinite(leftDate)) {
+          return -1;
+        }
+
+        if (Number.isFinite(rightDate)) {
+          return 1;
+        }
+
+        return left.batchNumber.localeCompare(right.batchNumber, 'fi', {
+          sensitivity: 'base',
+        });
+      });
+  }, [batchPickerRow, boxesByProductId, scannedBoxes]);
 
   const scanTotalWeight = useMemo(
     () =>
-      scannedBoxes.reduce((s, box) => {
-        const g = box.isPartial
-          ? kgStrToGrams(box.partialWeightKg)
-          : Math.round(box.defaultWeightKg * 1000);
-        return s + (isFinite(g) ? g : 0);
+      scannedBoxes.reduce((sum, box) => {
+        const weightGrams = kgStrToGrams(box.weightKg);
+        return sum + (Number.isFinite(weightGrams) ? weightGrams : 0);
       }, 0),
-    [scannedBoxes]
+    [scannedBoxes],
   );
 
-  const handleEanChange = (v: string) => {
-    setEanInput(v);
-    if (v.trim().length === 13) handleScan(v.trim());
+  const handleEanChange = (value: string) => {
+    const normalizedValue = value.replace(/\s+/g, '');
+    setEanInput(normalizedValue);
+
+    if (normalizedValue.length === 13) {
+      handleScan(normalizedValue);
+    }
   };
 
-  const handleScan = async (ean: string) => {
-    if (!/^\d{13}$/.test(ean)) {
+  const handleScan = (ean: string) => {
+    const normalizedEan = ean.replace(/\s+/g, '');
+
+    if (!/^\d{13}$/.test(normalizedEan)) {
       Alert.alert('Virheellinen koodi', 'EAN-13 on 13-numeroinen.');
       setEanInput('');
       return;
     }
-    setScanLoading(true);
-    try {
-      const preview = await previewScan([{ ean, count: 1 }]);
-      const newBoxes: BoxLineState[] = preview.flatMap((item) =>
-        item.boxes.map((box) => ({
-          boxId: box.id,
-          productId: item.productId,
-          productName: item.productName,
-          defaultWeightKg: box.weight / 1000,
-          selectedBatchId: item.batchId,
-          selectedBatchNumber: item.batchNumber,
-          isPartial: false,
-          partialWeightKg: gramsToKgStr(box.weight),
-          pricePerKg: item.pricePerKg,
-        }))
-      );
-      setScannedBoxes((prev) => [...prev, ...newBoxes]);
-    } catch (err) {
-      Alert.alert('Virhe', err instanceof Error ? err.message : 'Skannaus epäonnistui');
-    } finally {
-      setScanLoading(false);
+
+    if (scanBoxesLoading || !scanBoxes) {
+      Alert.alert('Odota hetki', 'Laatikkotietoja ladataan viel\u00E4.');
       setEanInput('');
-      setTimeout(() => eanRef.current?.focus(), 50);
+      return;
+    }
+
+    const matchingBoxes = boxesByEan.get(normalizedEan) ?? [];
+    const product = matchingBoxes[0]?.Batch?.Product;
+
+    if (!product || matchingBoxes.length === 0) {
+      Alert.alert('Tuotetta ei l\u00F6ydy', 'Skannatulle koodille ei l\u00F6ytynyt varastossa olevaa laatikkoa.');
+      setEanInput('');
+      return;
+    }
+
+    const usedCount = scannedBoxes.filter((box) => box.productId === product.id).length;
+    const suggestedBox = matchingBoxes[usedCount];
+
+    if (!suggestedBox) {
+      Alert.alert(
+        'Ei riitt\u00E4v\u00E4sti laatikoita',
+        `${product.name}: kaikki varastossa olevat laatikot on jo skannattu t\u00E4h\u00E4n tilaukseen.`,
+      );
+      setEanInput('');
+      return;
+    }
+
+    setScannedBoxes((previous) => [
+      ...previous,
+      {
+        id: String(nextScannedRowId.current++),
+        productId: product.id,
+        productName: product.name,
+        weightKg: gramsToKgStr(suggestedBox.weight),
+        weightEdited: false,
+        selectedBatchId: null,
+        selectedBatchNumber: null,
+        assignedBoxId: null,
+        assignedBoxWeightKg: null,
+        pricePerKg: product.price_per_kg,
+      },
+    ]);
+    setEanInput('');
+    setTimeout(() => eanRef.current?.focus(), 50);
+  };
+
+  const handleSelectBatch = (batchId: number, batchNumber: string) => {
+    if (!batchPickerRow) {
+      return;
+    }
+
+    const nextBox = findNextAvailableBox(batchPickerRow.productId, batchId, batchPickerRow.id);
+
+    if (!nextBox) {
+      Alert.alert(
+        'Er\u00E4 ei ole saatavilla',
+        'Valitusta er\u00E4st\u00E4 ei ole en\u00E4\u00E4 vapaita laatikoita t\u00E4lle riville.',
+      );
+      return;
+    }
+
+    setScannedBoxes((previous) =>
+      previous.map((box) =>
+        box.id === batchPickerRow.id
+          ? {
+              ...box,
+              selectedBatchId: batchId,
+              selectedBatchNumber: batchNumber,
+              assignedBoxId: nextBox.id,
+              assignedBoxWeightKg: nextBox.weight / 1000,
+              weightKg: box.weightEdited ? box.weightKg : gramsToKgStr(nextBox.weight),
+            }
+          : box,
+      ),
+    );
+    setBatchPickerFor(null);
+  };
+
+  const handleRemoveScannedRow = (rowId: string) => {
+    setScannedBoxes((previous) => previous.filter((box) => box.id !== rowId));
+
+    if (batchPickerFor === rowId) {
+      setBatchPickerFor(null);
     }
   };
 
   const handleSave = async () => {
     if (scannedBoxes.length === 0) {
-      Alert.alert('Tyhjä', 'Ei laatikoita tallennettavaksi.');
+      Alert.alert('Tyhj\u00E4', 'Ei laatikoita tallennettavaksi.');
       return;
     }
+
     for (const box of scannedBoxes) {
-      if (box.isPartial) {
-        const g = kgStrToGrams(box.partialWeightKg);
-        if (!isFinite(g) || g <= 0) {
-          Alert.alert('Virheellinen paino', `Tarkista paino: ${box.productName}`);
-          return;
-        }
-        if (g > Math.round(box.defaultWeightKg * 1000)) {
-          Alert.alert(
-            'Liian suuri paino',
-            `${box.productName}: enintään ${box.defaultWeightKg.toFixed(3)} kg.`
-          );
-          return;
-        }
+      if (!box.selectedBatchId || !box.assignedBoxId || !box.assignedBoxWeightKg) {
+        Alert.alert('Er\u00E4 puuttuu', `Valitse er\u00E4 tuotteelle ${box.productName}.`);
+        return;
+      }
+
+      const soldWeight = kgStrToGrams(box.weightKg);
+
+      if (!Number.isFinite(soldWeight) || soldWeight <= 0) {
+        Alert.alert('Virheellinen paino', `Tarkista paino: ${box.productName}`);
+        return;
+      }
+
+      const maxWeight = Math.round(box.assignedBoxWeightKg * 1000);
+
+      if (soldWeight > maxWeight) {
+        Alert.alert(
+          'Liian suuri paino',
+          `${box.productName}: enint\u00E4\u00E4n ${box.assignedBoxWeightKg.toFixed(3)} kg.`,
+        );
+        return;
       }
     }
+
     setSaving(true);
+
     try {
       await confirmScan(
         orderId!,
         scannedBoxes.map((box) => ({
-          batchId: box.selectedBatchId,
-          boxIds: [box.boxId],
-          soldWeight: box.isPartial
-            ? kgStrToGrams(box.partialWeightKg)
-            : Math.round(box.defaultWeightKg * 1000),
+          batchId: box.selectedBatchId as number,
+          boxIds: [box.assignedBoxId as number],
+          soldWeight: kgStrToGrams(box.weightKg),
           pricePerGram: Math.round(box.pricePerKg),
-        }))
+        })),
       );
-      await queryClient.invalidateQueries({
-        queryKey: ['orderLines', orderId],
-        exact: true,
-      });
-      await queryClient.refetchQueries({
-        queryKey: ['orderLines', orderId],
-        exact: true,
-      });
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['orderLines', orderId],
+          exact: true,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['scanBoxes'],
+          exact: true,
+        }),
+      ]);
+
       setBatchPickerFor(null);
       setEanInput('');
       setScannedBoxes([]);
       setShowScanModal(false);
-    } catch (err) {
-      Alert.alert('Virhe', err instanceof Error ? err.message : 'Tallennus epäonnistui');
+    } catch (saveError) {
+      Alert.alert(
+        'Virhe',
+        saveError instanceof Error ? saveError.message : 'Tallennus ep\u00E4onnistui',
+      );
     } finally {
       setSaving(false);
     }
@@ -194,7 +472,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
 
   if (!orderId || (!isLoading && (error || !order))) {
     return (
-      <ScreenLayout title="TILAUS">
+      <ScreenLayout leftAction="back" title="TILAUS">
         <View style={screen.centered}>
           <Text style={screen.muted}>Tilausta ei löydy.</Text>
         </View>
@@ -204,7 +482,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
 
   if (isLoading) {
     return (
-      <ScreenLayout title="TILAUS">
+      <ScreenLayout leftAction="back" title="TILAUS">
         <View style={screen.centered}>
           <Text style={screen.muted}>Ladataan...</Text>
         </View>
@@ -212,237 +490,266 @@ export default function OrderDetailScreen({ orderId }: Props) {
     );
   }
 
-  const dateStr = toFinnishDate(order!.order_date);
+  const dateLabel = toFinnishDate(order.order_date);
 
   return (
-    <ScreenLayout title="TILAUS">
+    <ScreenLayout leftAction="back" title="TILAUS">
       <ScrollView
-        style={components.odScroll}
         contentContainerStyle={components.odScrollContent}
         showsVerticalScrollIndicator={false}
+        style={components.odScroll}
       >
-        {/* Customer name pill */}
         <View style={components.odCustomerPill}>
-          <Text style={components.odCustomerPillText} numberOfLines={1}>
-            {customerName ?? `Tilaus #${order!.id}`}
+          <Text numberOfLines={1} style={components.odCustomerPillText}>
+            {customerName ?? 'Tilaus'}
           </Text>
-          {dateStr ? <Text style={components.odDateText}>{dateStr}</Text> : null}
+          {dateLabel ? <Text style={components.odDateText}>{dateLabel}</Text> : null}
         </View>
 
-        {/* Table section */}
         <View style={components.odTableSection}>
-          {/* Column headers */}
           <View style={components.odTableHeaders}>
             <Text style={[components.odTableHeaderText, { flex: 3 }]}>TUOTE</Text>
-            <Text style={[components.odTableHeaderText, { flex: 3, textAlign: 'center' }]}>ERÄ</Text>
-            <Text style={[components.odTableHeaderText, { flex: 2, textAlign: 'right' }]}>PAINO</Text>
+            <Text style={[components.odTableHeaderText, { flex: 3, textAlign: 'center' }]}>
+              ERÄ
+            </Text>
+            <Text style={[components.odTableHeaderText, { flex: 2, textAlign: 'right' }]}>
+              PAINO
+            </Text>
           </View>
 
-          {/* White table background */}
           <View style={components.odTableBody}>
-            {activeLines.length === 0 ? (
+            {groupedLines.length === 0 ? (
               <Text style={components.odTableEmptyText}>Ei tilausrivejä vielä.</Text>
             ) : (
-              activeLines.map((line, i) => (
-                <View key={line.id}>
-                  <View style={components.odTableRow}>
-                    <Text style={[components.odTableRowText, { flex: 3 }]} numberOfLines={1}>
-                      {line.Batch?.Product?.name ?? `Erä #${line.BatchId}`}
+              groupedLines.map((group, groupIndex) => (
+                <View key={group.productKey}>
+                  <View style={components.odProductGroupRow}>
+                    <Text
+                      numberOfLines={1}
+                      style={[components.odProductGroupTitle, { flex: 3 }]}
+                    >
+                      {group.productName}
                     </Text>
-                    <Text style={[components.odTableRowText, { flex: 3, textAlign: 'center' }]}>
-                      {line.Batch?.batch_number ?? '-'}
+                    <Text
+                      style={[components.odProductGroupLabel, { flex: 3, textAlign: 'center' }]}
+                    >
+                      YHTEENSÄ
                     </Text>
-                    <Text style={[components.odTableRowText, { flex: 2, textAlign: 'right' }]}>
-                      {formatKg(line.sold_weight)} kg
+                    <Text
+                      style={[components.odProductGroupWeight, { flex: 2, textAlign: 'right' }]}
+                    >
+                      {formatKg(group.totalWeight)} kg
                     </Text>
                   </View>
-                  {i < activeLines.length - 1 && <View style={components.odTableRowDivider} />}
+
+                  {group.batches.map((batch) => (
+                    <View key={batch.batchKey}>
+                      <View style={components.odBatchSummaryRow}>
+                        <View style={components.odBatchSummarySpacer} />
+                        <Text
+                          style={[components.odBatchSummaryText, { flex: 3, textAlign: 'center' }]}
+                        >
+                          {batch.batchLabel}
+                        </Text>
+                        <Text
+                          style={[components.odBatchSummaryText, { flex: 2, textAlign: 'right' }]}
+                        >
+                          {formatKg(batch.totalWeight)} kg
+                        </Text>
+                      </View>
+                      <View style={components.odTableRowDivider} />
+                    </View>
+                  ))}
+
+                  {groupIndex < groupedLines.length - 1 ? (
+                    <View style={components.odProductGroupDivider} />
+                  ) : null}
                 </View>
               ))
             )}
-
-            {/* Total row */}
-            {totalWeight > 0 && (
-              <>
-                <View style={components.odTotalDivider} />
-                <View style={components.odTotalRow}>
-                  <Text style={components.odTotalText}>YHTEENSÄ</Text>
-                  <Text style={components.odTotalWeight}>{formatKg(totalWeight)} kg</Text>
-                </View>
-              </>
-            )}
           </View>
         </View>
 
-        {/* SKANNAA button */}
         <Pressable
-          style={({ pressed }) => [components.odSkannaaBtn, pressed && screen.pressed]}
           onPress={() => setShowScanModal(true)}
+          style={({ pressed }) => [components.odSkannaaBtn, pressed && screen.pressed]}
         >
           <Text style={components.odSkaannaaBtnText}>SKANNAA</Text>
         </Pressable>
       </ScrollView>
 
-      {/* Scan modal */}
       <Modal
-        visible={showScanModal}
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowScanModal(false)}
+        transparent
+        visible={showScanModal}
       >
-        <SafeAreaView style={components.smContainer}>
-          <View style={components.smHeader}>
-            <Text style={components.smTitle}>Skannaa laatikoita</Text>
-            <ScreenCloseButton onPress={() => setShowScanModal(false)} />
-          </View>
+        <SafeAreaView style={components.smOverlay}>
+          <View style={components.smShell}>
+            <View style={components.smTopRow}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={() => setShowScanModal(false)}
+                style={components.smBackBtn}
+              >
+                <Ionicons color={colors.textOnDark} name="arrow-undo" size={26} />
+              </TouchableOpacity>
 
-          <TextInput
-            ref={eanRef}
-            style={components.smEanInput}
-            value={eanInput}
-            onChangeText={handleEanChange}
-            onSubmitEditing={() => handleScan(eanInput)}
-            placeholder="Skannaa EAN-13..."
-            keyboardType="numeric"
-            autoFocus
-            returnKeyType="done"
-          />
-          {scanLoading && (
-            <Text style={components.smScanningText}>Haetaan tietoja...</Text>
-          )}
+              <View style={components.smCustomerPill}>
+                <Text numberOfLines={1} style={components.smCustomerPillText}>
+                  {customerName ?? 'Tilaus'}
+                </Text>
+              </View>
 
-          <FlatList
-            data={scannedBoxes}
-            keyExtractor={(_, i) => String(i)}
-            style={components.smBoxList}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item, index }) => (
-              <View style={components.smBoxCard}>
-                <View style={components.smBoxCardHeader}>
-                  <Text style={components.smBoxProductName}>{item.productName}</Text>
-                  <TouchableOpacity
-                    onPress={() =>
-                      setScannedBoxes((prev) => prev.filter((_, i) => i !== index))
-                    }
-                  >
-                    <Ionicons name="trash-outline" size={20} color={colors.danger} />
-                  </TouchableOpacity>
-                </View>
+              <View style={components.smTopSpacer} />
+            </View>
 
-                <TouchableOpacity
-                  style={components.smBatchRow}
-                  onPress={() => setBatchPickerFor(index)}
-                >
-                  <Text style={components.smBatchLabel}>Erä: </Text>
-                  <Text style={components.smBatchValue}>{item.selectedBatchNumber}</Text>
-                  <Text style={components.smBatchChange}> (vaihda ▾)</Text>
-                </TouchableOpacity>
+            <View style={components.smPanel}>
+              <View style={components.smScanFieldRow}>
+                <TextInput
+                  autoFocus
+                  keyboardType="numeric"
+                  onChangeText={handleEanChange}
+                  placeholder="ALOITA SKANNAAMINEN..."
+                  placeholderTextColor="rgba(0,0,0,0.32)"
+                  ref={eanRef}
+                  returnKeyType="done"
+                  style={components.smScanFieldInput}
+                  value={eanInput}
+                />
+                <Ionicons color="rgba(0,0,0,0.42)" name="barcode-outline" size={28} />
+              </View>
 
-                <View style={components.smPartialRow}>
-                  <Text style={components.smPartialLabel}>Vajaa</Text>
-                  <Switch
-                    value={item.isPartial}
-                    onValueChange={(v) =>
-                      setScannedBoxes((prev) =>
-                        prev.map((b, i) =>
-                          i === index ? { ...b, isPartial: v } : b
-                        )
-                      )
-                    }
-                    trackColor={{ true: colors.primary }}
-                  />
-                </View>
+              <View style={components.smTableHeader}>
+                <View style={components.smDeleteCell} />
+                <Text style={[components.smTableHeaderText, components.smProductCell]}>
+                  TUOTE
+                </Text>
+                <Text style={[components.smTableHeaderText, components.smBatchCell]}>ERÄ</Text>
+                <Text style={[components.smTableHeaderText, components.smWeightCell]}>PAINO</Text>
+              </View>
 
-                <View style={components.smWeightRow}>
-                  <Text style={components.smWeightLabel}>Paino (kg):</Text>
-                  {item.isPartial ? (
+              {scanBoxesLoading ? (
+                <Text style={components.smScanningText}>Ladataan skannattavia laatikoita...</Text>
+              ) : null}
+
+              <FlatList
+                data={scannedBoxes}
+                ItemSeparatorComponent={() => <View style={components.smTableDivider} />}
+                keyboardShouldPersistTaps="handled"
+                keyExtractor={(item) => item.id}
+                ListEmptyComponent={
+                  <Text style={components.smScanEmpty}>
+                    Skannaa viivakoodeja, valitse erä jokaiselle riville ja tarkista painot.
+                  </Text>
+                }
+                renderItem={({ item }) => (
+                  <View style={components.smTableRow}>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      disabled={saving}
+                      onPress={() => handleRemoveScannedRow(item.id)}
+                      style={components.smDeleteCell}
+                    >
+                      <Ionicons color="rgba(0,0,0,0.54)" name="close" size={22} />
+                    </TouchableOpacity>
+
+                    <Text
+                      numberOfLines={1}
+                      style={[components.smTableRowText, components.smProductCell]}
+                    >
+                      {item.productName}
+                    </Text>
+
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      onPress={() => setBatchPickerFor(item.id)}
+                      style={[components.smBatchCell, components.smBatchSelectBtn]}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          components.smBatchSelectText,
+                          !item.selectedBatchNumber && components.smBatchSelectPlaceholder,
+                        ]}
+                      >
+                        {item.selectedBatchNumber ?? 'VALITSE'}
+                      </Text>
+                      <Ionicons color="rgba(0,0,0,0.7)" name="chevron-down" size={16} />
+                    </TouchableOpacity>
+
                     <TextInput
-                      style={components.smWeightInput}
-                      value={item.partialWeightKg}
-                      onChangeText={(v) =>
-                        setScannedBoxes((prev) =>
-                          prev.map((b, i) =>
-                            i === index ? { ...b, partialWeightKg: v } : b
-                          )
+                      keyboardType="decimal-pad"
+                      onChangeText={(value) =>
+                        setScannedBoxes((previous) =>
+                          previous.map((box) =>
+                            box.id === item.id
+                              ? { ...box, weightKg: value, weightEdited: true }
+                              : box,
+                          ),
                         )
                       }
-                      keyboardType="decimal-pad"
                       selectTextOnFocus
+                      style={components.smWeightInput}
+                      value={item.weightKg}
                     />
-                  ) : (
-                    <Text style={components.smWeightStatic}>
-                      {item.defaultWeightKg.toFixed(3)}
-                    </Text>
-                  )}
-                </View>
-              </View>
-            )}
-            ListEmptyComponent={
-              <Text style={components.smScanEmpty}>
-                Skannaa laatikoita yläpuolella olevalla kentällä.
-              </Text>
-            }
-          />
+                  </View>
+                )}
+                showsVerticalScrollIndicator={false}
+                style={components.smTableList}
+              />
 
-          <View style={components.smFooter}>
-            <Text style={components.smScanTotal}>
-              Yhteensä: {formatKg(scanTotalWeight)} kg
-            </Text>
-            <TouchableOpacity
-              style={[
-                components.smSaveBtn,
-                (saving || scannedBoxes.length === 0) && components.smSaveBtnDisabled,
-              ]}
-              onPress={handleSave}
-              disabled={saving || scannedBoxes.length === 0}
-            >
-              <Text style={components.smSaveBtnText}>
-                {saving ? 'Tallennetaan...' : 'Tallenna'}
-              </Text>
-            </TouchableOpacity>
+              <View style={components.smFooterRow}>
+                <Text style={components.smScanTotal}>Yhteensä {formatKg(scanTotalWeight)} kg</Text>
+
+                <TouchableOpacity
+                  disabled={saving || scannedBoxes.length === 0}
+                  onPress={handleSave}
+                  style={[
+                    components.smSavePill,
+                    (saving || scannedBoxes.length === 0) && components.smSaveBtnDisabled,
+                  ]}
+                >
+                  <Text style={components.smSavePillText}>
+                    {saving ? 'Tallennetaan...' : 'TALLENNA'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         </SafeAreaView>
 
-        {/* Nested batch picker */}
         <Modal
-          visible={batchPickerFor != null}
-          transparent
           animationType="slide"
           onRequestClose={() => setBatchPickerFor(null)}
+          transparent
+          visible={batchPickerFor != null}
         >
           <View style={components.modalOverlay}>
             <View style={components.modalCard}>
               <Text style={components.modalTitle}>Valitse erä</Text>
-              {batchesForPicker.length === 0 ? (
-                <Text style={components.modalEmpty}>Ei saatavilla olevia eriä.</Text>
+
+              {batchPickerOptions.length === 0 ? (
+                <Text style={components.modalEmpty}>Ei vapaita laatikoita tälle tuotteelle.</Text>
               ) : (
-                batchesForPicker.map((b) => (
+                batchPickerOptions.map((option) => (
                   <TouchableOpacity
-                    key={b.id}
+                    key={option.batchId}
+                    onPress={() => handleSelectBatch(option.batchId, option.batchNumber)}
                     style={components.modalRow}
-                    onPress={() => {
-                      setScannedBoxes((prev) =>
-                        prev.map((box, i) =>
-                          i === batchPickerFor
-                            ? {
-                                ...box,
-                                selectedBatchId: b.id,
-                                selectedBatchNumber: b.batch_number,
-                              }
-                            : box
-                        )
-                      );
-                      setBatchPickerFor(null);
-                    }}
                   >
-                    <Text style={components.modalRowText}>
-                      Erä {b.batch_number} — {formatKg(b.current_weight)} kg jäljellä
+                    <Text style={components.modalRowText}>{option.batchNumber}</Text>
+                    <Text style={components.modalRowSubText}>
+                      {(toFinnishDate(option.productionDate) ?? 'Ei p\u00E4iv\u00E4yst\u00E4') +
+                        ` / ${option.availableCount} laatikkoa / ${formatKg(option.currentWeight)} kg`}
                     </Text>
                   </TouchableOpacity>
                 ))
               )}
+
               <TouchableOpacity
-                style={components.modalCancelBtn}
                 onPress={() => setBatchPickerFor(null)}
+                style={components.modalCancelBtn}
               >
                 <Text style={components.modalCancelText}>Peruuta</Text>
               </TouchableOpacity>

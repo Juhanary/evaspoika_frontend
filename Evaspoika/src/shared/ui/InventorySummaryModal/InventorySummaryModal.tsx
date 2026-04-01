@@ -97,11 +97,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: spacing.lg,
     right: spacing.lg,
-    top: '18%',
+    top: '2%',
     bottom: spacing.lg,
     padding: 0,
     borderRadius: 32,
     overflow: 'hidden',
+    opacity: 1,
   },
   header: {
     flexDirection: 'row',
@@ -203,7 +204,7 @@ const styles = StyleSheet.create({
     minWidth: 20,
     textAlign: 'right',
     fontFamily: 'Montserrat_400Regular',
-    fontSize: 16,
+    fontSize: 25,
     color: '#E4E4E4',
   },
 });

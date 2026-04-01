@@ -1,14 +1,13 @@
 import React from 'react';
 import {
-  Pressable,
   StyleSheet,
-  Text,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
 import { spacing } from '@/src/shared/constants/spacing';
 import { components } from '@/src/shared/styles/components';
+import { ActionButton } from '@/src/shared/ui/Button/ActionButton';
 
 type Props = {
   label: string;
@@ -16,6 +15,7 @@ type Props = {
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
+  accessibilityLabel?: string;
 };
 
 export function CustomButton({
@@ -24,33 +24,25 @@ export function CustomButton({
   disabled = false,
   style,
   textStyle,
+  accessibilityLabel,
 }: Props) {
   return (
-    <Pressable
-      accessibilityRole="button"
+    <ActionButton
+      accessibilityLabel={accessibilityLabel ?? label}
+      contentStyle={components.primaryBtn}
       disabled={disabled}
+      disabledOpacity={0.45}
+      label={label}
+      labelStyle={[components.primaryBtnText, textStyle]}
       onPress={onPress}
-      style={({ pressed }) => [
-        components.primaryBtn,
-        styles.button,
-        style,
-        pressed && styles.pressed,
-        disabled && styles.disabled,
-      ]}
-    >
-      <Text style={[components.primaryBtnText, textStyle]}>{label}</Text>
-    </Pressable>
+      pressedOpacity={0.8}
+      style={[styles.button, style]}
+    />
   );
 }
 
 const styles = StyleSheet.create({
   button: {
     marginBottom: spacing.sm,
-  },
-  pressed: {
-    opacity: 0.8,
-  },
-  disabled: {
-    opacity: 0.45,
   },
 });
