@@ -7,6 +7,7 @@ const toParam = (value: RouteParam) => String(value);
 export const routes = {
   home: '/' as Href,
   orders: '/orders' as Href,
+  newOrder: '/orders/new' as Href,
   inventory: '/inventory' as Href,
   weighing: '/weighing' as Href,
   logs: '/logs' as Href,

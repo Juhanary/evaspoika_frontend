@@ -47,13 +47,13 @@ export const homeStyles = StyleSheet.create({
     
   },
   ordersSection: {
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
   },
   ordersSectionLabel: {
     marginBottom: spacing.sm,
     fontFamily: 'Montserrat_500Medium',
-    fontSize: 30,
+    fontSize: 20,
     fontWeight: '500',
     color: '#FFFFFF',
   },

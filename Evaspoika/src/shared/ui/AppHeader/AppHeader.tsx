@@ -1,11 +1,9 @@
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/src/shared/constants/colors';
 import { spacing } from '@/src/shared/constants/spacing';
-import { routes } from '@/src/shared/navigation/routes';
 import { GlassIconButton } from '@/src/shared/ui/GlassIconButton/GlassIconButton';
 import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
 
@@ -25,14 +23,14 @@ export type AppHeaderSearch = {
 
 type Props = {
   title?: string;
-  showHomeButton?: boolean;
+  leftAction?: AppHeaderAction | null;
   rightActions?: AppHeaderAction[];
   search?: AppHeaderSearch;
 };
 
 export function AppHeader({
   title,
-  showHomeButton = true,
+  leftAction = null,
   rightActions = [],
   search,
 }: Props) {
@@ -41,12 +39,12 @@ export function AppHeader({
   return (
     <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
       <View style={styles.side}>
-        {showHomeButton ? (
+        {leftAction ? (
           <GlassIconButton
-            accessibilityLabel="Koti"
-            icon="home"
+            accessibilityLabel={leftAction.accessibilityLabel}
+            icon={leftAction.icon}
             iconSize={26}
-            onPress={() => router.navigate(routes.home)}
+            onPress={leftAction.onPress}
           />
         ) : null}
       </View>

@@ -42,6 +42,7 @@ export default function CustomerListScreen() {
         onChangeText: setQuery,
         placeholder: 'Hae asiakasta...',
       }}
+      leftAction="back"
       title="ASIAKKAAT"
     >
       {isLoading ? (

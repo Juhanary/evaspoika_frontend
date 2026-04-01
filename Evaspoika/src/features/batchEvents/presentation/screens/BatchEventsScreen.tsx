@@ -120,7 +120,7 @@ export default function BatchEventsScreen({ batchId, batchNumber }: Props) {
       : 'TAPAHTUMAT';
 
   return (
-    <ScreenLayout title={headerTitle}>
+    <ScreenLayout leftAction="back" title={headerTitle}>
       {isLoading ? (
         <View style={[layout.screen, layout.center]}>
           <Text>Ladataan tapahtumia...</Text>

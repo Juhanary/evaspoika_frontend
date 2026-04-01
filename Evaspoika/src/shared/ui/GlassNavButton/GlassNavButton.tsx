@@ -1,8 +1,6 @@
 import React from 'react';
 import {
-  Pressable,
   StyleSheet,
-  Text,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
@@ -10,6 +8,7 @@ import {
 import { colors } from '@/src/shared/constants/colors';
 import { spacing } from '@/src/shared/constants/spacing';
 import { glassActionSurface } from '@/src/shared/styles/components';
+import { ActionButton } from '@/src/shared/ui/Button/ActionButton';
 
 type Props = {
   label: string;
@@ -27,26 +26,19 @@ export function GlassNavButton({
   textStyle,
 }: Props) {
   return (
-    <Pressable
-      accessibilityRole="button"
+    <ActionButton
+      contentStyle={styles.button}
       disabled={disabled}
+      disabledOpacity={0.4}
+      label={label}
+      labelAdjustsFontSizeToFit
+      labelMinimumFontScale={0.7}
+      labelNumberOfLines={1}
+      labelStyle={[styles.label, textStyle]}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.button,
-        style,
-        pressed && styles.pressed,
-        disabled && styles.disabled,
-      ]}
-    >
-      <Text
-        adjustsFontSizeToFit
-        minimumFontScale={0.7}
-        numberOfLines={1}
-        style={[styles.label, textStyle]}
-      >
-        {label}
-      </Text>
-    </Pressable>
+      pressedOpacity={0.7}
+      style={style}
+    />
   );
 }
 
@@ -67,11 +59,5 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.25)',
     textShadowOffset: { width: 0, height: 4 },
     textShadowRadius: 4,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  disabled: {
-    opacity: 0.4,
   },
 });

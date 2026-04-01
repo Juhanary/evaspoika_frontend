@@ -129,6 +129,7 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
   return (
     <ScreenLayout
       headerSearch={headerSearch}
+      leftAction="back"
       rightActions={rightActions}
       title={headerTitle}
     >

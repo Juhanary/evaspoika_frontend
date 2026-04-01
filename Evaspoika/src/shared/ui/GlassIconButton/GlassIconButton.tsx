@@ -1,8 +1,9 @@
 import React from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/shared/constants/colors';
 import { glassActionSurface } from '@/src/shared/styles/components';
+import { ActionButton } from '@/src/shared/ui/Button/ActionButton';
 
 type Props = {
   icon: React.ComponentProps<typeof Ionicons>['name'];
@@ -26,41 +27,27 @@ export function GlassIconButton({
   const radius = size / 2;
 
   return (
-    <Pressable
+    <ActionButton
       accessibilityLabel={accessibilityLabel}
-      accessibilityRole="button"
+      contentStyle={[styles.surface, { borderRadius: radius }]}
       disabled={disabled}
+      disabledOpacity={0.6}
       hitSlop={8}
+      icon={icon}
+      iconColor={colors.textOnDark}
+      iconSize={iconSize}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.pressable,
-        { width: size, height: size, borderRadius: radius },
-        style,
-        pressed && styles.pressed,
-        disabled && styles.disabled,
-      ]}
-    >
-      <View style={[styles.surface, { borderRadius: radius }]}>
-        <Ionicons color={colors.textOnDark} name={icon} size={iconSize} />
-      </View>
-    </Pressable>
+      pressedOpacity={0.72}
+      style={[styles.button, { width: size, height: size }, style]}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  pressable: {
+  button: {
     overflow: 'hidden',
   },
   surface: {
     ...glassActionSurface,
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: {
-    opacity: 0.72,
-  },
-  disabled: {
-    opacity: 0.4,
   },
 });
