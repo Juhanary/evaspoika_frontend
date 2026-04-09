@@ -9,6 +9,7 @@ import {
 import { BatchLog } from '@/src/features/batchEvents/domain/types';
 import { useBatchEvents } from '@/src/features/batchEvents/presentation/hooks/useBatchEvents';
 import { colors } from '@/src/shared/constants/colors';
+import { GRAMS_PER_KG } from '@/src/shared/utils/weight';
 import { spacing } from '@/src/shared/constants/spacing';
 import { screen } from '@/src/shared/styles/screen';
 import {
@@ -31,10 +32,9 @@ const EVENT_META: Record<
   }
 > = {
   CREATE: { label: 'Uusi er\u00E4 luotu', topic: 'BATCH' },
-  WEIGHING: { label: 'Punnitus tehty', topic: 'WEIGHING' },
-  SALE: { label: 'Myynti tehty', topic: 'SALE' },
-  ADJUSTMENT: { label: 'Korjaus tehty', topic: 'WEIGHING' },
-  INVENTORY: { label: 'Inventaario tehty', topic: 'INVENTORY' },
+  WEIGHING: { label: 'Punnitus ', topic: 'WEIGHING' },
+  SALE: { label: 'Myynti ', topic: 'SALE' },
+  INVENTORY: { label: 'Manuaalinen korjaus ', topic: 'INVENTORY' },
   DELETE: { label: 'Er\u00E4 poistettu', topic: 'BATCH' },
 };
 
@@ -43,7 +43,7 @@ const TOPIC_LABELS: Record<LogTopic, string> = {
   BATCH: 'Er\u00E4t',
   WEIGHING: 'Punnitukset',
   SALE: 'Myynnit',
-  INVENTORY: 'Inventaario',
+  INVENTORY: 'Manuaaliset korjaukset',
   OTHER: 'Muut',
 };
 
@@ -94,14 +94,15 @@ const formatTime = (value?: string | null) => {
   });
 };
 
-const formatWeightChange = (value: number) => {
-  if (!Number.isFinite(value) || value === 0) {
+const formatWeightChange = (grams: number) => {
+  if (!Number.isFinite(grams) || grams === 0) {
     return null;
   }
 
-  const prefix = value > 0 ? '+' : '';
+  const kg = grams / GRAMS_PER_KG;
+  const prefix = kg > 0 ? '+' : '';
 
-  return `${prefix}${value.toLocaleString('fi-FI', {
+  return `${prefix}${kg.toLocaleString('fi-FI', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 3,
   })} kg`;

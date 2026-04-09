@@ -19,7 +19,6 @@ export const screen = StyleSheet.create({
     color: '#EDEDED',
     marginBottom: 12,
     textShadowColor: 'rgba(0,0,0,0.38)',
-    textShadowOffset: { width: 0, height: 4 },
     textShadowRadius: 4,
   },
   divider: {

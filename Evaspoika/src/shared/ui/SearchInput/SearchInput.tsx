@@ -90,10 +90,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.16,
     shadowRadius: 10,
-    elevation: 3,
   },
   fieldDark: {
     backgroundColor: 'rgba(12, 18, 28, 0.72)',

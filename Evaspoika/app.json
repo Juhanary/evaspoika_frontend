@@ -4,17 +4,13 @@
     "slug": "Evaspoika",
     "version": "1.0.0",
     "orientation": "portrait",
+    
     "icon": "./src/assets/images/Logo.png",
     "scheme": "evaspoika",
     "userInterfaceStyle": "automatic",
    // "newArchEnabled": true,
     "extra": {
-      "apiBaseUrl": "http://10.0.2.2:3000/api",
-      "apiReadToken": "1ffa43b46081d82b21a4ed6ac253bf9ead510235739514e9",
-      "apiWriteToken": "bef152db8ff07d7a6f3174cddace92627d3882e15d21056b",
-      "netvisorReadToken": "3dbff000ca74db6f76cc25dc3bf820c61df7a2c598791987",
-      "netvisorWriteToken": "7b6c7bfa32720e9dfd4560a5e2ab6257545ce13eddd85c3a",
-      "apiAdminToken": "d444a03aa7c5d8bc1c1740bf26af7797580adac78861e325"
+      "apiBaseUrl": "http://localhost:3000/api"
     },
     "ios": {
       "supportsTablet": true

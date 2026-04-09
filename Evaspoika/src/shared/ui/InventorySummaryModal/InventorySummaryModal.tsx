@@ -9,6 +9,7 @@ import {
   type InventorySummaryItem,
 } from '@/src/shared/utils/inventory';
 import { formatKg } from '@/src/shared/utils/weight';
+import { components } from '../../styles/components';
 
 type Props = {
   visible: boolean;
@@ -74,10 +75,18 @@ export function InventorySummaryModal({ visible, onClose, items }: Props) {
                         <View style={[styles.tick, styles.tickLow]} />
                         <View style={[styles.tick, styles.tickMid]} />
                       </View>
-                      <Text style={styles.rowWeight}>{formatKg(item.weight)}kg</Text>
-                      <Text style={styles.rowCount}>{item.count}</Text>
+
+                     
+                       <View style={components.invPillRight}>
+                                          <Text style={components.invPillWeight}>
+                                            {formatKg(item.weight)} kg
+                                          </Text>
+                                          <View style={components.invPillDivider} />
+                                            <Text style={components.invPillCount}>{item.count}</Text>
+                                          </View>
+                                        </View >
+
                     </View>
-                  </View>
                 );
               })
             )}
@@ -118,7 +127,6 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: colors.white,
     textShadowColor: 'rgba(0,0,0,0.38)',
-    textShadowOffset: { width: 0, height: 4 },
     textShadowRadius: 4,
   },
   divider: {
@@ -164,7 +172,7 @@ const styles = StyleSheet.create({
   },
   barWrap: {
     flex: 1,
-    height: 19,
+    height: 50,
     borderRadius: 23,
     overflow: 'hidden',
   },

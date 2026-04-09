@@ -3,6 +3,7 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
+import { Batch } from '@/src/features/batches/domain/types';
 import { routes } from '@/src/shared/navigation/routes';
 import { components } from '@/src/shared/styles/components';
 import { screen } from '@/src/shared/styles/screen';
@@ -22,6 +23,7 @@ export default function ProductListScreen() {
   const { data: products, isLoading } = useProducts();
   const { data: batches } = useBatches();
   const [query, setQuery] = useState('');
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const rows = useMemo<ProductRow[]>(() => {
     const weightMap = new Map<number, { count: number; weight: number }>();
@@ -50,6 +52,20 @@ export default function ProductListScreen() {
       }));
   }, [batches, products, query]);
 
+  const batchesByProduct = useMemo(() => {
+    const map = new Map<number, Batch[]>();
+
+    (batches ?? [])
+      .filter((b) => !b.deleted_at && b.ProductId)
+      .forEach((b) => {
+        const list = map.get(b.ProductId!) ?? [];
+        list.push(b);
+        map.set(b.ProductId!, list);
+      });
+
+    return map;
+  }, [batches]);
+
   return (
     <ScreenLayout
       headerSearch={{
@@ -73,26 +89,89 @@ export default function ProductListScreen() {
             ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
             keyExtractor={(row) => String(row.product.id)}
             ListEmptyComponent={<Text style={screen.muted}>Ei tuotteita.</Text>}
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() => router.push(routes.inventoryProduct(item.product.id))}
-                style={({ pressed }) => [components.invPillRow, pressed && screen.pressed]}
-              >
-                <View style={components.invPillLeft}>
-                  <Text numberOfLines={1} style={components.invPillLeftText}>
-                    {item.product.name}
-                  </Text>
-                  <Ionicons name="chevron-down" size={20} color="rgba(0,0,0,0.45)" />
-                </View>
-                <View style={components.invPillRight}>
-                  <Text style={components.invPillWeight}>
-                    {formatKg(item.totalWeight)} kg
-                  </Text>
-                  <View style={components.invPillDivider} />
-                  <Text style={components.invPillCount}>{item.batchCount}</Text>
-                </View>
-              </Pressable>
-            )}
+            renderItem={({ item }) => {
+              const isExpanded = expandedId === item.product.id;
+              const productBatches = batchesByProduct.get(item.product.id) ?? [];
+
+              return (
+                <View style={components.invPillRow}>
+                  <View style={{ flex: 1 }}>
+                    <Pressable
+                      onPress={() =>
+                        setExpandedId((prev) =>
+                          prev === item.product.id ? null : item.product.id,
+                        )
+                      }
+                      style={({ pressed }) => [
+                        components.invPillLeft,
+                        isExpanded && components.invPillLeftExpanded,
+                        pressed && screen.pressed,
+                      ]}
+                    >
+                      <Text numberOfLines={1} style={components.invPillLeftText}>
+                        {item.product.name}
+                      </Text>
+                      <Ionicons
+                        color="rgba(0,0,0,0.45)"
+                        name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                        size={20}
+                      />
+                    </Pressable>
+
+                    {isExpanded ? (
+                      <View style={components.invDropdown}>
+                        {productBatches.length === 0 ? (
+                          <Text style={components.invDropdownLabel}>Ei eriä.</Text>
+                        ) : (
+                          productBatches.map((batch, i) => (
+                            <View key={batch.id}>
+                              <View style={components.invDropdownRow}>
+                                <Text style={components.invDropdownLabel}>
+                                  {batch.batch_number}
+                                </Text>
+                                <Text style={components.invDropdownWeight}>
+                                  {formatKg(batch.current_weight)} kg
+                                </Text>
+                              </View>
+                             
+
+                            </View>
+                          ))
+                        )}
+                        <View style={components.invDropdownRow}>
+                        
+
+<View style={{ flex: 1 }} />
+  <Text style={components.invDropdownLabelYhteensa}>Yhteensä</Text>
+                          <Text style={components.invDropdownWeight}>
+                            {formatKg(item.totalWeight)} kg
+                          </Text>
+                        </View>
+                                                                       <View style={components.invDropdownDivider} />
+
+                        <Pressable
+                          onPress={() => router.push(routes.inventoryProduct(item.product.id))}
+                          style={({ pressed }) => [
+                            components.invDropdownBtn,
+                            pressed && screen.pressed,
+                          ]}
+                        >
+                          <Text style={components.invDropdownBtnText}>MUOKKAA ERIÄ</Text>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  <View style={components.invPillRight}>
+                    <Text style={components.invPillWeight}>
+                      {formatKg(item.totalWeight)} kg
+                    </Text>
+                    <View style={components.invPillDivider} />
+                      <Text style={components.invPillCount}>{item.batchCount}</Text>
+                    </View>
+                  </View>
+              );
+            }}
             showsVerticalScrollIndicator={false}
             style={{ flex: 1 }}
           />
