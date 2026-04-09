@@ -7,10 +7,7 @@ import { radii } from '@/src/shared/constants/radii';
 export const glassActionSurface = {
   backgroundColor: colors.darkCard,
   shadowColor: '#000',
-  shadowOffset: { width: 0, height: 4 },
   shadowOpacity: 0.25,
-  shadowRadius: 4,
-  elevation: 4,
 } as const;
 
 export const components = StyleSheet.create({
@@ -479,6 +476,7 @@ export const components = StyleSheet.create({
   // --- Product inventory pill row (ProductListScreen) ---
   invPillRow: {
     flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
     gap: 8,
   },
   invPillLeft: {
@@ -491,10 +489,12 @@ export const components = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 18,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
-    elevation: 4,
+  },
+  invPillLeftExpanded: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   invPillLeftText: {
     fontFamily: 'Montserrat_500Medium',
@@ -506,38 +506,90 @@ export const components = StyleSheet.create({
   invPillRight: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    backgroundColor: '#E4E4E4',
-    borderRadius: 33,
     paddingHorizontal: 14,
-    paddingVertical: 18,
+    paddingVertical: 10,
     minWidth: 200,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
+  
   },
+  
+
+
   invPillCount: {
     fontFamily: 'Montserrat_500Medium',
     fontSize: 22,
-    color: 'rgba(0,0,0,0.82)',
+    color: 'rgba(255,255,255,0.82)',
     flex: 1,
     textAlign: 'center' as const,
   },
   invPillDivider: {
-    width: 1,
+    width: 2,
     height: 28,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(255,255,255,255.7)',
     marginHorizontal: 6,
   },
   invPillWeight: {
     fontFamily: 'Montserrat_500Medium',
     fontSize: 18,
-    color: 'rgba(0,0,0,0.82)',
+    color: 'rgba(255,255,255,0.82)',
     flex: 1,
     textAlign: 'center' as const,
   },
 
+  // --- Product inventory dropdown (ProductListScreen) ---
+  invDropdown: {
+    backgroundColor: '#E4E4E4',
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    paddingTop: 8,
+    paddingBottom: 4,
+    paddingHorizontal: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
+  },
+  invDropdownRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingVertical: 10,
+  },
+  invDropdownLabel: {
+    fontFamily: 'Montserrat_300Light',
+    fontSize: 20,
+    color: 'rgba(0,0,0,0.74)',
+    flex: 1,
+  },
+   invDropdownLabelYhteensa: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 20,
+    color: 'rgba(0,0,0,0.74)',
+    textAlign: 'right' as const,
+    flex: 1,
+    paddingRight: 18,
+  }, 
+
+  invDropdownWeight: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 20,
+    color: 'rgba(0,0,0,0.74)',
+  },
+  invDropdownDivider: { height: 2, backgroundColor: 'rgba(0,0,0,0.74)' },
+
+  invDropdownBtn: {
+    marginVertical: 12,
+    borderRadius: 50,
+    paddingVertical: 10,
+    paddingHorizontal: 32,
+    flex: 0.2,
+    maxWidth: 220,
+    ...glassActionSurface,
+  },
+  invDropdownBtnText: {
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 18,
+    color: colors.textSecondary,
+  },
   // --- Order detail main screen ---
   odScroll: { flex: 1 },
   odScrollContent: {
@@ -565,104 +617,73 @@ export const components = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.6)',
   },
-  odTableSection: { gap: 6 },
-  odTableHeaders: {
-    flexDirection: 'row' as const,
-    paddingHorizontal: 12,
-  },
-  odTableHeaderText: {
-    fontFamily: 'Montserrat_300Light',
-    fontSize: 16,
-    color: '#FFFFFF',
-  },
-  odTableBody: {
-    backgroundColor: '#E4E4E4',
-    borderRadius: 33,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  odTableRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    paddingVertical: 10,
-  },
-  odTableRowText: {
-    fontFamily: 'Montserrat_300Light',
-    fontSize: 24,
-    color: 'rgba(0,0,0,0.82)',
-  },
-  odProductGroupRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  odProductGroupTitle: {
-    fontFamily: 'Montserrat_500Medium',
-    fontSize: 24,
-    color: 'rgba(0,0,0,0.88)',
-  },
-  odProductGroupLabel: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 16,
-    color: 'rgba(0,0,0,0.54)',
-  },
-  odProductGroupWeight: {
-    fontFamily: 'Montserrat_500Medium',
-    fontSize: 22,
-    color: 'rgba(0,0,0,0.88)',
-  },
-  odBatchSummaryRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    paddingTop: 8,
-    paddingBottom: 10,
-  },
-  odBatchSummarySpacer: {
-    flex: 3,
-  },
-  odBatchSummaryText: {
-    fontFamily: 'Montserrat_300Light',
-    fontSize: 21,
-    color: 'rgba(0,0,0,0.74)',
-  },
-  odProductGroupDivider: {
-    height: 1,
-    backgroundColor: 'rgba(0,0,0,0.18)',
-    marginVertical: 4,
-  },
   odTableRowDivider: { height: 1, backgroundColor: 'rgba(0,0,0,0.1)' },
   odTableEmptyText: {
     fontFamily: 'Montserrat_400Regular',
     fontSize: 16,
     color: 'rgba(0,0,0,0.45)',
     textAlign: 'center' as const,
+    paddingVertical: 16,
+  },
+  odProductCard: {
+    backgroundColor: '#E4E4E4',
+    borderRadius: 33,
+    paddingHorizontal: 20,
+    paddingTop: 6,
+    paddingBottom: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  odProductCardHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     paddingVertical: 12,
   },
-  odTotalDivider: {
-    height: 1,
-    backgroundColor: 'rgba(0,0,0,0.82)',
-    marginTop: 4,
-    marginBottom: 8,
-  },
-  odTotalRow: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    paddingBottom: 4,
-  },
-  odTotalText: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 20,
+  odProductCardName: {
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 22,
     color: 'rgba(0,0,0,0.82)',
+    flex: 1,
   },
-  odTotalWeight: {
+  odBatchRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingVertical: 9,
+    paddingLeft: 8,
+  },
+  odBatchRowLabel: {
+    fontFamily: 'Montserrat_300Light',
+    fontSize: 20,
+    color: 'rgba(0,0,0,0.74)',
+    flex: 1,
+  },
+  odBatchRowWeight: {
     fontFamily: 'Montserrat_400Regular',
     fontSize: 20,
+    color: 'rgba(0,0,0,0.74)',
+  },
+  odProductCardTotalDivider: {
+    height: 1,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  odProductCardTotalRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingVertical: 10,
+    paddingLeft: 8,
+  },
+  odProductCardTotalLabel: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 16,
+    color: 'rgba(0,0,0,0.45)',
+    flex: 1,
+  },
+  odProductCardTotalWeight: {
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 22,
     color: 'rgba(0,0,0,0.82)',
   },
   odSkannaaBtn: {
@@ -671,12 +692,33 @@ export const components = StyleSheet.create({
     borderRadius: 81,
     paddingVertical: 16,
     paddingHorizontal: 52,
-    marginTop: 8,
+    marginTop: 4,
   },
   odSkaannaaBtnText: {
     fontFamily: 'Montserrat_400Regular',
     fontSize: 32,
     color: colors.textOnDark,
+  },
+  odFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 14,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.15)',
+  },
+  odLahetaBtn: {
+    borderRadius: 81,
+    paddingVertical: 14,
+    alignItems: 'center' as const,
+    backgroundColor: '#39F56A',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  odLahetaBtnText: {
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 28,
+    color: 'rgba(0,0,0,0.82)',
   },
 
   // --- Scan modal (inside OrderDetailScreen) ---
@@ -702,26 +744,12 @@ export const components = StyleSheet.create({
   smTopRow: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    justifyContent: 'space-between' as const,
-    marginBottom: spacing.xl,
     gap: spacing.md,
-  },
-  smBackBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  smTopSpacer: {
-    width: 44,
-    height: 44,
+    marginBottom: spacing.xl,
   },
   smCustomerPill: {
     flex: 1,
-    maxWidth: 320,
     alignItems: 'center' as const,
-    alignSelf: 'center' as const,
     backgroundColor: 'rgba(217,217,217,0.22)',
     borderRadius: 999,
     paddingHorizontal: spacing.xl,
@@ -742,10 +770,8 @@ export const components = StyleSheet.create({
     paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.18,
     shadowRadius: 18,
-    elevation: 6,
   },
   smScanFieldRow: {
     flexDirection: 'row' as const,
@@ -865,10 +891,8 @@ export const components = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
-    elevation: 4,
   },
   smSaveBtnDisabled: { opacity: 0.4 },
   smSavePillText: {
@@ -907,11 +931,11 @@ export const components = StyleSheet.create({
   blDateText: { flex: 1, fontSize: 25, color: '#111' },
   blWarnIcon: { marginRight: 6 },
   blBtnGroup: { flexDirection: 'row' as const, gap: 8, marginRight: 12 },
-  blCircleBtn: {
+  blAdjBtn: {
     ...glassActionSurface,
-    width: 60,
-    height: 60,
-    borderRadius: 40,
+    width: 52,
+    height: 52,
+    borderRadius: 20,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
@@ -919,7 +943,7 @@ export const components = StyleSheet.create({
     fontSize: 25,
     fontWeight: '500' as const,
     color: 'white',
-    minWidth: 54,
+    width: 140,
     textAlign: 'right' as const,
   },
   blEmpty: { padding: 16, color: '#888', textAlign: 'center' as const },
@@ -944,4 +968,22 @@ export const components = StyleSheet.create({
     fontSize: 15,
   },
   blTotalText: { fontSize: 14, fontWeight: '700' as const, color: '#111', letterSpacing: 0.5 },
+  blTotalRow: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  blTotalLabel: {
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.85)',
+    letterSpacing: 1,
+  },
+  blTotalValue: {
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 20,
+    color: '#FFFFFF',
+  },
 });

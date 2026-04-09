@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { useOrder } from '../hooks/useOrders';
 import { fetchOrderLines } from '@/src/features/orderLines/infrastructure/orderLinesApi';
+import { updateOrder } from '@/src/features/orders/infrastructure/ordersApi';
 import { OrderLine } from '@/src/features/orderLines/domain/types';
 import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
 import { confirmScan, fetchScanBoxes } from '@/src/features/scan/infrastructure/scanApi';
@@ -103,6 +104,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
   const [scannedBoxes, setScannedBoxes] = useState<BoxLineState[]>([]);
   const [batchPickerFor, setBatchPickerFor] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [sendingOrder, setSendingOrder] = useState(false);
   const eanRef = useRef<TextInput>(null);
   const nextScannedRowId = useRef(1);
 
@@ -470,6 +472,37 @@ export default function OrderDetailScreen({ orderId }: Props) {
     }
   };
 
+  const handleSendOrder = () => {
+    Alert.alert(
+      'Lähetä tilaus',
+      'Haluatko varmasti lähettää tämän tilauksen?',
+      [
+        { text: 'Peruuta', style: 'cancel' },
+        {
+          text: 'Lähetä',
+          style: 'default',
+          onPress: async () => {
+            setSendingOrder(true);
+            try {
+              await updateOrder(orderId!, { status: 'sent' });
+              await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['orders', orderId], exact: true }),
+                queryClient.invalidateQueries({ queryKey: ['orders'] }),
+              ]);
+            } catch (sendError) {
+              Alert.alert(
+                'Virhe',
+                sendError instanceof Error ? sendError.message : 'Lähetys epäonnistui',
+              );
+            } finally {
+              setSendingOrder(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   if (!orderId || (!isLoading && (error || !order))) {
     return (
       <ScreenLayout leftAction="back" title="TILAUS">
@@ -490,7 +523,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
     );
   }
 
-  const dateLabel = toFinnishDate(order.order_date);
+  const dateLabel = toFinnishDate(order?.order_date);
 
   return (
     <ScreenLayout leftAction="back" title="TILAUS">
@@ -506,69 +539,41 @@ export default function OrderDetailScreen({ orderId }: Props) {
           {dateLabel ? <Text style={components.odDateText}>{dateLabel}</Text> : null}
         </View>
 
-        <View style={components.odTableSection}>
-          <View style={components.odTableHeaders}>
-            <Text style={[components.odTableHeaderText, { flex: 3 }]}>TUOTE</Text>
-            <Text style={[components.odTableHeaderText, { flex: 3, textAlign: 'center' }]}>
-              ERÄ
-            </Text>
-            <Text style={[components.odTableHeaderText, { flex: 2, textAlign: 'right' }]}>
-              PAINO
-            </Text>
-          </View>
+        {groupedLines.length === 0 ? (
+          <Text style={components.odTableEmptyText}>Ei tilausrivejä vielä.</Text>
+        ) : (
+          groupedLines.map((group) => (
+            <View key={group.productKey} style={components.odProductCard}>
+              <View style={components.odProductCardHeader}>
+                <Text numberOfLines={1} style={components.odProductCardName}>
+                  {group.productName}
+                </Text>
+              </View>
 
-          <View style={components.odTableBody}>
-            {groupedLines.length === 0 ? (
-              <Text style={components.odTableEmptyText}>Ei tilausrivejä vielä.</Text>
-            ) : (
-              groupedLines.map((group, groupIndex) => (
-                <View key={group.productKey}>
-                  <View style={components.odProductGroupRow}>
-                    <Text
-                      numberOfLines={1}
-                      style={[components.odProductGroupTitle, { flex: 3 }]}
-                    >
-                      {group.productName}
-                    </Text>
-                    <Text
-                      style={[components.odProductGroupLabel, { flex: 3, textAlign: 'center' }]}
-                    >
-                      YHTEENSÄ
-                    </Text>
-                    <Text
-                      style={[components.odProductGroupWeight, { flex: 2, textAlign: 'right' }]}
-                    >
-                      {formatKg(group.totalWeight)} kg
+              {group.batches.map((batch, batchIndex) => (
+                <View key={batch.batchKey}>
+                  <View style={components.odBatchRow}>
+                    <Text style={components.odBatchRowLabel}>{batch.batchLabel}</Text>
+                    <Text style={components.odBatchRowWeight}>
+                      {formatKg(batch.totalWeight)} kg
                     </Text>
                   </View>
-
-                  {group.batches.map((batch) => (
-                    <View key={batch.batchKey}>
-                      <View style={components.odBatchSummaryRow}>
-                        <View style={components.odBatchSummarySpacer} />
-                        <Text
-                          style={[components.odBatchSummaryText, { flex: 3, textAlign: 'center' }]}
-                        >
-                          {batch.batchLabel}
-                        </Text>
-                        <Text
-                          style={[components.odBatchSummaryText, { flex: 2, textAlign: 'right' }]}
-                        >
-                          {formatKg(batch.totalWeight)} kg
-                        </Text>
-                      </View>
-                      <View style={components.odTableRowDivider} />
-                    </View>
-                  ))}
-
-                  {groupIndex < groupedLines.length - 1 ? (
-                    <View style={components.odProductGroupDivider} />
+                  {batchIndex < group.batches.length - 1 ? (
+                    <View style={components.odTableRowDivider} />
                   ) : null}
                 </View>
-              ))
-            )}
-          </View>
-        </View>
+              ))}
+
+              <View style={components.odProductCardTotalDivider} />
+              <View style={components.odProductCardTotalRow}>
+                <Text style={components.odProductCardTotalLabel}>YHTEENSÄ</Text>
+                <Text style={components.odProductCardTotalWeight}>
+                  {formatKg(group.totalWeight)} kg
+                </Text>
+              </View>
+            </View>
+          ))
+        )}
 
         <Pressable
           onPress={() => setShowScanModal(true)}
@@ -577,6 +582,21 @@ export default function OrderDetailScreen({ orderId }: Props) {
           <Text style={components.odSkaannaaBtnText}>SKANNAA</Text>
         </Pressable>
       </ScrollView>
+
+      <View style={components.odFooter}>
+        <Pressable
+          disabled={sendingOrder}
+          onPress={handleSendOrder}
+          style={({ pressed }) => [
+            components.odLahetaBtn,
+            (pressed || sendingOrder) && screen.pressed,
+          ]}
+        >
+          <Text style={components.odLahetaBtnText}>
+            {sendingOrder ? 'LÄHETETÄÄN...' : 'LÄHETÄ TILAUS'}
+          </Text>
+        </Pressable>
+      </View>
 
       <Modal
         animationType="fade"
@@ -587,21 +607,20 @@ export default function OrderDetailScreen({ orderId }: Props) {
         <SafeAreaView style={components.smOverlay}>
           <View style={components.smShell}>
             <View style={components.smTopRow}>
-              <TouchableOpacity
-                accessibilityRole="button"
-                onPress={() => setShowScanModal(false)}
-                style={components.smBackBtn}
-              >
-                <Ionicons color={colors.textOnDark} name="arrow-undo" size={26} />
-              </TouchableOpacity>
-
               <View style={components.smCustomerPill}>
                 <Text numberOfLines={1} style={components.smCustomerPillText}>
                   {customerName ?? 'Tilaus'}
                 </Text>
               </View>
 
-              <View style={components.smTopSpacer} />
+              <Pressable
+                accessibilityLabel="Sulje"
+                accessibilityRole="button"
+                hitSlop={12}
+                onPress={() => setShowScanModal(false)}
+              >
+                <Ionicons color={colors.textOnDark} name="close" size={28} />
+              </Pressable>
             </View>
 
             <View style={components.smPanel}>

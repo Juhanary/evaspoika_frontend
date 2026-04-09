@@ -1,12 +1,16 @@
 import React, { useMemo, useState } from 'react';
 import {
   ImageBackground,
+  Pressable,
   StyleSheet,
+  Text,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
 import { spacing } from '@/src/shared/constants/spacing';
@@ -51,6 +55,7 @@ export function ScreenLayout({
   children,
 }: Props) {
   const [showInventory, setShowInventory] = useState(false);
+  const insets = useSafeAreaInsets();
   const { data: products } = useProducts();
   const { data: batches } = useBatches();
 
@@ -61,19 +66,13 @@ export function ScreenLayout({
   const inlineSearch = wrapInCard ? headerSearch : undefined;
 
   const headerLeftAction: AppHeaderAction | null =
-    leftAction === 'home'
+    leftAction !== 'none'
       ? {
           icon: 'home',
           onPress: () => router.navigate(routes.home),
           accessibilityLabel: 'Koti',
         }
-      : leftAction === 'back'
-        ? {
-            icon: 'arrow-back',
-            onPress: onBack ?? goBackOrHome,
-            accessibilityLabel: 'Takaisin',
-          }
-        : null;
+      : null;
 
   const headerRightActions: AppHeaderAction[] = showInventoryAction
     ? [
@@ -95,9 +94,21 @@ export function ScreenLayout({
         title={title}
       />
 
-      <View style={styles.contentContainer}>
+      <View style={[styles.contentContainer, { paddingBottom: insets.bottom }]}>
         {wrapInCard ? (
           <GlassCard blurRadius={18} style={[styles.card, cardStyle]}>
+            {leftAction === 'back' ? (
+              <Pressable
+                accessibilityLabel="Takaisin"
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={onBack ?? goBackOrHome}
+                style={styles.backBtn}
+              >
+                <Ionicons color="rgba(255,255,255,0.7)" name="arrow-back" size={20} />
+                <Text style={styles.backBtnText}>TAKAISIN</Text>
+              </Pressable>
+            ) : null}
             {inlineSearch ? (
               <View style={styles.inlineSearchContainer}>
                 <SearchInput
@@ -112,7 +123,21 @@ export function ScreenLayout({
             {children}
           </GlassCard>
         ) : (
-          <View style={styles.plainContent}>{children}</View>
+          <View style={styles.plainContent}>
+            {leftAction === 'back' ? (
+              <Pressable
+                accessibilityLabel="Takaisin"
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={onBack ?? goBackOrHome}
+                style={styles.backBtn}
+              >
+                <Ionicons color="rgba(255,255,255,0.7)" name="arrow-back" size={20} />
+                <Text style={styles.backBtnText}>TAKAISIN</Text>
+              </Pressable>
+            ) : null}
+            {children}
+          </View>
         )}
       </View>
 
@@ -148,5 +173,20 @@ const styles = StyleSheet.create({
   },
   plainContent: {
     flex: 1,
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 4,
+    alignSelf: 'flex-start',
+  },
+  backBtnText: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 1,
   },
 });

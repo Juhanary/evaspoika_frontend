@@ -33,7 +33,6 @@ export const homeStyles = StyleSheet.create({
     letterSpacing: 4,
     color: '#F0F0F0',
     textShadowColor: 'rgba(0,0,0,0.38)',
-    textShadowOffset: { width: 0, height: 4 },
     textShadowRadius: 4,
   },
   topArea: {

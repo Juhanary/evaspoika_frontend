@@ -16,8 +16,8 @@ const EVENT_LABELS: Record<string, string> = {
   CREATE: 'Luotu',
   WEIGHING: 'Punnitus',
   SALE: 'Myynti',
-  ADJUSTMENT: 'Korjaus',
-  INVENTORY: 'Inventaario',
+  ADJUSTMENT: 'Manuaalinen korjaus',
+  
 };
 
 type Props = {

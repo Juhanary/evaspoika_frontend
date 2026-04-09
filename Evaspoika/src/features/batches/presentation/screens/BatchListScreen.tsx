@@ -1,36 +1,41 @@
-import React, { useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, Text, TouchableOpacity, View } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  FlatList,
+  Modal,
+  Pressable,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { deleteBatch } from '../../infrastructure/batchesApi';
+import { updateBatch, deleteBatch } from '../../infrastructure/batchesApi';
 import { Batch } from '../../domain/types';
 import { useBatches } from '../hooks/useBatches';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
 import { colors } from '@/src/shared/constants/colors';
+import { spacing } from '@/src/shared/constants/spacing';
 import { routes } from '@/src/shared/navigation/routes';
 import { components } from '@/src/shared/styles/components';
-import { layout } from '@/src/shared/styles/layout';
+import { screen } from '@/src/shared/styles/screen';
 import { type AppHeaderAction } from '@/src/shared/ui/AppHeader/AppHeader';
 import { ProductList } from '@/src/shared/ui/ProductList/ProductList';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
-import { formatKg } from '@/src/shared/utils/weight';
+import { formatKg, parseWeightToGrams } from '@/src/shared/utils/weight';
 
 type BatchListScreenProps = {
   productId?: number;
 };
 
+type AdjustState = { batchId: number; mode: 'add' | 'sub' } | null;
+
 const toFinnishDate = (value?: string | null) => {
-  if (!value) {
-    return null;
-  }
-
+  if (!value) return null;
   const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
+  if (Number.isNaN(date.getTime())) return null;
   return date.toLocaleDateString('fi-FI', {
     day: 'numeric',
     month: 'numeric',
@@ -39,16 +44,9 @@ const toFinnishDate = (value?: string | null) => {
 };
 
 const isOld = (value?: string | null) => {
-  if (!value) {
-    return false;
-  }
-
+  if (!value) return false;
   const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return false;
-  }
-
+  if (Number.isNaN(date.getTime())) return false;
   return Date.now() - date.getTime() > 365 * 24 * 60 * 60 * 1000;
 };
 
@@ -60,46 +58,106 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [productQuery, setProductQuery] = useState('');
 
+  const [adjusting, setAdjusting] = useState<AdjustState>(null);
+  const [adjKg, setAdjKg] = useState('');
+  const [adjReason, setAdjReason] = useState('');
+  const [adjSaving, setAdjSaving] = useState(false);
+  const adjKgRef = useRef<TextInput>(null);
+
   const selectedProduct = useMemo(
     () => (products ?? []).find((product) => product.id === productId) ?? null,
     [products, productId],
   );
 
   const filteredBatches = useMemo(() => {
-    if (!productId) {
-      return [];
-    }
-
+    if (!productId) return [];
     return (batches ?? []).filter(
       (batch) => batch.ProductId === productId && !batch.deleted_at,
     );
   }, [batches, productId]);
 
-  const totalWeight = filteredBatches.reduce(
-    (sum, batch) => sum + batch.current_weight,
-    0,
-  );
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => deleteBatch(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['batches'] }),
-  });
+  const totalWeight = filteredBatches.reduce((sum, batch) => sum + batch.current_weight, 0);
 
   const handleDelete = (batch: Batch) => {
     const label = toFinnishDate(batch.production_date) ?? batch.batch_number;
-
-    Alert.alert(
-      'Poista erä',
-      `Poistetaanko koko erä ${label}?`,
-      [
-        { text: 'Peruuta', style: 'cancel' },
-        {
-          text: 'Poista',
-          style: 'destructive',
-          onPress: () => deleteMutation.mutate(batch.id),
+    Alert.alert('Poista erä', `Poistetaanko koko erä ${label}?`, [
+      { text: 'Peruuta', style: 'cancel' },
+      {
+        text: 'Poista',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteBatch(batch.id);
+            await queryClient.invalidateQueries({ queryKey: ['batches'] });
+          } catch (e) {
+            Alert.alert('Virhe', e instanceof Error ? e.message : 'Poisto epäonnistui');
+          }
         },
-      ],
-    );
+      },
+    ]);
+  };
+
+  const openAdjust = (batchId: number, mode: 'add' | 'sub') => {
+    setAdjKg('');
+    setAdjReason('');
+    setAdjusting({ batchId, mode });
+    setTimeout(() => adjKgRef.current?.focus(), 100);
+  };
+
+  const closeAdjust = () => {
+    setAdjusting(null);
+    setAdjKg('');
+    setAdjReason('');
+  };
+
+  const handleAdjustSave = async () => {
+    if (!adjusting) return;
+
+    const deltaGrams = parseWeightToGrams(adjKg);
+
+    if (!Number.isFinite(deltaGrams) || deltaGrams <= 0) {
+      Alert.alert('Virheellinen paino', 'Syötä positiivinen paino kilogrammoissa.');
+      return;
+    }
+
+    if (!adjReason.trim()) {
+      Alert.alert('Syy puuttuu', 'Kirjoita syy painon muutokselle.');
+      return;
+    }
+
+    const batch = (batches ?? []).find((b) => b.id === adjusting.batchId);
+
+    if (!batch) {
+      Alert.alert('Virhe', 'Erää ei löydy.');
+      return;
+    }
+
+    const delta = adjusting.mode === 'add' ? deltaGrams : -deltaGrams;
+    const newWeight = batch.current_weight + delta;
+
+    if (newWeight < 0) {
+      Alert.alert('Virheellinen paino', 'Erän paino ei voi olla negatiivinen.');
+      return;
+    }
+
+    setAdjSaving(true);
+
+    try {
+      await updateBatch(adjusting.batchId, {
+        current_weight: newWeight,
+        eventCode: 'INVENTORY',
+        eventDescription: adjReason.trim(),
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['batches'] }),
+        queryClient.invalidateQueries({ queryKey: ['batchEvents'] }),
+      ]);
+      closeAdjust();
+    } catch (e) {
+      Alert.alert('Virhe', e instanceof Error ? e.message : 'Tallennus epäonnistui');
+    } finally {
+      setAdjSaving(false);
+    }
   };
 
   const headerTitle = selectedProduct
@@ -109,22 +167,22 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
       : 'VARASTO';
 
   const headerSearch = !productId
-    ? {
-        value: productQuery,
-        onChangeText: setProductQuery,
-        placeholder: 'Hae tuotetta...',
-      }
+    ? { value: productQuery, onChangeText: setProductQuery, placeholder: 'Hae tuotetta...' }
     : undefined;
 
   const rightActions: AppHeaderAction[] = productId
     ? [
         {
           icon: collapsed ? 'chevron-down' : 'chevron-up',
-          onPress: () => setCollapsed((current) => !current),
+          onPress: () => setCollapsed((c) => !c),
           accessibilityLabel: collapsed ? 'Avaa lista' : 'Piilota lista',
         },
       ]
     : [];
+
+  const adjustBatch = adjusting
+    ? (batches ?? []).find((b) => b.id === adjusting.batchId) ?? null
+    : null;
 
   return (
     <ScreenLayout
@@ -146,12 +204,14 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
           showSearchInput={false}
         />
       ) : batchesLoading ? (
-        <View style={[layout.screen, layout.center]}>
-          <Text>Ladataan eriä...</Text>
+        <View style={[{ flex: 1 }, screen.centered]}>
+          <Text style={screen.muted}>Ladataan eriä...</Text>
         </View>
       ) : batchesError ? (
-        <View style={[layout.screen, layout.center]}>
-          <Text>Virhe: {batchesError instanceof Error ? batchesError.message : 'Tuntematon'}</Text>
+        <View style={[{ flex: 1 }, screen.centered]}>
+          <Text style={screen.muted}>
+            Virhe: {batchesError instanceof Error ? batchesError.message : 'Tuntematon'}
+          </Text>
         </View>
       ) : (
         <View style={{ flex: 1 }}>
@@ -162,6 +222,14 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
                 data={filteredBatches}
                 keyExtractor={(batch) => String(batch.id)}
                 ListEmptyComponent={<Text style={components.blEmpty}>Ei eriä.</Text>}
+                ListFooterComponent={
+                  filteredBatches.length > 0 ? (
+                    <View style={components.blTotalRow}>
+                      <Text style={components.blTotalLabel}>YHTEENSÄ</Text>
+                      <Text style={components.blTotalValue}>{formatKg(totalWeight)} kg</Text>
+                    </View>
+                  ) : null
+                }
                 renderItem={({ item }) => {
                   const dateLabel = toFinnishDate(item.production_date) ?? item.batch_number;
                   const old = isOld(item.production_date);
@@ -179,18 +247,23 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
                       ) : null}
                       <View style={components.blBtnGroup}>
                         <TouchableOpacity
-                          disabled={deleteMutation.isPending}
                           onPress={() => handleDelete(item)}
-                          style={components.blCircleBtn}
+                          style={components.blAdjBtn}
                         >
-                          <Ionicons name="trash-outline" size={40} color={colors.textOnDark} />
+                          <Ionicons color={colors.textOnDark} name="trash-outline" size={26} />
                         </TouchableOpacity>
-                        <Pressable style={components.blCircleBtn}>
-                          <Ionicons name="add" size={40} color={colors.textOnDark} />
-                        </Pressable>
-                        <Pressable style={components.blCircleBtn}>
-                          <Ionicons name="remove" size={40} color={colors.textOnDark} />
-                        </Pressable>
+                        <TouchableOpacity
+                          onPress={() => openAdjust(item.id, 'add')}
+                          style={components.blAdjBtn}
+                        >
+                          <Ionicons color={colors.textOnDark} name="add" size={26} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => openAdjust(item.id, 'sub')}
+                          style={components.blAdjBtn}
+                        >
+                          <Ionicons color={colors.textOnDark} name="remove" size={26} />
+                        </TouchableOpacity>
                       </View>
                       <Text style={components.blWeightText}>
                         {formatKg(item.current_weight)} kg
@@ -202,8 +275,8 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
               />
             </>
           ) : (
-            <View style={[layout.screen, layout.center]}>
-              <Text style={components.emptyText}>Lista piilotettu.</Text>
+            <View style={[{ flex: 1 }, screen.centered]}>
+              <Text style={screen.muted}>Lista piilotettu.</Text>
             </View>
           )}
 
@@ -214,13 +287,143 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
             >
               <Text style={components.blValmisBtnText}>Valmis</Text>
             </TouchableOpacity>
-            <Text style={components.blTotalText}>
-              YHTEENSÄ{'  '}
-              {formatKg(totalWeight)} kg
-            </Text>
           </View>
         </View>
       )}
+
+      {/* Painon muokkaus -modaali */}
+      <Modal
+        animationType="slide"
+        onRequestClose={closeAdjust}
+        transparent
+        visible={adjusting !== null}
+      >
+        <View style={adjStyles.overlay}>
+          <View style={adjStyles.card}>
+            <Text style={adjStyles.title}>
+              {adjusting?.mode === 'add' ? 'Lisää painoa' : 'Vähennä painoa'}
+            </Text>
+
+            {adjustBatch ? (
+              <Text style={adjStyles.currentWeight}>
+                Nykyinen paino: {formatKg(adjustBatch.current_weight)} kg
+              </Text>
+            ) : null}
+
+            <TextInput
+              keyboardType="decimal-pad"
+              onChangeText={setAdjKg}
+              placeholder="Paino kg (esim. 1.500)"
+              placeholderTextColor="rgba(0,0,0,0.35)"
+              ref={adjKgRef}
+              style={adjStyles.input}
+              value={adjKg}
+            />
+
+            <TextInput
+              onChangeText={setAdjReason}
+              placeholder="Syy muutokselle (pakollinen)"
+              placeholderTextColor="rgba(0,0,0,0.35)"
+              style={adjStyles.input}
+              value={adjReason}
+            />
+
+            <View style={adjStyles.btnRow}>
+              <Pressable
+                onPress={closeAdjust}
+                style={({ pressed }) => [adjStyles.cancelBtn, pressed && screen.pressed]}
+              >
+                <Text style={adjStyles.cancelBtnText}>Peruuta</Text>
+              </Pressable>
+
+
+//If add button text is Lisää painio, if subtract button text is Vähennä painoa
+              <Pressable
+                disabled={adjSaving}
+                onPress={handleAdjustSave}
+                style={({ pressed }) => [
+                  adjStyles.saveBtn,
+                  (pressed || adjSaving) && screen.pressed,
+                ]}
+              >
+                <Text style={adjStyles.saveBtnText}>
+                  {adjusting?.mode === 'add' ? 'Lisää' : 'Vähennä'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenLayout>
   );
 }
+
+const adjStyles = {
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,},
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  title: {
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 22,
+    color: 'rgba(0,0,0,0.82)',
+    marginBottom: 4,
+  },
+  currentWeight: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 15,
+    color: 'rgba(0,0,0,0.5)',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.15)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 18,
+    color: 'rgba(0,0,0,0.82)',
+    backgroundColor: '#F5F5F5',
+  },
+  btnRow: {
+    flexDirection: 'row' as const,
+    gap: spacing.md,
+    marginTop: 4,
+  },
+  cancelBtn: {
+    flex: 1,
+    borderRadius: 50,
+    paddingVertical: 13,
+    alignItems: 'center' as const,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.18)',
+  },
+  cancelBtnText: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 17,
+    color: 'rgba(0,0,0,0.6)',
+  },
+  saveBtn: {
+    flex: 1,
+    borderRadius: 50,
+    paddingVertical: 13,
+    alignItems: 'center' as const,
+    backgroundColor: '#39F56A',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  saveBtnText: {
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 17,
+    color: 'rgba(0,0,0,0.82)',
+  },
+};

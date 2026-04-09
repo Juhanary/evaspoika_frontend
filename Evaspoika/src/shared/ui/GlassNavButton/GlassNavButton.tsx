@@ -29,14 +29,11 @@ export function GlassNavButton({
     <ActionButton
       contentStyle={styles.button}
       disabled={disabled}
-      disabledOpacity={0.4}
+      disabledOpacity={0.1}
       label={label}
-      labelAdjustsFontSizeToFit
-      labelMinimumFontScale={0.7}
-      labelNumberOfLines={1}
       labelStyle={[styles.label, textStyle]}
       onPress={onPress}
-      pressedOpacity={0.7}
+      pressedOpacity={0.9}
       style={style}
     />
   );
@@ -57,7 +54,5 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: colors.textOnDark,
     textShadowColor: 'rgba(0,0,0,0.25)',
-    textShadowOffset: { width: 0, height: 4 },
-    textShadowRadius: 4,
   },
 });

@@ -18,7 +18,7 @@ export const parseGramsToBoxes = (grams: number, boxSize: number) => {
 export const formatKg = (grams: number) => {
   if (!Number.isFinite(grams)) return '-';
   const value = grams / GRAMS_PER_KG;
-  return value.toFixed(3).replace(/\.?0+$/, '');
+  return value.toFixed(2).replace(/\.?0+$/, '');
 };
 
  export const MIN_REMAINING_GRAMS = 500;
