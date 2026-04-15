@@ -1,7 +1,8 @@
 import React from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { View, type StyleProp, type ViewStyle } from 'react-native';
 import { closeCurrentScreen } from '@/src/shared/navigation/closeCurrentScreen';
-import { GlassIconButton } from '@/src/shared/ui/GlassIconButton/GlassIconButton';
+import { components } from '@/src/shared/styles/components';
+import { Button } from '@/src/shared/ui/Button/ActionButton';
 
 type ScreenCloseButtonProps = {
   accessibilityLabel?: string;
@@ -15,13 +16,14 @@ export function ScreenCloseButton({
   style,
 }: ScreenCloseButtonProps) {
   return (
-    <GlassIconButton
+    <Button
       accessibilityLabel={accessibilityLabel}
       icon="close"
       iconSize={24}
       onPress={onPress ?? closeCurrentScreen}
       size={52}
       style={style}
+      variant="glassIcon"
     />
   );
 }
@@ -36,14 +38,8 @@ export function ScreenCloseButtonRow({
   style,
 }: ScreenCloseButtonRowProps) {
   return (
-    <View style={[styles.row, style]}>
+    <View style={[components.screenCloseRow, style]}>
       <ScreenCloseButton onPress={onPress} />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    alignItems: 'flex-end',
-  },
-});

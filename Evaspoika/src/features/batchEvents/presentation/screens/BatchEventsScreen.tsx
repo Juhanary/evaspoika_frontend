@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, Button, FlatList, Text, TextInput, View } from 'react-native';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { FlatList, Text, View, Pressable } from 'react-native';
 import { layout } from '@/src/shared/styles/layout';
 import { components } from '@/src/shared/styles/components';
 import { colors } from '@/src/shared/constants/colors';
@@ -8,17 +7,26 @@ import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { formatDateDisplayFromIso } from '@/src/shared/utils/date';
 import { useBatchEvents } from '../hooks/useBatchEvents';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
-import { updateBatch } from '@/src/features/batches/infrastructure/batchesApi';
 import { BatchLog } from '../../domain/types';
-import { formatKg, parseWeightToGrams } from '@/src/shared/utils/weight';
+import { formatKg } from '@/src/shared/utils/weight';
 
 const EVENT_LABELS: Record<string, string> = {
   CREATE: 'Luotu',
   WEIGHING: 'Punnitus',
   SALE: 'Myynti',
-  ADJUSTMENT: 'Manuaalinen korjaus',
-  
+  INVENTORY: 'Muutoksen kirjaus',
+  DELETE: 'Poistettu',
 };
+
+const TABS: Array<{
+  key: 'ALL' | 'SALE' | 'WEIGHING' | 'INVENTORY';
+  label: string;
+}> = [
+  { key: 'ALL', label: 'Kaikki' },
+  { key: 'SALE', label: 'Myynti' },
+  { key: 'WEIGHING', label: 'Punnitus' },
+  { key: 'INVENTORY', label: 'Muutokset' },
+];
 
 type Props = {
   batchId?: number;
@@ -26,21 +34,18 @@ type Props = {
 };
 
 export default function BatchEventsScreen({ batchId, batchNumber }: Props) {
-  const queryClient = useQueryClient();
   const { data: events, isLoading, error } = useBatchEvents();
   const { data: batches } = useBatches();
-  const [adjustmentKg, setAdjustmentKg] = useState('');
-  const [adjustmentNote, setAdjustmentNote] = useState('');
+  const [activeTab, setActiveTab] = useState<'ALL' | 'SALE' | 'WEIGHING' | 'INVENTORY'>('ALL');
 
   const batch = useMemo(
     () => (batches ?? []).find((item) => item.id === batchId) ?? null,
     [batches, batchId]
   );
 
-  const filteredEvents = useMemo(() => {
+  const batchEvents = useMemo(() => {
     const all = events ?? [];
-    const list = batchId ? all.filter((e) => e.BatchId === batchId) : all;
-    return [...list].sort((a, b) => {
+    return (batchId ? all.filter((e) => e.BatchId === batchId) : all).sort((a, b) => {
       const da = a.event_date ? Date.parse(a.event_date) : NaN;
       const db = b.event_date ? Date.parse(b.event_date) : NaN;
       if (isFinite(da) && isFinite(db)) return db - da;
@@ -50,51 +55,10 @@ export default function BatchEventsScreen({ batchId, batchNumber }: Props) {
     });
   }, [events, batchId]);
 
-  const updateMutation = useMutation({
-    mutationFn: (input: { current_weight: number; eventCode: string; eventDescription: string }) => {
-      if (!batchId) throw new Error('Erän tunniste puuttuu');
-      return updateBatch(batchId, input);
-    },
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['batches'] }),
-        queryClient.invalidateQueries({ queryKey: ['batchEvents'] }),
-      ]);
-    },
-  });
-
-  const handleAdjustment = async () => {
-    if (!batchId || !batch) {
-      Alert.alert('Virhe', 'Erää ei löydy.');
-      return;
-    }
-    const deltaGrams = parseWeightToGrams(adjustmentKg);
-    if (!Number.isFinite(deltaGrams) || deltaGrams === 0) {
-      Alert.alert('Virheellinen paino', 'Syötä nollasta poikkeava muutos kilogrammoissa.');
-      return;
-    }
-    if (!adjustmentNote.trim()) {
-      Alert.alert('Selitys puuttuu', 'Käsimuokkaukselle on annettava selitys.');
-      return;
-    }
-    const newWeight = batch.current_weight + deltaGrams;
-    if (newWeight < 0) {
-      Alert.alert('Virheellinen paino', 'Erän paino ei voi olla negatiivinen.');
-      return;
-    }
-    try {
-      await updateMutation.mutateAsync({
-        current_weight: newWeight,
-        eventCode: 'INVENTORY',
-        eventDescription: adjustmentNote.trim(),
-      });
-      setAdjustmentKg('');
-      setAdjustmentNote('');
-      Alert.alert('Tallennettu', 'Erän paino päivitetty.');
-    } catch (err) {
-      Alert.alert('Virhe', err instanceof Error ? err.message : 'Tuntematon virhe');
-    }
-  };
+  const visibleEvents = useMemo(() => {
+    if (activeTab === 'ALL') return batchEvents;
+    return batchEvents.filter((event) => event.event_code === activeTab);
+  }, [activeTab, batchEvents]);
 
   const renderItem = ({ item }: { item: BatchLog }) => {
     const label = EVENT_LABELS[item.event_code] ?? item.event_code;
@@ -134,35 +98,38 @@ export default function BatchEventsScreen({ batchId, batchNumber }: Props) {
           {batch && (
             <View style={layout.section}>
               <Text style={components.metaLabel}>
-                Nykyinen paino: {formatKg(batch.current_weight)} kg
+                Tuote: {batchEvents[0]?.Batch?.Product?.name ?? 'Tuntematon'}
               </Text>
-              <TextInput
-                placeholder="Muutos kg:ssa (miinus = vähennys)"
-                value={adjustmentKg}
-                onChangeText={setAdjustmentKg}
-                style={components.input}
-                keyboardType="numeric"
-              />
-              <TextInput
-                placeholder="Selitys muutokselle (pakollinen)"
-                value={adjustmentNote}
-                onChangeText={setAdjustmentNote}
-                style={components.input}
-              />
-              <Button
-                title={updateMutation.isPending ? 'Tallennetaan...' : 'Tallenna muutos'}
-                onPress={handleAdjustment}
-                color={colors.purple}
-                disabled={updateMutation.isPending}
-              />
+              <View style={components.tabRow}>
+                {TABS.map((tab) => (
+                  <Pressable
+                    key={tab.key}
+                    onPress={() => setActiveTab(tab.key)}
+                    style={({ pressed }) => [
+                      components.tabButton,
+                      activeTab === tab.key && components.tabButtonActive,
+                      pressed && components.tabButtonPressed,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        components.tabText,
+                        activeTab === tab.key && components.tabTextActive,
+                      ]}
+                    >
+                      {tab.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
             </View>
           )}
           <FlatList
-            data={filteredEvents}
+            data={visibleEvents}
             renderItem={renderItem}
             keyExtractor={(item) => String(item.id)}
-            style={components.listFlex}
-            ListEmptyComponent={<Text style={components.emptyText}>Ei tapahtumia.</Text>}
+            style={components.flex1}
+            ListEmptyComponent={<Text style={components.textEmpty}>Ei tapahtumia.</Text>}
           />
         </View>
       )}

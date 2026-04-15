@@ -58,7 +58,7 @@ export default function CustomerListScreen() {
           <FlatList
             data={filtered}
             keyExtractor={(item) => String(item.id)}
-            ListEmptyComponent={<Text style={components.emptyText}>Ei asiakkaita.</Text>}
+            ListEmptyComponent={<Text style={components.textEmpty}>Ei asiakkaita.</Text>}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
             renderItem={renderItem}
           />

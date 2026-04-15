@@ -6,6 +6,12 @@ export function fetchBatches() {
   return apiRequest<Batch[]>(endpoints.batches);
 }
 
+export function fetchDeletedBatches() {
+  return apiRequest<Batch[]>(endpoints.batches, {
+    query: { includeDeleted: true },
+  });
+}
+
 export function createBatch(input: CreateBatchInput) {
   return apiRequest<Batch>(endpoints.batches, {
     method: 'POST',

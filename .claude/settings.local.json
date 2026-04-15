@@ -4,7 +4,9 @@
       "Bash(find /c/Users/s2203672/Evaspoika/evaspoika_frontend/Evaspoika -name *app* -o -name *tabs*)",
       "Bash(npx expo:*)",
       "mcp__figma__get_figma_data",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Bash(grep -E \"\\\\.\\(js|ts\\)$\")",
+      "Bash(grep -l \"components\\\\.\" /c/Users/s2203672/Evaspoika/evaspoika_frontend/Evaspoika/src/features/*/presentation/screens/*Screen.tsx)"
     ]
   }
 }

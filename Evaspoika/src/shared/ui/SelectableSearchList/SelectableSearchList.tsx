@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 import { spacing } from '@/src/shared/constants/spacing';
 import { layout } from '@/src/shared/styles/layout';
-import { CustomButton } from '@/src/shared/ui/Button/CustomButton';
+import { components } from '@/src/shared/styles/components';
+import { Button } from '@/src/shared/ui/Button/ActionButton';
 import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
 
 type Props<T> = {
@@ -94,13 +95,14 @@ export function SelectableSearchList<T>({
         keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
           emptyText || emptyActionLabel ? (
-            <View style={styles.emptyContainer}>
-              {emptyText ? <Text style={styles.emptyText}>{emptyText}</Text> : null}
+            <View style={components.selectableEmpty}>
+              {emptyText ? <Text style={components.selectableEmptyText}>{emptyText}</Text> : null}
               {emptyActionLabel && onEmptyAction ? (
-                <CustomButton
+                <Button
                   disabled={emptyActionDisabled}
                   label={emptyActionLabel}
                   onPress={onEmptyAction}
+                  variant="primary"
                 />
               ) : null}
             </View>
@@ -135,12 +137,3 @@ export function SelectableSearchList<T>({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  emptyContainer: {
-    marginTop: spacing.md,
-  },
-  emptyText: {
-    marginBottom: spacing.sm,
-  },
-});

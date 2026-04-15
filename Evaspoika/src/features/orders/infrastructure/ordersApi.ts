@@ -44,3 +44,17 @@ export function deleteOrder(id: number) {
     method: 'DELETE',
   });
 }
+
+export function syncOrdersFromNetvisor() {
+  return apiRequest<{ total: number; imported: number; skipped: number; failed: number }>(
+    `${endpoints.netvisor}/sync-orders`,
+    { method: 'POST', auth: 'netvisorWrite' },
+  );
+}
+
+export function clearAndSyncOrdersFromNetvisor() {
+  return apiRequest<{ total: number; imported: number; skipped: number; failed: number }>(
+    `${endpoints.netvisor}/clear-sync-orders`,
+    { method: 'POST', auth: 'netvisorWrite' },
+  );
+}

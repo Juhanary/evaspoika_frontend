@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { routes } from '@/src/shared/navigation/routes';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { homeStyles } from '@/src/shared/styles/home';
-import { GlassNavButton } from '@/src/shared/ui/GlassNavButton/GlassNavButton';
+import { Button } from '@/src/shared/ui/Button/ActionButton';
 
 export default function MoreScreen() {
   const router = useRouter();
@@ -13,13 +13,15 @@ export default function MoreScreen() {
     <ScreenLayout title="LISÄÄ">
       <View style={homeStyles.topArea}>
         <View style={homeStyles.btnGroup}>
-          <GlassNavButton
+          <Button
             label="ASIAKKAAT"
             onPress={() => router.push(routes.moreCustomers)}
+            variant="glassNav"
           />
-          <GlassNavButton
+          <Button
             label="TAPAHTUMAT"
             onPress={() => router.push(routes.moreLogs)}
+            variant="glassNav"
           />
         </View>
       </View>

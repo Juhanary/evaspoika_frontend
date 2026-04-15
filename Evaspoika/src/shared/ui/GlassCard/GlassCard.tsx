@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, type ViewProps } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { components } from '@/src/shared/styles/components';
 
 type Props = ViewProps & {
   children: React.ReactNode;
@@ -12,33 +13,15 @@ const blurRadiusToIntensity = (blurRadius: number) =>
 
 export function GlassCard({ children, style, blurRadius = 54, ...props }: Props) {
   return (
-    <View style={[styles.card, style]} {...props}>
+    <View style={[components.glassCard, style]} {...props}>
       <BlurView
         experimentalBlurMethod="dimezisBlurView"
         intensity={blurRadiusToIntensity(blurRadius)}
         style={StyleSheet.absoluteFill}
         tint="dark"
       />
-      <View pointerEvents="none" style={styles.overlay} />
+      <View pointerEvents="none" style={components.glassCardOverlay} />
       {children}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: 32,
-    padding: 12,
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-  },
-});

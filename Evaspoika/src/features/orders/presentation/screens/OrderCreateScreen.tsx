@@ -3,7 +3,6 @@ import {
   Alert,
   FlatList,
   Pressable,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -12,9 +11,11 @@ import { router } from 'expo-router';
 import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
 import { createOrder } from '@/src/features/orders/infrastructure/ordersApi';
 import { Customer } from '@/src/features/customers/domain/types';
-import { spacing } from '@/src/shared/constants/spacing';
+import { ApiError } from '@/src/infrastructure/api/error';
 import { routes } from '@/src/shared/navigation/routes';
 import { screen } from '@/src/shared/styles/screen';
+import { components } from '@/src/shared/styles/components';
+import { orderStyles } from '@/src/shared/styles/orders';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 
 const sortCustomers = (left: Customer, right: Customer) =>
@@ -83,9 +84,13 @@ export default function OrderCreateScreen() {
       setPendingCustomerId(customerId);
       await createMutation.mutateAsync(customerId);
     } catch (mutationError) {
-      const message =
-        mutationError instanceof Error ? mutationError.message : 'Tuntematon virhe';
-
+      const message = (() => {
+        if (mutationError instanceof ApiError) {
+          const p = mutationError.payload as Record<string, unknown> | null;
+          return String(p?.details ?? p?.error ?? mutationError.message);
+        }
+        return mutationError instanceof Error ? mutationError.message : 'Tuntematon virhe';
+      })();
       Alert.alert('Tilauksen luonti ep\u00E4onnistui', message);
     }
   };
@@ -115,7 +120,7 @@ export default function OrderCreateScreen() {
             data={filteredCustomers}
             keyExtractor={(customer) => String(customer.id)}
             showsVerticalScrollIndicator={false}
-            style={styles.list}
+            style={components.flex1}
             ListEmptyComponent={
               <Text style={screen.muted}>Ei hakua vastaavia asiakkaita.</Text>
             }
@@ -129,8 +134,8 @@ export default function OrderCreateScreen() {
                   onPress={() => handleCreateOrder(item.id)}
                   style={({ pressed }) => [
                     screen.listRow,
-                    styles.customerRow,
-                    isPendingRow && styles.customerRowSelected,
+                    orderStyles.customerRow,
+                    isPendingRow && orderStyles.customerRowSelected,
                     pressed && screen.pressed,
                   ]}
                 >
@@ -143,7 +148,7 @@ export default function OrderCreateScreen() {
                     </Text>
                   </View>
                   <View style={screen.listRowMeta}>
-                    <Text style={[screen.listRowMetaPrimary, isPendingRow && styles.selectedText]}>
+                    <Text style={[screen.listRowMetaPrimary, isPendingRow && orderStyles.selectedText]}>
                       {isPendingRow ? 'Luodaan...' : ''}
                     </Text>
                   </View>
@@ -157,18 +162,3 @@ export default function OrderCreateScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  list: {
-    flex: 1,
-  },
-  customerRow: {
-    borderRadius: 24,
-    paddingHorizontal: spacing.md,
-  },
-  customerRowSelected: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  selectedText: {
-    color: '#A7F3D0',
-  },
-});
