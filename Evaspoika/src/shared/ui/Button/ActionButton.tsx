@@ -1,8 +1,8 @@
 import React from 'react';
 import {
   Pressable,
-  StyleSheet,
   Text,
+  View,
   type Insets,
   type StyleProp,
   type TextStyle,
@@ -10,11 +10,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/shared/constants/colors';
-import { spacing } from '@/src/shared/constants/spacing';
+import { components } from '@/src/shared/styles/components';
 
-type ActionButtonBaseProps = {
+type ButtonVariant = 'primary' | 'glass' | 'glassIcon' | 'glassNav';
+
+type ButtonBaseProps = {
   onPress: () => void;
   disabled?: boolean;
+  variant?: ButtonVariant;
   style?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
   labelStyle?: StyleProp<TextStyle>;
@@ -26,97 +29,162 @@ type ActionButtonBaseProps = {
   labelAdjustsFontSizeToFit?: boolean;
   labelMinimumFontScale?: number;
   labelNumberOfLines?: number;
+  size?: number; // for glassIcon
 };
 
-type ActionButtonWithLabelProps = ActionButtonBaseProps & {
+type ButtonWithLabelProps = ButtonBaseProps & {
   label: string;
   icon?: React.ComponentProps<typeof Ionicons>['name'];
   accessibilityLabel?: string;
 };
 
-type ActionButtonIconOnlyProps = ActionButtonBaseProps & {
+type ButtonIconOnlyProps = ButtonBaseProps & {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   label?: undefined;
   accessibilityLabel: string;
 };
 
-export type ActionButtonProps =
-  | ActionButtonWithLabelProps
-  | ActionButtonIconOnlyProps;
+export type ButtonProps = ButtonWithLabelProps | ButtonIconOnlyProps;
 
-export function ActionButton({
+export function Button({
   onPress,
   label,
   icon,
-  accessibilityLabel,
+  variant = 'primary',
+  size = 58,
   disabled = false,
   style,
   contentStyle,
   labelStyle,
-  iconColor = colors.textOnDark,
-  iconSize = 24,
+  iconColor,
+  iconSize,
   hitSlop,
-  pressedOpacity = 0.8,
+  pressedOpacity,
   disabledOpacity = 0.45,
-  labelAdjustsFontSizeToFit = false,
-  labelMinimumFontScale = 0.75,
+  labelAdjustsFontSizeToFit,
+  labelMinimumFontScale,
   labelNumberOfLines,
-}: ActionButtonProps) {
-  const hasVisibleLabel = typeof label === 'string' && label.trim().length > 0;
-  const resolvedAccessibilityLabel = accessibilityLabel ?? (hasVisibleLabel ? label : undefined);
+  accessibilityLabel,
+}: ButtonProps) {
+  const hasVisibleLabel = label && label.trim().length > 0;
 
-  if (!icon && !hasVisibleLabel) {
-    if (__DEV__) {
-      console.error('ActionButton requires either a label or an icon.');
+  const getDefaultContentStyle = () => {
+    switch (variant) {
+      case 'primary':
+        return components.buttonPrimary;
+      case 'glass':
+        return components.glassActionSurface;
+      case 'glassIcon':
+        return [components.buttonGlassIcon, { borderRadius: size / 2 }];
+      case 'glassNav':
+        return components.buttonGlassNav;
+      default:
+        return components.buttonPrimary;
     }
+  };
 
-    return null;
-  }
-
-  if (!resolvedAccessibilityLabel) {
-    if (__DEV__) {
-      console.error('Icon-only ActionButton requires an accessibilityLabel.');
+  const getDefaultLabelStyle = () => {
+    switch (variant) {
+      case 'primary':
+        return components.buttonText;
+      case 'glassNav':
+        return components.buttonTextGlassNav;
+      default:
+        return components.buttonText;
     }
+  };
 
-    return null;
-  }
+  const getDefaultIconColor = () => {
+    switch (variant) {
+      case 'glassIcon':
+      case 'glassNav':
+        return colors.textOnDark;
+      default:
+        return iconColor;
+    }
+  };
+
+  const getDefaultIconSize = () => {
+    switch (variant) {
+      case 'glassIcon':
+        return 48;
+      default:
+        return iconSize;
+    }
+  };
+
+  const getDefaultPressedOpacity = () => {
+    switch (variant) {
+      case 'glassIcon':
+        return 0.72;
+      case 'glassNav':
+        return 0.9;
+      default:
+        return 0.8;
+    }
+  };
+
+  const getDefaultDisabledOpacity = () => {
+    switch (variant) {
+      case 'glassIcon':
+        return 0.6;
+      case 'glassNav':
+        return 0.1;
+      default:
+        return 0.45;
+    }
+  };
+
+  const getDefaultHitSlop = () => {
+    switch (variant) {
+      case 'glassIcon':
+        return 8;
+      default:
+        return hitSlop;
+    }
+  };
+
+  const getDefaultStyle = () => {
+    switch (variant) {
+      case 'glassIcon':
+        return [components.buttonGlassIcon, { width: size, height: size }];
+      default:
+        return undefined;
+    }
+  };
 
   return (
     <Pressable
-      accessibilityLabel={resolvedAccessibilityLabel}
-      accessibilityRole="button"
-      accessibilityState={{ disabled }}
+      accessibilityLabel={accessibilityLabel ?? label}
       disabled={disabled}
-      hitSlop={hitSlop}
+      hitSlop={getDefaultHitSlop()}
       onPress={onPress}
       style={({ pressed }) => [
-        styles.content,
-        contentStyle,
+        getDefaultStyle(),
         style,
-        pressed && !disabled ? { opacity: pressedOpacity } : null,
-        disabled ? { opacity: disabledOpacity } : null,
+        pressed && !disabled ? { opacity: pressedOpacity ?? getDefaultPressedOpacity() } : null,
+        disabled ? { opacity: disabledOpacity ?? getDefaultDisabledOpacity() } : null,
       ]}
     >
-      {icon ? <Ionicons color={iconColor} name={icon} size={iconSize} /> : null}
-      {hasVisibleLabel ? (
-        <Text
-          adjustsFontSizeToFit={labelAdjustsFontSizeToFit}
-          minimumFontScale={labelMinimumFontScale}
-          numberOfLines={labelNumberOfLines}
-          style={labelStyle}
-        >
-          {label}
-        </Text>
-      ) : null}
+      <View style={[components.actionButtonContent, getDefaultContentStyle(), contentStyle]}>
+        {icon ? (
+          <Ionicons
+            color={iconColor ?? getDefaultIconColor()}
+            name={icon}
+            size={iconSize ?? getDefaultIconSize()}
+          />
+        ) : null}
+        {hasVisibleLabel ? (
+          <Text
+            adjustsFontSizeToFit={labelAdjustsFontSizeToFit}
+            minimumFontScale={labelMinimumFontScale}
+            numberOfLines={labelNumberOfLines}
+            style={[getDefaultLabelStyle(), labelStyle]}
+          >
+            {label}
+          </Text>
+        ) : null}
+      </View>
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-});

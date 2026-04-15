@@ -181,7 +181,7 @@ export default function WeighingScreen() {
                 {item.ean ? <Text style={components.productEan}>{item.ean}</Text> : null}
               </TouchableOpacity>
             )}
-            ListEmptyComponent={<Text style={components.emptyText}>Ei tuotteita.</Text>}
+            ListEmptyComponent={<Text style={components.textEmpty}>Ei tuotteita.</Text>}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           />
         </View>
@@ -289,7 +289,7 @@ export default function WeighingScreen() {
             data={recentEvents}
             keyExtractor={(e) => String(e.id)}
             renderItem={renderEvent}
-            style={components.listFlex}
+            style={components.flex1}
           />
         </>
       )}

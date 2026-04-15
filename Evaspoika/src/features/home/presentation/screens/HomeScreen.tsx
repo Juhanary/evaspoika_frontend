@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useQueries } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
 import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
 import { fetchOrderLines } from '@/src/features/orderLines/infrastructure/orderLinesApi';
@@ -17,12 +17,12 @@ import { useProducts } from '@/src/features/products/presentation/hooks/useProdu
 import { useRefreshAll } from '@/src/shared/hooks/useRefreshAll';
 import { routes } from '@/src/shared/navigation/routes';
 import { dark } from '@/src/shared/styles/dark';
-import { homeStyles } from '@/src/shared/styles/home';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
-import { GlassNavButton } from '@/src/shared/ui/GlassNavButton/GlassNavButton';
+import { Button } from '@/src/shared/ui/Button/ActionButton';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { buildOrderLineSummary } from '@/src/shared/utils/orderSummary';
 import { formatKg } from '@/src/shared/utils/weight';
+import { homeStyles } from '../styles/homeStyles';
 
 const LOGO = require('@/src/assets/images/Logo.png');
 
@@ -49,7 +49,6 @@ const parseDateValue = (value?: string | null) => {
   if (!value) {
     return NaN;
   }
-
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? NaN : parsed;
 };
@@ -58,13 +57,10 @@ const formatOrderDate = (value?: string | null) => {
   if (!value) {
     return null;
   }
-
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) {
     return null;
   }
-
   return date.toLocaleDateString('fi-FI', {
     day: '2-digit',
     month: '2-digit',
@@ -73,6 +69,7 @@ const formatOrderDate = (value?: string | null) => {
 };
 
 export default function HomeScreen() {
+  const router = useRouter();
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const { data: batches } = useBatches();
   const { data: products } = useProducts();
@@ -86,19 +83,11 @@ export default function HomeScreen() {
       .sort((a, b) => {
         const leftDate = parseDateValue(a.order_date);
         const rightDate = parseDateValue(b.order_date);
-
         if (Number.isFinite(leftDate) && Number.isFinite(rightDate)) {
           return rightDate - leftDate;
         }
-
-        if (Number.isFinite(leftDate)) {
-          return -1;
-        }
-
-        if (Number.isFinite(rightDate)) {
-          return 1;
-        }
-
+        if (Number.isFinite(leftDate)) return -1;
+        if (Number.isFinite(rightDate)) return 1;
         return b.id - a.id;
       })
       .slice(0, 3);
@@ -106,11 +95,9 @@ export default function HomeScreen() {
 
   const customerNameById = useMemo(() => {
     const map = new Map<number, string>();
-
     (customers ?? []).forEach((customer) => {
       map.set(customer.id, customer.name);
     });
-
     return map;
   }, [customers]);
 
@@ -123,53 +110,45 @@ export default function HomeScreen() {
 
   const orderLineSummaries = useMemo(() => {
     const map = new Map<number, string>();
-
     recentOrders.forEach((order, index) => {
-      const query = orderLineQueries[index];
-
-      if (!query || query.isPending || query.isLoading) {
+      const q = orderLineQueries[index];
+      if (!q || q.isLoading || q.isPending) {
         map.set(order.id, 'Ladataan tuotteita...');
         return;
       }
-
-      if (query.error) {
+      if (q.error) {
         map.set(order.id, 'Tuotteita ei voitu ladata.');
         return;
       }
-
-      map.set(order.id, buildOrderLineSummary(query.data));
+      map.set(order.id, buildOrderLineSummary(q.data));
     });
-
     return map;
   }, [orderLineQueries, recentOrders]);
 
   const searchResults = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-
-    if (!normalizedQuery) {
-      return null;
-    }
+    if (!normalizedQuery) return null;
 
     return {
       products: (products ?? []).filter(
-        (product) =>
-          product.name.toLowerCase().includes(normalizedQuery) ||
-          (product.ean ?? '').toLowerCase().includes(normalizedQuery),
+        (p) =>
+          p.name.toLowerCase().includes(normalizedQuery) ||
+          (p.ean ?? '').toLowerCase().includes(normalizedQuery),
       ),
       customers: (customers ?? []).filter(
-        (customer) =>
-          customer.name.toLowerCase().includes(normalizedQuery) ||
-          (customer.email ?? '').toLowerCase().includes(normalizedQuery) ||
-          (customer.netvisor_code ?? '').toLowerCase().includes(normalizedQuery),
+        (c) =>
+          c.name.toLowerCase().includes(normalizedQuery) ||
+          (c.email ?? '').toLowerCase().includes(normalizedQuery) ||
+          (c.netvisor_code ?? '').toLowerCase().includes(normalizedQuery),
       ),
-      batches: (batches ?? []).filter((batch) =>
-        batch.batch_number.toLowerCase().includes(normalizedQuery),
+      batches: (batches ?? []).filter((b) =>
+        b.batch_number.toLowerCase().includes(normalizedQuery),
       ),
       orders: (orders ?? []).filter(
-        (order) =>
-          !order.deleted_at &&
-          (String(order.id).includes(normalizedQuery) ||
-            (order.order_date ?? '').includes(normalizedQuery)),
+        (o) =>
+          !o.deleted_at &&
+          (String(o.id).includes(normalizedQuery) ||
+            (o.order_date ?? '').includes(normalizedQuery)),
       ),
     };
   }, [batches, customers, orders, products, query]);
@@ -203,14 +182,14 @@ export default function HomeScreen() {
                 empty={searchResults.products.length === 0}
                 label={`Tuotteet (${searchResults.products.length})`}
               >
-                {searchResults.products.map((product) => (
+                {searchResults.products.map((p) => (
                   <Pressable
-                    key={product.id}
-                    onPress={() => router.push(routes.inventoryProduct(product.id))}
+                    key={p.id}
+                    onPress={() => router.push(routes.inventoryProduct(p.id))}
                     style={({ pressed }) => [dark.row, pressed && dark.pressed]}
                   >
-                    <Text style={dark.rowTitle}>{product.name}</Text>
-                    {product.ean ? <Text style={dark.rowSub}>EAN: {product.ean}</Text> : null}
+                    <Text style={dark.rowTitle}>{p.name}</Text>
+                    {p.ean ? <Text style={dark.rowSub}>EAN: {p.ean}</Text> : null}
                   </Pressable>
                 ))}
               </SearchSection>
@@ -219,10 +198,10 @@ export default function HomeScreen() {
                 empty={searchResults.customers.length === 0}
                 label={`Asiakkaat (${searchResults.customers.length})`}
               >
-                {searchResults.customers.map((customer) => (
-                  <View key={customer.id} style={dark.row}>
-                    <Text style={dark.rowTitle}>{customer.name}</Text>
-                    {customer.email ? <Text style={dark.rowSub}>{customer.email}</Text> : null}
+                {searchResults.customers.map((c) => (
+                  <View key={c.id} style={dark.row}>
+                    <Text style={dark.rowTitle}>{c.name}</Text>
+                    {c.email ? <Text style={dark.rowSub}>{c.email}</Text> : null}
                   </View>
                 ))}
               </SearchSection>
@@ -231,16 +210,16 @@ export default function HomeScreen() {
                 empty={searchResults.batches.length === 0}
                 label={`Erät (${searchResults.batches.length})`}
               >
-                {searchResults.batches.map((batch) => (
+                {searchResults.batches.map((b) => (
                   <Pressable
-                    key={batch.id}
+                    key={b.id}
                     onPress={() =>
-                      router.push(routes.inventoryBatch(batch.id, batch.batch_number))
+                      router.push(routes.inventoryBatch(b.id, b.batch_number))
                     }
                     style={({ pressed }) => [dark.row, pressed && dark.pressed]}
                   >
-                    <Text style={dark.rowTitle}>Erä: {batch.batch_number}</Text>
-                    <Text style={dark.rowSub}>{formatKg(batch.current_weight)} kg</Text>
+                    <Text style={dark.rowTitle}>Erä: {b.batch_number}</Text>
+                    <Text style={dark.rowSub}>{formatKg(b.current_weight)} kg</Text>
                   </Pressable>
                 ))}
               </SearchSection>
@@ -249,19 +228,19 @@ export default function HomeScreen() {
                 empty={searchResults.orders.length === 0}
                 label={`Tilaukset (${searchResults.orders.length})`}
               >
-                {searchResults.orders.map((order) => (
+                {searchResults.orders.map((o) => (
                   <Pressable
-                    key={order.id}
-                    onPress={() => router.push(routes.orderDetail(order.id))}
+                    key={o.id}
+                    onPress={() => router.push(routes.orderDetail(o.id))}
                     style={({ pressed }) => [dark.row, pressed && dark.pressed]}
                   >
                     <Text style={dark.rowTitle}>
-                      {order.customer_id
-                        ? (customerNameById.get(order.customer_id) ?? 'Tilaus')
+                      {o.customer_id
+                        ? (customerNameById.get(o.customer_id) ?? 'Tilaus')
                         : 'Tilaus'}
                     </Text>
                     <Text style={dark.rowSub}>
-                      {[formatOrderDate(order.order_date), order.status]
+                      {[formatOrderDate(o.order_date), o.status]
                         .filter(Boolean)
                         .join(' / ') || 'Tilaus'}
                     </Text>
@@ -278,9 +257,9 @@ export default function HomeScreen() {
 
               <View style={homeStyles.topArea}>
                 <View style={homeStyles.btnGroup}>
-                  <GlassNavButton label="TILAUS" onPress={() => router.push(routes.orders)} />
-                  <GlassNavButton label="VARASTO" onPress={() => router.push(routes.inventory)} />
-                  <GlassNavButton label="LOKI" onPress={() => router.push(routes.logs)} />
+                  <Button label="TILAUS" onPress={() => router.push(routes.orders)} variant="glassNav" />
+                  <Button label="VARASTO" onPress={() => router.push(routes.inventory)} variant="glassNav" />
+                  <Button label="LOKI" onPress={() => router.push(routes.logs)} variant="glassNav" />
                 </View>
               </View>
             </>
@@ -301,7 +280,7 @@ export default function HomeScreen() {
                     ? customerNameById.get(order.customer_id)
                     : null;
                   const dateLabel = formatOrderDate(order.order_date) ?? '';
-                  const orderSummary = orderLineSummaries.get(order.id);
+                  const summary = orderLineSummaries.get(order.id);
 
                   return (
                     <React.Fragment key={order.id}>
@@ -317,7 +296,7 @@ export default function HomeScreen() {
                             {customerName ?? 'Tilaus'}
                           </Text>
                           <Text numberOfLines={2} style={homeStyles.ordersRowSummary}>
-                            {orderSummary ?? 'Ladataan tuotteita...'}
+                            {summary ?? 'Ladataan tuotteita...'}
                           </Text>
                         </View>
                         <Text style={homeStyles.ordersRowDate}>{dateLabel}</Text>

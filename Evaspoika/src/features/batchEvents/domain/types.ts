@@ -18,4 +18,14 @@ export type BatchLog = {
       ean?: string | null;
     } | null;
   } | null;
+  OrderLine?: {
+    id: number;
+    OrderId?: number | null;
+    Order?: {
+      id: number;
+      customer_id?: number | null;
+      order_date?: string | null;
+      status?: string | null;
+    } | null;
+  } | null;
 };

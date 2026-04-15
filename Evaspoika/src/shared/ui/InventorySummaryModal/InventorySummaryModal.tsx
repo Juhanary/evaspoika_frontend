@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/shared/constants/colors';
 import { spacing } from '@/src/shared/constants/spacing';
@@ -126,8 +126,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat_400Regular',
     fontSize: 32,
     color: colors.white,
-    textShadowColor: 'rgba(0,0,0,0.38)',
-    textShadowRadius: 4,
+    ...Platform.select({
+      web: { textShadow: '0px 1px 4px rgba(0,0,0,0.38)' } as object,
+      default: { textShadowColor: 'rgba(0,0,0,0.38)', textShadowRadius: 4 },
+    }),
   },
   divider: {
     height: 1,
@@ -172,7 +174,7 @@ const styles = StyleSheet.create({
   },
   barWrap: {
     flex: 1,
-    height: 50,
+    height: 30,
     borderRadius: 23,
     overflow: 'hidden',
   },

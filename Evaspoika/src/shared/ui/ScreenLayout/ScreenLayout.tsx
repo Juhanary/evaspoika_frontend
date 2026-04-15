@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import {
   ImageBackground,
   Pressable,
-  StyleSheet,
   Text,
   View,
   type StyleProp,
@@ -17,6 +16,7 @@ import { spacing } from '@/src/shared/constants/spacing';
 import { goBackOrHome } from '@/src/shared/navigation/goBackOrHome';
 import { routes } from '@/src/shared/navigation/routes';
 import { dark } from '@/src/shared/styles/dark';
+import { components } from '@/src/shared/styles/components';
 import {
   AppHeader,
   type AppHeaderAction,
@@ -94,27 +94,27 @@ export function ScreenLayout({
         title={title}
       />
 
-      <View style={[styles.contentContainer, { paddingBottom: insets.bottom }]}>
+      <View style={[components.screenContent, { paddingBottom: insets.bottom }]}>
         {wrapInCard ? (
-          <GlassCard blurRadius={18} style={[styles.card, cardStyle]}>
+          <GlassCard blurRadius={18} style={[components.screenCard, cardStyle]}>
             {leftAction === 'back' ? (
               <Pressable
                 accessibilityLabel="Takaisin"
                 accessibilityRole="button"
                 hitSlop={8}
                 onPress={onBack ?? goBackOrHome}
-                style={styles.backBtn}
+                style={components.screenBackBtn}
               >
                 <Ionicons color="rgba(255,255,255,0.7)" name="arrow-back" size={20} />
-                <Text style={styles.backBtnText}>TAKAISIN</Text>
+                <Text style={components.screenBackBtnText}>TAKAISIN</Text>
               </Pressable>
             ) : null}
             {inlineSearch ? (
-              <View style={styles.inlineSearchContainer}>
+              <View style={components.screenInlineSearch}>
                 <SearchInput
                   onChangeText={inlineSearch.onChangeText}
                   placeholder={inlineSearch.placeholder ?? 'Hae...'}
-                  style={styles.inlineSearch}
+                  style={components.screenInlineSearchMax}
                   value={inlineSearch.value}
                   variant="dark"
                 />
@@ -123,17 +123,17 @@ export function ScreenLayout({
             {children}
           </GlassCard>
         ) : (
-          <View style={styles.plainContent}>
+          <View style={components.screenPlain}>
             {leftAction === 'back' ? (
               <Pressable
                 accessibilityLabel="Takaisin"
                 accessibilityRole="button"
                 hitSlop={8}
                 onPress={onBack ?? goBackOrHome}
-                style={styles.backBtn}
+                style={components.screenBackBtn}
               >
                 <Ionicons color="rgba(255,255,255,0.7)" name="arrow-back" size={20} />
-                <Text style={styles.backBtnText}>TAKAISIN</Text>
+                <Text style={components.screenBackBtnText}>TAKAISIN</Text>
               </Pressable>
             ) : null}
             {children}
@@ -149,44 +149,3 @@ export function ScreenLayout({
     </ImageBackground>
   );
 }
-
-const styles = StyleSheet.create({
-  contentContainer: {
-    flex: 1,
-  },
-  card: {
-    flex: 1,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    padding: 0,
-  },
-  inlineSearchContainer: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
-    alignItems: 'center',
-  },
-  inlineSearch: {
-    width: '100%',
-    maxWidth: 720,
-    marginBottom: 0,
-  },
-  plainContent: {
-    flex: 1,
-  },
-  backBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 4,
-    alignSelf: 'flex-start',
-  },
-  backBtnText: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.7)',
-    letterSpacing: 1,
-  },
-});

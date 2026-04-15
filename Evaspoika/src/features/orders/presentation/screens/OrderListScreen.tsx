@@ -1,18 +1,19 @@
-import React, { useMemo, useState } from 'react';
-import { useQueries } from '@tanstack/react-query';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
+import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { fetchOrderLines } from '@/src/features/orderLines/infrastructure/orderLinesApi';
-import { colors } from '@/src/shared/constants/colors';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
-import { spacing } from '@/src/shared/constants/spacing';
 import { screen } from '@/src/shared/styles/screen';
+import { orderStyles } from '@/src/shared/styles/orders';
 import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
 import { useOrders } from '@/src/features/orders/presentation/hooks/useOrders';
+import { clearAndSyncOrdersFromNetvisor, syncOrdersFromNetvisor } from '@/src/features/orders/infrastructure/ordersApi';
+import { ApiError } from '@/src/infrastructure/api/error';
 import { routes } from '@/src/shared/navigation/routes';
 import { Order } from '@/src/features/orders/domain/types';
 import { buildOrderLineSummary } from '@/src/shared/utils/orderSummary';
-import { GlassNavButton } from '@/src/shared/ui/GlassNavButton/GlassNavButton';
+import { Button } from '@/src/shared/ui/Button/ActionButton';
 
 const CLOSED = new Set(['closed', 'delivered', 'completed', 'cancelled', 'canceled', 'invoiced']);
 
@@ -56,10 +57,73 @@ const formatOrderDate = (value?: string | null) => {
 };
 
 export default function OrderScreen() {
+  const queryClient = useQueryClient();
   const { data: customers, isLoading: customersLoading } = useCustomers();
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const [showPastOrders, setShowPastOrders] = useState(false);
   const [query, setQuery] = useState('');
+  const [syncing, setSyncing] = useState(false);
+
+  const syncingRef = useRef(false);
+
+  const runSync = async () => {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    setSyncing(true);
+    try {
+      await syncOrdersFromNetvisor();
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
+    } catch {
+      // silent background sync — only show errors on manual press
+    } finally {
+      syncingRef.current = false;
+      setSyncing(false);
+    }
+  };
+
+  const handleSyncFromNetvisor = async () => {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    setSyncing(true);
+    try {
+      await syncOrdersFromNetvisor();
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
+    } catch (err) {
+      const msg = (() => {
+        if (err instanceof ApiError) {
+          const p = err.payload as Record<string, unknown> | null;
+          return String(p?.details ?? p?.error ?? err.message);
+        }
+        return err instanceof Error ? err.message : 'Synkronointi epäonnistui';
+      })();
+      Alert.alert('Synkronointi epäonnistui', msg);
+    } finally {
+      syncingRef.current = false;
+      setSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    const initialSync = async () => {
+      if (syncingRef.current) return;
+      syncingRef.current = true;
+      setSyncing(true);
+      try {
+        await clearAndSyncOrdersFromNetvisor();
+        await queryClient.invalidateQueries({ queryKey: ['orders'] });
+      } catch {
+        // silent
+      } finally {
+        syncingRef.current = false;
+        setSyncing(false);
+      }
+    };
+
+    initialSync();
+    const interval = setInterval(runSync, 30_000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const rows = useMemo<OrderRow[]>(() => {
     const customerNameById = new Map<number, string>();
@@ -141,22 +205,31 @@ export default function OrderScreen() {
       title="TILAUKSET"
     >
       <View style={screen.inner}>
-        <View style={styles.actions}>
-          <GlassNavButton
+        <View style={orderStyles.actions}>
+          <Button
             label="Uusi tilaus"
             onPress={() => router.push(routes.newOrder)}
-            style={styles.actionButton}
-            textStyle={styles.actionButtonText}
+            style={orderStyles.actionButton}
+            textStyle={orderStyles.actionButtonText}
+            variant="glassNav"
           />
-          <GlassNavButton
+          <Button
             label={
               showPastOrders
-                ? 'N\u00E4yt\u00E4 avoimet tilaukset'
-                : 'N\u00E4yt\u00E4 menneet tilaukset'
+                ? 'Näytä avoimet tilaukset'
+                : 'Näytä menneet tilaukset'
             }
             onPress={() => setShowPastOrders((current) => !current)}
-            style={styles.actionButton}
-            textStyle={styles.actionButtonText}
+            style={orderStyles.actionButton}
+            textStyle={orderStyles.actionButtonText}
+            variant="glassNav"
+          />
+          <Button
+            label={syncing ? 'Haetaan Netvisorista...' : 'Päivitä nyt'}
+            onPress={handleSyncFromNetvisor}
+            style={orderStyles.actionButton}
+            textStyle={orderStyles.actionButtonText}
+            variant="glassNav"
           />
         </View>
 
@@ -212,22 +285,3 @@ export default function OrderScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  actions: {
-    marginBottom: spacing.lg,
-    gap: spacing.md,
-  },
-  actionButton: {
-    alignSelf: 'center',
-    width: '100%',
-    maxWidth: 560,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    borderRadius: 36,
-  },
-  actionButtonText: {
-    fontFamily: 'Montserrat_500Medium',
-    fontSize: 24,
-    color: colors.textOnDark,
-  },
-});

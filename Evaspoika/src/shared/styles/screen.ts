@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 export const screen = StyleSheet.create({
   inner: {
@@ -18,8 +18,10 @@ export const screen = StyleSheet.create({
     fontSize: 32,
     color: '#EDEDED',
     marginBottom: 12,
-    textShadowColor: 'rgba(0,0,0,0.38)',
-    textShadowRadius: 4,
+    ...Platform.select({
+      web: { textShadow: '0px 1px 4px rgba(0,0,0,0.38)' } as object,
+      default: { textShadowColor: 'rgba(0,0,0,0.38)', textShadowRadius: 4 },
+    }),
   },
   divider: {
     height: 1,

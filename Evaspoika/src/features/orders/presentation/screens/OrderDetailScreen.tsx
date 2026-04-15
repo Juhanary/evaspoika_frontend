@@ -23,7 +23,9 @@ import { confirmScan, fetchScanBoxes } from '@/src/features/scan/infrastructure/
 import { ScanInventoryBox } from '@/src/features/scan/domain/types';
 import { colors } from '@/src/shared/constants/colors';
 import { formatKg } from '@/src/shared/utils/weight';
+import { ApiError } from '@/src/infrastructure/api/error';
 import { components } from '@/src/shared/styles/components';
+import { orderStyles } from '@/src/shared/styles/orders';
 import { screen } from '@/src/shared/styles/screen';
 
 type Props = { orderId?: number };
@@ -463,10 +465,32 @@ export default function OrderDetailScreen({ orderId }: Props) {
       setScannedBoxes([]);
       setShowScanModal(false);
     } catch (saveError) {
-      Alert.alert(
-        'Virhe',
-        saveError instanceof Error ? saveError.message : 'Tallennus ep\u00E4onnistui',
-      );
+      if (saveError instanceof ApiError && saveError.status === 502) {
+        // Rivit luotu onnistuneesti, mutta Netvisor-synkronointi epäonnistui.
+        // Suljetaan modal ja päivitetään näkymä — käyttäjä voi yrittää lähettää tilauksen myöhemmin.
+        setShowScanModal(false);
+        setScannedBoxes([]);
+        setEanInput('');
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['orderLines', orderId], exact: true }),
+          queryClient.invalidateQueries({ queryKey: ['scanBoxes'], exact: true }),
+        ]);
+        const p = saveError.payload as Record<string, unknown> | null;
+        const details = String(p?.details ?? p?.error ?? '');
+        Alert.alert(
+          'Tilausrivit lisätty',
+          `Rivit lisätty onnistuneesti, mutta Netvisor-synkronointi epäonnistui${details ? `:\n${details}` : '.'}\n\nVoit yrittää lähettää tilauksen "Lähetä tilaus"-napista.`,
+        );
+      } else {
+        const errMessage = (() => {
+          if (saveError instanceof ApiError) {
+            const p = saveError.payload as Record<string, unknown> | null;
+            return String(p?.details ?? p?.error ?? saveError.message);
+          }
+          return saveError instanceof Error ? saveError.message : 'Tallennus epäonnistui';
+        })();
+        Alert.alert('Virhe', errMessage);
+      }
     } finally {
       setSaving(false);
     }
@@ -489,11 +513,16 @@ export default function OrderDetailScreen({ orderId }: Props) {
                 queryClient.invalidateQueries({ queryKey: ['orders', orderId], exact: true }),
                 queryClient.invalidateQueries({ queryKey: ['orders'] }),
               ]);
+              Alert.alert('Tilaus lähetetty', 'Tilaus on lähetetty Netvisoriin.');
             } catch (sendError) {
-              Alert.alert(
-                'Virhe',
-                sendError instanceof Error ? sendError.message : 'Lähetys epäonnistui',
-              );
+              const errMessage = (() => {
+                if (sendError instanceof ApiError) {
+                  const p = sendError.payload as Record<string, unknown> | null;
+                  return String(p?.details ?? p?.error ?? sendError.message);
+                }
+                return sendError instanceof Error ? sendError.message : 'Lähetys epäonnistui';
+              })();
+              Alert.alert('Lähetys epäonnistui', errMessage);
             } finally {
               setSendingOrder(false);
             }
@@ -768,9 +797,9 @@ export default function OrderDetailScreen({ orderId }: Props) {
 
               <TouchableOpacity
                 onPress={() => setBatchPickerFor(null)}
-                style={components.modalCancelBtn}
+                style={components.buttonModalCancel}
               >
-                <Text style={components.modalCancelText}>Peruuta</Text>
+                <Text style={components.buttonTextModalCancel}>Peruuta</Text>
               </TouchableOpacity>
             </View>
           </View>

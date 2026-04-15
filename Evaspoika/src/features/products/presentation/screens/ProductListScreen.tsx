@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
@@ -20,8 +20,8 @@ type ProductRow = {
 
 export default function ProductListScreen() {
   const router = useRouter();
-  const { data: products, isLoading } = useProducts();
-  const { data: batches } = useBatches();
+  const { data: products, isLoading, error: productsError } = useProducts();
+  const { data: batches, error: batchesError } = useBatches();
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
@@ -29,7 +29,7 @@ export default function ProductListScreen() {
     const weightMap = new Map<number, { count: number; weight: number }>();
 
     (batches ?? []).forEach((batch) => {
-      if (!batch.deleted_at && batch.ProductId) {
+      if (!batch.deleted_at && batch.ProductId && (batch.current_weight ?? 0) > 0) {
         const existing = weightMap.get(batch.ProductId) ?? { count: 0, weight: 0 };
         weightMap.set(batch.ProductId, {
           count: existing.count + 1,
@@ -77,10 +77,14 @@ export default function ProductListScreen() {
     >
       <View style={screen.innerSm}>
         <View style={screen.columnHeaderRow}>
-          <Text style={screen.columnHeaderText}>KG / Laatikkoa</Text>
+          <Text style={screen.columnHeaderText}>KG / Eriä</Text>
         </View>
 
-        {isLoading ? (
+        {productsError ? (
+          <Text style={screen.muted}>Virhe: {String(productsError)}</Text>
+        ) : batchesError ? (
+          <Text style={screen.muted}>Virhe: {String(batchesError)}</Text>
+        ) : isLoading ? (
           <Text style={screen.muted}>Ladataan...</Text>
         ) : (
           <FlatList
@@ -123,20 +127,24 @@ export default function ProductListScreen() {
                         {productBatches.length === 0 ? (
                           <Text style={components.invDropdownLabel}>Ei eriä.</Text>
                         ) : (
-                          productBatches.map((batch, i) => (
-                            <View key={batch.id}>
-                              <View style={components.invDropdownRow}>
-                                <Text style={components.invDropdownLabel}>
-                                  {batch.batch_number}
-                                </Text>
-                                <Text style={components.invDropdownWeight}>
-                                  {formatKg(batch.current_weight)} kg
-                                </Text>
+                          <ScrollView
+                            nestedScrollEnabled
+                            showsVerticalScrollIndicator={false}
+                            style={{ maxHeight: 200 }}
+                          >
+                            {productBatches.map((batch) => (
+                              <View key={batch.id}>
+                                <View style={components.invDropdownRow}>
+                                  <Text style={components.invDropdownLabel}>
+                                    {batch.batch_number}
+                                  </Text>
+                                  <Text style={components.invDropdownWeight}>
+                                    {formatKg(batch.current_weight)} kg
+                                  </Text>
+                                </View>
                               </View>
-                             
-
-                            </View>
-                          ))
+                            ))}
+                          </ScrollView>
                         )}
                         <View style={components.invDropdownRow}>
                         

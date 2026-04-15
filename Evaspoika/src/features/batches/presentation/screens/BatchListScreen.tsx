@@ -14,7 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { updateBatch, deleteBatch } from '../../infrastructure/batchesApi';
 import { Batch } from '../../domain/types';
-import { useBatches } from '../hooks/useBatches';
+import { useBatches, useDeletedBatches } from '../hooks/useBatches';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
 import { colors } from '@/src/shared/constants/colors';
 import { spacing } from '@/src/shared/constants/spacing';
@@ -54,8 +54,10 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: batches, isLoading: batchesLoading, error: batchesError } = useBatches();
+  const { data: deletedBatches } = useDeletedBatches();
   const { data: products, isLoading: productsLoading, error: productsError } = useProducts();
   const [collapsed, setCollapsed] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
   const [productQuery, setProductQuery] = useState('');
 
   const [adjusting, setAdjusting] = useState<AdjustState>(null);
@@ -75,6 +77,13 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
       (batch) => batch.ProductId === productId && !batch.deleted_at,
     );
   }, [batches, productId]);
+
+  const archivedBatches = useMemo(() => {
+    if (!productId) return [];
+    return (deletedBatches ?? []).filter(
+      (batch) => batch.ProductId === productId,
+    );
+  }, [deletedBatches, productId]);
 
   const totalWeight = filteredBatches.reduce((sum, batch) => sum + batch.current_weight, 0);
 
@@ -271,7 +280,7 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
                     </View>
                   );
                 }}
-                style={components.listFlex}
+                style={components.flex1}
               />
             </>
           ) : (
@@ -279,6 +288,47 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
               <Text style={screen.muted}>Lista piilotettu.</Text>
             </View>
           )}
+
+          {archivedBatches.length > 0 ? (
+            <View>
+              <TouchableOpacity
+                onPress={() => setShowArchive((v) => !v)}
+                style={components.blArchiveHeader}
+              >
+                <Text style={components.blArchiveHeaderText}>
+                  Arkisto ({archivedBatches.length})
+                </Text>
+                <Ionicons
+                  color="rgba(255,255,255,0.5)"
+                  name={showArchive ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                />
+              </TouchableOpacity>
+
+              {showArchive ? archivedBatches.map((batch) => {
+                const dateLabel = toFinnishDate(batch.production_date) ?? batch.batch_number;
+                const deletedLabel = toFinnishDate(batch.deleted_at);
+                return (
+                  <TouchableOpacity
+                    key={batch.id}
+                    onPress={() => router.push(routes.inventoryBatch(batch.id, batch.batch_number))}
+                    style={components.blArchiveRow}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={components.blArchiveLabel}>{dateLabel}</Text>
+                      {deletedLabel ? (
+                        <Text style={components.blArchiveSub}>Poistettu {deletedLabel}</Text>
+                      ) : null}
+                    </View>
+                    <Text style={components.blArchiveWeight}>
+                      {formatKg(batch.initial_weight)} kg
+                    </Text>
+                    <Ionicons color="rgba(255,255,255,0.35)" name="chevron-forward" size={16} />
+                  </TouchableOpacity>
+                );
+              }) : null}
+            </View>
+          ) : null}
 
           <View style={components.blFooter}>
             <TouchableOpacity
@@ -417,9 +467,7 @@ const adjStyles = {
     paddingVertical: 13,
     alignItems: 'center' as const,
     backgroundColor: '#39F56A',
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    boxShadow: '0px 2px 4px rgba(0,0,0,0.15)',
   },
   saveBtnText: {
     fontFamily: 'Montserrat_600SemiBold',
