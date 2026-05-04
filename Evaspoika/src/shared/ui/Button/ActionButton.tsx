@@ -75,7 +75,7 @@ export function Button({
       case 'glass':
         return components.glassActionSurface;
       case 'glassIcon':
-        return [components.buttonGlassIcon, { borderRadius: size / 2 }];
+        return [{ backgroundColor: colors.darkCard, borderRadius: size / 2, width: size, height: size }];
       case 'glassNav':
         return components.buttonGlassNav;
       default:
@@ -147,7 +147,7 @@ export function Button({
   const getDefaultStyle = () => {
     switch (variant) {
       case 'glassIcon':
-        return [components.buttonGlassIcon, { width: size, height: size }];
+        return [{ overflow: 'hidden' as const, width: size, height: size }];
       default:
         return undefined;
     }

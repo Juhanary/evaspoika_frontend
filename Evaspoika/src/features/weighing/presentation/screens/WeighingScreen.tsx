@@ -54,7 +54,7 @@ export default function WeighingScreen() {
 
   const selectProduct = useCallback((product: Product) => {
     setMode({ type: 'existing', product });
-    setEan(product.ean ?? '');
+    setEan(generateEan());
     setWeightInput('');
     setTimeout(() => weightRef.current?.focus(), 100);
   }, []);
@@ -178,7 +178,6 @@ export default function WeighingScreen() {
             renderItem={({ item }) => (
               <TouchableOpacity style={components.productRow} onPress={() => selectProduct(item)}>
                 <Text style={components.productName}>{item.name}</Text>
-                {item.ean ? <Text style={components.productEan}>{item.ean}</Text> : null}
               </TouchableOpacity>
             )}
             ListEmptyComponent={<Text style={components.textEmpty}>Ei tuotteita.</Text>}

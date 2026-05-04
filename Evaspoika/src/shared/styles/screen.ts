@@ -20,7 +20,7 @@ export const screen = StyleSheet.create({
     marginBottom: 12,
     ...Platform.select({
       web: { textShadow: '0px 1px 4px rgba(0,0,0,0.38)' } as object,
-      default: { textShadowColor: 'rgba(0,0,0,0.38)', textShadowRadius: 4 },
+      default: { textShadowColor: 'rgba(0,0,0,0.38)', textShadowRadius: 1 },
     }),
   },
   divider: {
@@ -92,7 +92,7 @@ export const screen = StyleSheet.create({
   },
   columnHeaderText: {
     fontFamily: 'Montserrat_500Medium',
-    fontSize: 15,
+    fontSize: 20,
     color: '#EDEDED',
   },
   logGroup: {

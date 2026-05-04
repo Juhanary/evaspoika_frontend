@@ -2,8 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
 import { Batch } from '@/src/features/batches/domain/types';
+import { fetchBatchEvents } from '@/src/features/batchEvents/infrastructure/batchEventsApi';
 import { routes } from '@/src/shared/navigation/routes';
 import { components } from '@/src/shared/styles/components';
 import { screen } from '@/src/shared/styles/screen';
@@ -16,17 +18,31 @@ type ProductRow = {
   product: Product;
   batchCount: number;
   totalWeight: number;
+  boxCount: number;
 };
 
 export default function ProductListScreen() {
   const router = useRouter();
   const { data: products, isLoading, error: productsError } = useProducts();
   const { data: batches, error: batchesError } = useBatches();
+  const { data: batchEvents } = useQuery({
+    queryKey: ['batchEvents', 'inventory'],
+    queryFn: () => fetchBatchEvents({ types: 'WEIGHING,CREATE', limit: 9999 }),
+  });
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
+  const boxesByBatchId = useMemo(() => {
+    const map = new Map<number, number>();
+    (batchEvents ?? []).forEach((event) => {
+      map.set(event.BatchId, (map.get(event.BatchId) ?? 0) + 1);
+    });
+    return map;
+  }, [batchEvents]);
+
   const rows = useMemo<ProductRow[]>(() => {
     const weightMap = new Map<number, { count: number; weight: number }>();
+    const boxMap = new Map<number, number>();
 
     (batches ?? []).forEach((batch) => {
       if (!batch.deleted_at && batch.ProductId && (batch.current_weight ?? 0) > 0) {
@@ -35,6 +51,9 @@ export default function ProductListScreen() {
           count: existing.count + 1,
           weight: existing.weight + (batch.current_weight ?? 0),
         });
+      }
+      if (batch.ProductId) {
+        boxMap.set(batch.ProductId, (boxMap.get(batch.ProductId) ?? 0) + (boxesByBatchId.get(batch.id) ?? 0));
       }
     });
 
@@ -49,8 +68,9 @@ export default function ProductListScreen() {
         product,
         batchCount: weightMap.get(product.id)?.count ?? 0,
         totalWeight: weightMap.get(product.id)?.weight ?? 0,
+        boxCount: boxMap.get(product.id) ?? 0,
       }));
-  }, [batches, products, query]);
+  }, [batches, boxesByBatchId, products, query]);
 
   const batchesByProduct = useMemo(() => {
     const map = new Map<number, Batch[]>();
@@ -77,7 +97,7 @@ export default function ProductListScreen() {
     >
       <View style={screen.innerSm}>
         <View style={screen.columnHeaderRow}>
-          <Text style={screen.columnHeaderText}>KG / Eriä</Text>
+          <Text style={screen.columnHeaderText}>Paino / Laatikoita</Text>
         </View>
 
         {productsError ? (
@@ -112,9 +132,17 @@ export default function ProductListScreen() {
                         pressed && screen.pressed,
                       ]}
                     >
-                      <Text numberOfLines={1} style={components.invPillLeftText}>
+                      <Text numberOfLines={1} style={[components.invPillLeftText, { flex: 1 }]}>
                         {item.product.name}
                       </Text>
+                      {!item.product.netvisor_key ? (
+                        <Ionicons
+                          color="rgba(255,165,0,0.85)"
+                          name="cloud-offline-outline"
+                          size={16}
+                          style={{ marginRight: 4 }}
+                        />
+                      ) : null}
                       <Ionicons
                         color="rgba(0,0,0,0.45)"
                         name={isExpanded ? 'chevron-up' : 'chevron-down'}
@@ -132,30 +160,39 @@ export default function ProductListScreen() {
                             showsVerticalScrollIndicator={false}
                             style={{ maxHeight: 200 }}
                           >
-                            {productBatches.map((batch) => (
-                              <View key={batch.id}>
-                                <View style={components.invDropdownRow}>
-                                  <Text style={components.invDropdownLabel}>
-                                    {batch.batch_number}
-                                  </Text>
-                                  <Text style={components.invDropdownWeight}>
-                                    {formatKg(batch.current_weight)} kg
-                                  </Text>
+                            {productBatches.map((batch) => {
+                              const batchBoxCount = boxesByBatchId.get(batch.id) ?? 0;
+                              return (
+                                <View key={batch.id}>
+                                  <View style={components.invDropdownRow}>
+                                    <Text style={[components.invDropdownLabel, { flex: 1 }]}>
+                                      {batch.batch_number}
+                                    </Text>
+                                    <Text style={[components.invDropdownLabel, { minWidth: 48, textAlign: 'right' }]}>
+                                      {batchBoxCount} laatikkoa
+                                    </Text>
+                                    <Text style={[components.invDropdownWeight, { minWidth: 80, textAlign: 'right' }]}>
+                                      {formatKg(batch.current_weight)} kg
+                                    </Text>
+                                  </View>
                                 </View>
-                              </View>
-                            ))}
+                              );
+                            })}
                           </ScrollView>
                         )}
-                        <View style={components.invDropdownRow}>
-                        
-
-<View style={{ flex: 1 }} />
-  <Text style={components.invDropdownLabelYhteensa}>Yhteensä</Text>
-                          <Text style={components.invDropdownWeight}>
+                        <View style={components.invDropdownDivider} />
+                        <View style={[components.invDropdownRow, { gap: 6 }]}>
+                          <Text style={[components.invDropdownLabelYhteensa, { flex: 1 }]}>Yhteensä</Text>
+                                <Text style={[components.invDropdownLabel, { minWidth: 48, textAlign: 'right', fontSize: 20 }]}>
+                            {item.batchCount} erää
+                          </Text>
+                          <Text style={[components.invDropdownLabel, { minWidth: 48, textAlign: 'right', fontSize: 20 }]}>
+                            {item.boxCount} laatikkoa
+                          </Text>
+                          <Text style={[components.invDropdownWeight, { minWidth: 80, textAlign: 'right', fontSize: 20 }]}>
                             {formatKg(item.totalWeight)} kg
                           </Text>
                         </View>
-                                                                       <View style={components.invDropdownDivider} />
 
                         <Pressable
                           onPress={() => router.push(routes.inventoryProduct(item.product.id))}
@@ -166,6 +203,17 @@ export default function ProductListScreen() {
                         >
                           <Text style={components.invDropdownBtnText}>MUOKKAA ERIÄ</Text>
                         </Pressable>
+                        {!item.product.netvisor_key ? (
+                          <Text style={{
+                            textAlign: 'center',
+                            fontSize: 11,
+                            color: 'rgba(200,120,0,0.9)',
+                            marginTop: 6,
+                            fontFamily: 'Montserrat_400Regular',
+                          }}>
+                            Ei vahvistettu Netvisorissa
+                          </Text>
+                        ) : null}
                       </View>
                     ) : null}
                   </View>
@@ -175,9 +223,9 @@ export default function ProductListScreen() {
                       {formatKg(item.totalWeight)} kg
                     </Text>
                     <View style={components.invPillDivider} />
-                      <Text style={components.invPillCount}>{item.batchCount}</Text>
-                    </View>
+                    <Text style={components.invPillCount}>{item.boxCount}</Text>
                   </View>
+                </View>
               );
             }}
             showsVerticalScrollIndicator={false}

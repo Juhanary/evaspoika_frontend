@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     top: '2%',
     bottom: spacing.lg,
     padding: 0,
-    borderRadius: 32,
+    borderRadius: 20,
     overflow: 'hidden',
     opacity: 1,
   },
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     color: colors.white,
     ...Platform.select({
       web: { textShadow: '0px 1px 4px rgba(0,0,0,0.38)' } as object,
-      default: { textShadowColor: 'rgba(0,0,0,0.38)', textShadowRadius: 4 },
+      default: { textShadowColor: 'rgba(0,0,0,0.38)', textShadowRadius: 1 },
     }),
   },
   divider: {
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   },
   barWrap: {
     flex: 1,
-    height: 30,
+    height: 50,
     borderRadius: 23,
     overflow: 'hidden',
   },

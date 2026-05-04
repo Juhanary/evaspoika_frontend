@@ -9,9 +9,9 @@ type Props = ViewProps & {
 };
 
 const blurRadiusToIntensity = (blurRadius: number) =>
-  Math.min(72, Math.max(28, Math.round(blurRadius * 2.1)));
+  Math.min(100, Math.max(28, Math.round(blurRadius * 4.7)));
 
-export function GlassCard({ children, style, blurRadius = 54, ...props }: Props) {
+export function GlassCard({ children, style, blurRadius = 1, ...props }: Props) {
   return (
     <View style={[components.glassCard, style]} {...props}>
       <BlurView

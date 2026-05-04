@@ -57,3 +57,10 @@ export function deleteProduct(id: number) {
     method: 'DELETE',
   });
 }
+
+export function mergeProducts(targetId: number, sourceId: number) {
+  return apiRequest<{ message: string; batchesMoved: number }>(
+    `${endpoints.products}/${targetId}/merge/${sourceId}`,
+    { method: 'POST' },
+  );
+}

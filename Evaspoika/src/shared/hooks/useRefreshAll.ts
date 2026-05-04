@@ -21,7 +21,7 @@ export function useRefreshAll() {
       setRefreshing(true);
       try {
         await fn();
-        await queryClient.invalidateQueries();
+        await queryClient.refetchQueries();
       } finally {
         setRefreshing(false);
       }

@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useQueries, useQueryClient } from '@tanstack/react-query';
-import { Alert, FlatList, Pressable, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
+import { FlatList, Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { fetchOrderLines } from '@/src/features/orderLines/infrastructure/orderLinesApi';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
@@ -8,14 +8,27 @@ import { screen } from '@/src/shared/styles/screen';
 import { orderStyles } from '@/src/shared/styles/orders';
 import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
 import { useOrders } from '@/src/features/orders/presentation/hooks/useOrders';
-import { clearAndSyncOrdersFromNetvisor, syncOrdersFromNetvisor } from '@/src/features/orders/infrastructure/ordersApi';
-import { ApiError } from '@/src/infrastructure/api/error';
 import { routes } from '@/src/shared/navigation/routes';
 import { Order } from '@/src/features/orders/domain/types';
 import { buildOrderLineSummary } from '@/src/shared/utils/orderSummary';
 import { Button } from '@/src/shared/ui/Button/ActionButton';
 
-const CLOSED = new Set(['closed', 'delivered', 'completed', 'cancelled', 'canceled', 'invoiced']);
+const CLOSED = new Set(['closed', 'completed', 'cancelled', 'canceled', 'invoiced', 'billed', 'archived']);
+
+const STATUS_LABELS: Record<string, string> = {
+  undelivered: 'Avoin',
+  delivered: 'Laskuttamaton',
+  billed: 'Laskutettu',
+  archived: 'Arkistoitu',
+  closed: 'Suljettu',
+  completed: 'Valmis',
+  cancelled: 'Peruttu',
+  canceled: 'Peruttu',
+  invoiced: 'Laskutettu',
+};
+
+const getStatusLabel = (status?: string | null) =>
+  status ? (STATUS_LABELS[status.toLowerCase()] ?? status) : null;
 
 const isOpen = (o: Order) =>
   !o.deleted_at &&
@@ -57,73 +70,10 @@ const formatOrderDate = (value?: string | null) => {
 };
 
 export default function OrderScreen() {
-  const queryClient = useQueryClient();
   const { data: customers, isLoading: customersLoading } = useCustomers();
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const [showPastOrders, setShowPastOrders] = useState(false);
   const [query, setQuery] = useState('');
-  const [syncing, setSyncing] = useState(false);
-
-  const syncingRef = useRef(false);
-
-  const runSync = async () => {
-    if (syncingRef.current) return;
-    syncingRef.current = true;
-    setSyncing(true);
-    try {
-      await syncOrdersFromNetvisor();
-      await queryClient.invalidateQueries({ queryKey: ['orders'] });
-    } catch {
-      // silent background sync — only show errors on manual press
-    } finally {
-      syncingRef.current = false;
-      setSyncing(false);
-    }
-  };
-
-  const handleSyncFromNetvisor = async () => {
-    if (syncingRef.current) return;
-    syncingRef.current = true;
-    setSyncing(true);
-    try {
-      await syncOrdersFromNetvisor();
-      await queryClient.invalidateQueries({ queryKey: ['orders'] });
-    } catch (err) {
-      const msg = (() => {
-        if (err instanceof ApiError) {
-          const p = err.payload as Record<string, unknown> | null;
-          return String(p?.details ?? p?.error ?? err.message);
-        }
-        return err instanceof Error ? err.message : 'Synkronointi epäonnistui';
-      })();
-      Alert.alert('Synkronointi epäonnistui', msg);
-    } finally {
-      syncingRef.current = false;
-      setSyncing(false);
-    }
-  };
-
-  useEffect(() => {
-    const initialSync = async () => {
-      if (syncingRef.current) return;
-      syncingRef.current = true;
-      setSyncing(true);
-      try {
-        await clearAndSyncOrdersFromNetvisor();
-        await queryClient.invalidateQueries({ queryKey: ['orders'] });
-      } catch {
-        // silent
-      } finally {
-        syncingRef.current = false;
-        setSyncing(false);
-      }
-    };
-
-    initialSync();
-    const interval = setInterval(runSync, 30_000);
-    return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const rows = useMemo<OrderRow[]>(() => {
     const customerNameById = new Map<number, string>();
@@ -210,7 +160,7 @@ export default function OrderScreen() {
             label="Uusi tilaus"
             onPress={() => router.push(routes.newOrder)}
             style={orderStyles.actionButton}
-            textStyle={orderStyles.actionButtonText}
+            labelStyle={orderStyles.actionButtonText}
             variant="glassNav"
           />
           <Button
@@ -221,14 +171,7 @@ export default function OrderScreen() {
             }
             onPress={() => setShowPastOrders((current) => !current)}
             style={orderStyles.actionButton}
-            textStyle={orderStyles.actionButtonText}
-            variant="glassNav"
-          />
-          <Button
-            label={syncing ? 'Haetaan Netvisorista...' : 'Päivitä nyt'}
-            onPress={handleSyncFromNetvisor}
-            style={orderStyles.actionButton}
-            textStyle={orderStyles.actionButtonText}
+            labelStyle={orderStyles.actionButtonText}
             variant="glassNav"
           />
         </View>
@@ -269,12 +212,29 @@ export default function OrderScreen() {
                     {formatOrderDate(item.order.order_date) ?? ''}
                   </Text>
                   <Text style={screen.listRowMetaSecondary}>
-                    {[
-                      item.order.status ?? item.order.netvisor_status,
-                    ]
-                      .filter(Boolean)
-                      .join(' / ')}
+                    {getStatusLabel(item.order.status ?? item.order.netvisor_status) ?? ''}
                   </Text>
+                  {(() => {
+                    const s = (item.order.status ?? item.order.netvisor_status ?? '').toLowerCase();
+                    if (s === 'delivered') {
+                      return (
+                        <Text style={{ fontSize: 11, color: 'rgba(255,165,0,0.9)', fontFamily: 'Montserrat_400Regular', marginTop: 2 }}>
+                          Odottaa laskutusta
+                        </Text>
+                      );
+                    }
+                    return null;
+                  })()}
+                  {!item.order.netvisor_invoice_id ? (
+                    <Text style={{
+                      fontSize: 11,
+                      color: 'rgba(255,165,0,0.9)',
+                      fontFamily: 'Montserrat_400Regular',
+                      marginTop: 2,
+                    }}>
+                      Ei Netvisorissa
+                    </Text>
+                  ) : null}
                 </View>
               </Pressable>
             )}

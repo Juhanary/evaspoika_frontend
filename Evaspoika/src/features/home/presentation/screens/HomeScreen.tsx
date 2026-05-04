@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Image,
   Pressable,
   RefreshControl,
@@ -7,13 +8,17 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useQueries } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
+import { syncCustomersFromNetvisor } from '@/src/features/customers/infrastructure/customersApi';
 import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
 import { fetchOrderLines } from '@/src/features/orderLines/infrastructure/orderLinesApi';
 import { useOrders } from '@/src/features/orders/presentation/hooks/useOrders';
+import { syncOrdersFromNetvisor } from '@/src/features/orders/infrastructure/ordersApi';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
+import { ApiError } from '@/src/infrastructure/api/error';
 import { useRefreshAll } from '@/src/shared/hooks/useRefreshAll';
 import { routes } from '@/src/shared/navigation/routes';
 import { dark } from '@/src/shared/styles/dark';
@@ -22,7 +27,7 @@ import { Button } from '@/src/shared/ui/Button/ActionButton';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { buildOrderLineSummary } from '@/src/shared/utils/orderSummary';
 import { formatKg } from '@/src/shared/utils/weight';
-import { homeStyles } from '../styles/homeStyles';
+import { homeStyles } from '@/src/shared/styles/home';
 
 const LOGO = require('@/src/assets/images/Logo.png');
 
@@ -70,12 +75,49 @@ const formatOrderDate = (value?: string | null) => {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const { data: batches } = useBatches();
   const { data: products } = useProducts();
   const { data: customers } = useCustomers();
   const { refreshing, onRefresh } = useRefreshAll();
   const [query, setQuery] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const syncingRef = useRef(false);
+
+  const handleSync = async () => {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    setSyncing(true);
+    try {
+      await Promise.all([
+        syncOrdersFromNetvisor(),
+        syncCustomersFromNetvisor(),
+      ]);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['orders'] }),
+        queryClient.invalidateQueries({ queryKey: ['customers'] }),
+        queryClient.invalidateQueries({ queryKey: ['products'] }),
+        queryClient.invalidateQueries({ queryKey: ['netvisor'] }),
+      ]);
+      Alert.alert(
+        'Päivitetty',
+        'Tilaukset ja asiakkaat päivitetty. Muut Netvisor-tiedot haetaan näkymiin uudelleen tarvittaessa.',
+      );
+    } catch (err) {
+      const msg = (() => {
+        if (err instanceof ApiError) {
+          const p = err.payload as Record<string, unknown> | null;
+          return String(p?.details ?? p?.error ?? err.message);
+        }
+        return err instanceof Error ? err.message : 'Synkronointi epäonnistui';
+      })();
+      Alert.alert('Synkronointi epäonnistui', msg);
+    } finally {
+      syncingRef.current = false;
+      setSyncing(false);
+    }
+  };
 
   const recentOrders = useMemo(() => {
     return (orders ?? [])
@@ -89,8 +131,7 @@ export default function HomeScreen() {
         if (Number.isFinite(leftDate)) return -1;
         if (Number.isFinite(rightDate)) return 1;
         return b.id - a.id;
-      })
-      .slice(0, 3);
+      });
   }, [orders]);
 
   const customerNameById = useMemo(() => {
@@ -132,8 +173,7 @@ export default function HomeScreen() {
     return {
       products: (products ?? []).filter(
         (p) =>
-          p.name.toLowerCase().includes(normalizedQuery) ||
-          (p.ean ?? '').toLowerCase().includes(normalizedQuery),
+          p.name.toLowerCase().includes(normalizedQuery),
       ),
       customers: (customers ?? []).filter(
         (c) =>
@@ -189,7 +229,6 @@ export default function HomeScreen() {
                     style={({ pressed }) => [dark.row, pressed && dark.pressed]}
                   >
                     <Text style={dark.rowTitle}>{p.name}</Text>
-                    {p.ean ? <Text style={dark.rowSub}>EAN: {p.ean}</Text> : null}
                   </Pressable>
                 ))}
               </SearchSection>
@@ -253,6 +292,20 @@ export default function HomeScreen() {
               <View style={homeStyles.logoSection}>
                 <Image resizeMode="contain" source={LOGO} style={homeStyles.logo} />
                 <Text style={homeStyles.logoSubtitle}>KOTI</Text>
+                <Pressable
+                  disabled={syncing}
+                  onPress={handleSync}
+                  style={({ pressed }) => [
+                    homeStyles.syncBtn,
+                    (pressed || syncing) && { opacity: 0.5 },
+                  ]}
+                >
+                  <Ionicons
+                    color="rgba(255,255,255,0.85)"
+                    name="cloud-download-outline"
+                    size={20}
+                  />
+                </Pressable>
               </View>
 
               <View style={homeStyles.topArea}>

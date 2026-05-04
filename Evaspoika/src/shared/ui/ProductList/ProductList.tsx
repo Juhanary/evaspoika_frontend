@@ -4,7 +4,6 @@ import { SelectableSearchList } from '@/src/shared/ui/SelectableSearchList/Selec
 export type ProductListItem = {
   id: number;
   name: string;
-  ean?: string | null;
   price_per_kg?: number;
 };
 
@@ -23,10 +22,6 @@ type Props = {
 
 const defaultSubtitle = (product: ProductListItem) => {
   const parts: string[] = [];
-
-  if (product.ean) {
-    parts.push(`EAN: ${product.ean}`);
-  }
 
   if (typeof product.price_per_kg === 'number') {
     parts.push(`Price: ${product.price_per_kg}`);
@@ -54,8 +49,7 @@ export function ProductList({
       errorPrefix="Failed to load products"
       filterItem={(product, activeQuery) =>
         !activeQuery ||
-        product.name.toLowerCase().includes(activeQuery) ||
-        (product.ean ?? '').toLowerCase().includes(activeQuery)
+        product.name.toLowerCase().includes(activeQuery)
       }
       getSubtitle={getSubtitle}
       getTitle={(product) => product.name}
