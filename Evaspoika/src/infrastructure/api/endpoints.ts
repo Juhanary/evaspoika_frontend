@@ -7,6 +7,6 @@ export const endpoints = {
   orderLines: '/order-lines',
   users: '/users',
   netvisor: '/netvisor',
-  scan: '/scan',
   weighing: '/weighing',
+  boxes: '/boxes',
 };

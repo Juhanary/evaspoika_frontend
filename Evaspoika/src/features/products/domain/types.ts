@@ -1,14 +1,13 @@
 export type Product = {
   id: number;
   name: string;
-  ean?: string | null;
   price_per_kg: number;
+  netvisor_key?: string | null;
   deleted_at?: string | null;
   deleted_by_user_id?: number | null;
 };
 
 export type CreateProductInput = {
   name: string;
-  ean?: string | null;
   price_per_kg: number;
 };

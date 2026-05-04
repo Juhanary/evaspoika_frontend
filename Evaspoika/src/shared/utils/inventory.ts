@@ -11,20 +11,32 @@ type ProductLike = {
 };
 
 type BatchLike = {
+  id?: number;
   ProductId?: number | null;
   current_weight?: number | null;
   deleted_at?: string | null;
 };
 
+type BatchEventLike = {
+  BatchId: number;
+};
+
 export function buildInventorySummary(
   products?: ProductLike[] | null,
   batches?: BatchLike[] | null,
+  batchEvents?: BatchEventLike[] | null,
 ): InventorySummaryItem[] {
   const weightByProduct = new Map<number, number>();
   const countByProduct = new Map<number, number>();
 
+  // Calculate boxes per batch from events
+  const boxesByBatch = new Map<number, number>();
+  (batchEvents ?? []).forEach((event) => {
+    boxesByBatch.set(event.BatchId, (boxesByBatch.get(event.BatchId) ?? 0) + 1);
+  });
+
   (batches ?? []).forEach((batch) => {
-    if (!batch.ProductId || batch.deleted_at) {
+    if (!batch.ProductId || batch.deleted_at || (batch.current_weight ?? 0) <= 0) {
       return;
     }
 
@@ -32,7 +44,8 @@ export function buildInventorySummary(
       batch.ProductId,
       (weightByProduct.get(batch.ProductId) ?? 0) + (batch.current_weight ?? 0),
     );
-    countByProduct.set(batch.ProductId, (countByProduct.get(batch.ProductId) ?? 0) + 1);
+    const boxCount = batch.id ? (boxesByBatch.get(batch.id) ?? 0) : 0;
+    countByProduct.set(batch.ProductId, (countByProduct.get(batch.ProductId) ?? 0) + boxCount);
   });
 
   return (products ?? [])

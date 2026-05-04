@@ -18,6 +18,8 @@ import {
   useBatchLog,
 } from '@/src/features/batchEvents/presentation/hooks/useBatchEvents';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
+import { useOrders } from '@/src/features/orders/presentation/hooks/useOrders';
+import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
 import { colors } from '@/src/shared/constants/colors';
 import { screen } from '@/src/shared/styles/screen';
 import { logModalStyles as modalStyles, logStyles as styles } from '@/src/shared/styles/logs';
@@ -29,6 +31,7 @@ import {
 import { GRAMS_PER_KG } from '@/src/shared/utils/weight';
 
 type ModalTab = 'ALL' | 'SALE' | 'WEIGHING' | 'INVENTORY';
+type ScreenTab = 'CUSTOMERS' | 'BATCHES';
 
 type BatchGroup = {
   batchKey: string;
@@ -45,7 +48,22 @@ type BatchGroup = {
   isDeleted: boolean;
 };
 
+type CustomerGroup = {
+  customerId: number;
+  customerName: string;
+  eventCount: number;
+  lastEventDate: string | null;
+  lastEventLabel: string;
+  batchCount: number;
+  relatedBatchGroups: BatchGroup[];
+};
+
 const UNKNOWN_PRODUCT_LABEL = 'Tuntematon tuote';
+
+const SCREEN_TABS: { key: ScreenTab; label: string }[] = [
+  { key: 'CUSTOMERS', label: 'Asiakkaat' },
+  { key: 'BATCHES', label: 'Erät' },
+];
 
 const EVENT_META: Record<
   string,
@@ -54,19 +72,31 @@ const EVENT_META: Record<
     topic: string;
   }
 > = {
-  CREATE: { label: 'Uusi erä luotu', topic: 'BATCH' },
-  WEIGHING: { label: 'Punnitus', topic: 'WEIGHING' },
-  SALE: { label: 'Myynti', topic: 'SALE' },
-  INVENTORY: { label: 'Manuaalinen korjaus', topic: 'INVENTORY' },
-  DELETE: { label: 'Erä poistettu', topic: 'BATCH' },
+  CREATE:    { label: 'Uusi erä luotu',      topic: 'BATCH' },
+  WEIGHING:  { label: 'Punnitus',             topic: 'WEIGHING' },
+  SALE:      { label: 'Myynti',               topic: 'SALE' },
+  RETURN:    { label: 'Palautus',             topic: 'SALE' },
+  INVENTORY: { label: 'Manuaalinen korjaus',  topic: 'INVENTORY' },
+  EMPTY:     { label: 'Erä tyhjentyi',        topic: 'BATCH' },
+  DELETE:    { label: 'Erä poistettu',        topic: 'BATCH' },
 };
 
 const EVENT_LABELS: Record<string, string> = {
-  CREATE: 'Luotu',
-  WEIGHING: 'Punnitus',
-  SALE: 'Myynti',
+  CREATE:    'Luotu',
+  WEIGHING:  'Punnitus',
+  SALE:      'Myynti',
+  RETURN:    'Palautus',
   INVENTORY: 'Muutoksen kirjaus',
-  DELETE: 'Poistettu',
+  EMPTY:     'Erä tyhjentyi',
+  DELETE:    'Poistettu',
+};
+
+// Tapahtumat joille käytetään erityistyyliä modalissa
+const EVENT_HIGHLIGHT: Record<string, 'create' | 'empty' | 'delete' | 'return'> = {
+  CREATE: 'create',
+  EMPTY:  'empty',
+  DELETE: 'delete',
+  RETURN: 'return',
 };
 
 const MODAL_TABS: {
@@ -78,6 +108,8 @@ const MODAL_TABS: {
   { key: 'WEIGHING', label: 'Punnitus' },
   { key: 'INVENTORY', label: 'Muutokset' },
 ];
+
+const SALE_CODES = new Set(['SALE', 'RETURN']);
 
 const getEventMeta = (eventCode: string) =>
   EVENT_META[eventCode] ?? { label: eventCode, topic: 'OTHER' as const };
@@ -247,12 +279,16 @@ type LogScreenProps = {
 
 export default function LogScreen({ leftAction = 'home' }: LogScreenProps) {
   const [query, setQuery] = useState('');
+  const [screenTab, setScreenTab] = useState<ScreenTab>('CUSTOMERS');
   const [selectedBatch, setSelectedBatch] = useState<BatchGroup | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerGroup | null>(null);
   const [modalTab, setModalTab] = useState<ModalTab>('ALL');
   const deferredQuery = useDeferredValue(query);
   const { data: batches } = useBatches();
   const { data: deletedBatches } = useDeletedBatches();
   const { data: products } = useProducts();
+  const { data: orders } = useOrders();
+  const { data: customers } = useCustomers();
 
   const batchEventQueryParams = useMemo(
     () => ({
@@ -278,6 +314,23 @@ export default function LogScreen({ leftAction = 'home' }: LogScreenProps) {
 
     return byId;
   }, [products]);
+
+  const customerById = useMemo(() => {
+    const map = new Map<number, string>();
+    (customers ?? []).forEach((c) => map.set(c.id, c.name));
+    return map;
+  }, [customers]);
+
+  const orderCustomerMap = useMemo(() => {
+    const map = new Map<number, { id: number; name: string }>();
+    (orders ?? []).forEach((order) => {
+      const customerId = Number(order.customer_id ?? order.CustomerId);
+      if (!customerId) return;
+      const name = customerById.get(customerId);
+      if (name) map.set(order.id, { id: customerId, name });
+    });
+    return map;
+  }, [orders, customerById]);
 
   const allKnownBatches = useMemo(() => {
     const byId = new Map<number, Batch>();
@@ -422,6 +475,79 @@ export default function LogScreen({ leftAction = 'home' }: LogScreenProps) {
     });
   }, [allKnownBatches, deferredQuery, deletedBatchMap, events, productNameById]);
 
+  const customerGroups = useMemo(() => {
+    const groups = new Map<string, CustomerGroup>();
+
+    batchGroups.forEach((batchGroup) => {
+      let customerInfo: { id: number; name: string } | null = null;
+
+      for (const event of batchGroup.events) {
+        // Try to find customer from loaded orders map first
+        const orderId = event.OrderLine?.OrderId;
+        if (orderId) {
+          const info = orderCustomerMap.get(orderId);
+          if (info) {
+            customerInfo = info;
+            break;
+          }
+        }
+
+        // If not found, extract customer_id directly from the event's OrderLine.Order
+        if (!customerInfo && event.OrderLine?.Order) {
+          const customerId = Number(event.OrderLine.Order.customer_id);
+          if (customerId && Number.isFinite(customerId)) {
+            const customerName = customerById.get(customerId);
+            if (customerName) {
+              customerInfo = { id: customerId, name: customerName };
+              break;
+            }
+          }
+        }
+      }
+
+      if (!customerInfo) return;
+
+      const key = `c:${customerInfo.id}`;
+      const existing = groups.get(key);
+
+      if (!existing) {
+        groups.set(key, {
+          customerId: customerInfo.id,
+          customerName: customerInfo.name,
+          eventCount: batchGroup.eventCount,
+          lastEventDate: batchGroup.lastEventDate ?? null,
+          lastEventLabel: batchGroup.lastEventLabel,
+          batchCount: 1,
+          relatedBatchGroups: [batchGroup],
+        });
+      } else {
+        existing.eventCount += batchGroup.eventCount;
+        existing.batchCount += 1;
+        existing.relatedBatchGroups.push(batchGroup);
+        const curTime = existing.lastEventDate ? Date.parse(existing.lastEventDate) : 0;
+        const newTime = batchGroup.lastEventDate ? Date.parse(batchGroup.lastEventDate) : 0;
+        if (newTime > curTime) {
+          existing.lastEventDate = batchGroup.lastEventDate ?? null;
+          existing.lastEventLabel = batchGroup.lastEventLabel;
+        }
+      }
+    });
+
+    return Array.from(groups.values()).sort((a, b) => {
+      const at = a.lastEventDate ? Date.parse(a.lastEventDate) : 0;
+      const bt = b.lastEventDate ? Date.parse(b.lastEventDate) : 0;
+      return bt - at;
+    });
+  }, [batchGroups, orderCustomerMap, customerById]);
+
+  const filteredCustomerGroups = useMemo(() => {
+    const q = deferredQuery.trim().toLowerCase();
+    if (!q) return customerGroups;
+    return customerGroups.filter((g) =>
+      g.customerName.toLowerCase().includes(q),
+    );
+  }, [customerGroups, deferredQuery]);
+
   const resultCount = batchGroups.length;
 
   const selectedBatchEvents = useMemo(() => {
@@ -449,18 +575,27 @@ export default function LogScreen({ leftAction = 'home' }: LogScreenProps) {
       return selectedBatchEvents;
     }
 
+    if (modalTab === 'SALE') {
+      return selectedBatchEvents.filter((event) => SALE_CODES.has(event.event_code));
+    }
+
     return selectedBatchEvents.filter((event) => event.event_code === modalTab);
   }, [modalTab, selectedBatchEvents]);
 
   const modalTabCounts = useMemo<Record<ModalTab, number>>(
     () => ({
       ALL: selectedBatchEvents.length,
-      SALE: selectedBatchEvents.filter((event) => event.event_code === 'SALE').length,
+      SALE: selectedBatchEvents.filter((event) => SALE_CODES.has(event.event_code)).length,
       WEIGHING: selectedBatchEvents.filter((event) => event.event_code === 'WEIGHING').length,
       INVENTORY: selectedBatchEvents.filter((event) => event.event_code === 'INVENTORY').length,
     }),
     [selectedBatchEvents],
   );
+
+  const handleScreenTabChange = (tab: ScreenTab) => {
+    setScreenTab(tab);
+    setQuery('');
+  };
 
   return (
     <>
@@ -468,7 +603,9 @@ export default function LogScreen({ leftAction = 'home' }: LogScreenProps) {
         headerSearch={{
           value: query,
           onChangeText: setQuery,
-          placeholder: 'Hae tuotetta, erää, tilausta tai tapahtumaa...',
+          placeholder: screenTab === 'CUSTOMERS'
+            ? 'Hae asiakasta...'
+            : 'Hae tuotetta, erää, tilausta tai tapahtumaa...',
         }}
         leftAction={leftAction}
         title="LOKI"
@@ -477,93 +614,174 @@ export default function LogScreen({ leftAction = 'home' }: LogScreenProps) {
           <Text style={screen.sectionTitle}>LOKI</Text>
           <View style={screen.divider} />
 
-          <Text style={styles.resultSummary}>{resultCount} erää</Text>
+          <View style={styles.screenTabRow}>
+            {SCREEN_TABS.map((tab) => {
+              const isActive = screenTab === tab.key;
+              return (
+                <Pressable
+                  key={tab.key}
+                  onPress={() => handleScreenTabChange(tab.key)}
+                  style={[styles.screenTab, isActive && styles.screenTabActive]}
+                >
+                  <Text style={[styles.screenTabText, isActive && styles.screenTabTextActive]}>
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
-          {isLoading ? (
-            <Text style={screen.muted}>Ladataan...</Text>
-          ) : error ? (
-            <Text style={screen.muted}>Virhe ladattaessa lokia.</Text>
-          ) : (
-            <FlatList
-              contentContainerStyle={!batchGroups.length ? styles.emptyListContent : undefined}
-              data={batchGroups}
-              keyExtractor={(item) => item.batchKey}
-              keyboardShouldPersistTaps="handled"
-              ListEmptyComponent={
-                <Text style={screen.muted}>
-                  {query.trim()
-                    ? 'Hakua vastaavia eriä ei löytynyt.'
-                    : 'Lokitapahtumia ei ole.'}
-                </Text>
-              }
-              renderItem={({ item, index }) => {
-                const badgeText =
-                  item.eventCount > 1
-                    ? `${item.eventCount} tapahtumaa`
-                    : item.eventCount === 1
-                      ? '1 tapahtuma'
-                      : item.isDeleted
-                        ? 'Poistettu erä'
-                        : 'Ei tapahtumia';
-
-                return (
+          {screenTab === 'CUSTOMERS' ? (
+            <>
+              <Text style={styles.resultSummary}>{filteredCustomerGroups.length} asiakasta</Text>
+              <FlatList
+                contentContainerStyle={!filteredCustomerGroups.length ? styles.emptyListContent : undefined}
+                data={filteredCustomerGroups}
+                keyExtractor={(item) => `c:${item.customerId}`}
+                keyboardShouldPersistTaps="handled"
+                ListEmptyComponent={
+                  <Text style={screen.muted}>
+                    {deferredQuery.trim() ? 'Hakua vastaavia asiakkaita ei löytynyt.' : 'Ei asiakastietoja.'}
+                  </Text>
+                }
+                renderItem={({ item, index }) => (
                   <Pressable
-                    onPress={() => {
-                      setSelectedBatch(item);
-                      setModalTab('ALL');
-                    }}
+                    onPress={() => setSelectedCustomer(item)}
                     style={({ pressed }) => [
                       styles.logItem,
-                      item.isDeleted && styles.logItemDeleted,
-                      index === batchGroups.length - 1 && styles.logItemLast,
+                      index === filteredCustomerGroups.length - 1 && styles.logItemLast,
                       pressed && styles.pressed,
                     ]}
                   >
                     <View style={styles.logItemContent}>
-                      <Text
-                        numberOfLines={1}
-                        style={[styles.logItemTitle, item.isDeleted && styles.logItemTitleDeleted]}
-                      >
-                        {item.batchLabel}
+                      <Text numberOfLines={1} style={styles.logItemTitle}>
+                        {item.customerName}
                       </Text>
-                      <Text
-                        numberOfLines={2}
-                        style={[
-                          styles.logItemSummary,
-                          item.isDeleted && styles.logItemSummaryDeleted,
-                        ]}
-                      >
-                        {[item.productName, item.lastEventLabel, item.orderLabel]
-                          .filter(Boolean)
-                          .join(' / ')}
+                      <Text numberOfLines={1} style={styles.logItemSummary}>
+                        {item.lastEventLabel}
+                        {item.lastEventDate ? `  ·  ${formatDate(item.lastEventDate)}` : ''}
                       </Text>
                       <View style={styles.logItemFooter}>
-                        <Text
-                          style={[
-                            styles.logItemDescription,
-                            item.isDeleted && styles.logItemDescriptionDeleted,
-                          ]}
-                        >
-                          {badgeText}
+                        <Text style={styles.logItemDescription}>
+                          {item.batchCount} erää · {item.eventCount} tapahtumaa
                         </Text>
-                        {item.isDeleted ? (
-                          <View style={styles.deletedBadge}>
-                            <Text style={styles.deletedBadgeText}>Poistettu</Text>
-                          </View>
-                        ) : null}
                       </View>
                     </View>
-
                   </Pressable>
-                );
-              }}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
-              showsVerticalScrollIndicator={false}
-              style={styles.list}
-            />
+                )}
+                ItemSeparatorComponent={() => <View style={styles.separator} />}
+                showsVerticalScrollIndicator={false}
+                style={styles.list}
+              />
+            </>
+          ) : (
+            <>
+              <Text style={styles.resultSummary}>{resultCount} erää</Text>
+
+              {isLoading ? (
+                <Text style={screen.muted}>Ladataan...</Text>
+              ) : error ? (
+                <Text style={screen.muted}>Virhe ladattaessa lokia.</Text>
+              ) : (
+                <FlatList
+                  contentContainerStyle={!batchGroups.length ? styles.emptyListContent : undefined}
+                  data={batchGroups}
+                  keyExtractor={(item) => item.batchKey}
+                  keyboardShouldPersistTaps="handled"
+                  ListEmptyComponent={
+                    <Text style={screen.muted}>
+                      {query.trim()
+                        ? 'Hakua vastaavia eriä ei löytynyt.'
+                        : 'Lokitapahtumia ei ole.'}
+                    </Text>
+                  }
+                  renderItem={({ item, index }) => {
+                    const badgeText =
+                      item.eventCount > 1
+                        ? `${item.eventCount} tapahtumaa`
+                        : item.eventCount === 1
+                          ? '1 tapahtuma'
+                          : item.isDeleted
+                            ? 'Poistettu erä'
+                            : 'Ei tapahtumia';
+
+                    return (
+                      <Pressable
+                        onPress={() => {
+                          setSelectedBatch(item);
+                          setModalTab('ALL');
+                        }}
+                        style={({ pressed }) => [
+                          styles.logItem,
+                          item.isDeleted && styles.logItemDeleted,
+                          index === batchGroups.length - 1 && styles.logItemLast,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <View style={styles.logItemContent}>
+                          <Text
+                            numberOfLines={1}
+                            style={[styles.logItemTitle, item.isDeleted && styles.logItemTitleDeleted]}
+                          >
+                            {item.batchLabel}
+                          </Text>
+                          <Text
+                            numberOfLines={2}
+                            style={[
+                              styles.logItemSummary,
+                              item.isDeleted && styles.logItemSummaryDeleted,
+                            ]}
+                          >
+                            {[item.productName, item.lastEventLabel, item.orderLabel]
+                              .filter(Boolean)
+                              .join(' / ')}
+                          </Text>
+                          <View style={styles.logItemFooter}>
+                            <Text
+                              style={[
+                                styles.logItemDescription,
+                                item.isDeleted && styles.logItemDescriptionDeleted,
+                              ]}
+                            >
+                              {badgeText}
+                            </Text>
+                            {item.isDeleted ? (
+                              <View style={styles.deletedBadge}>
+                                <Text style={styles.deletedBadgeText}>Poistettu</Text>
+                              </View>
+                            ) : null}
+                          </View>
+                        </View>
+                      </Pressable>
+                    );
+                  }}
+                  ItemSeparatorComponent={() => <View style={styles.separator} />}
+                  showsVerticalScrollIndicator={false}
+                  style={styles.list}
+                />
+              )}
+            </>
           )}
         </View>
       </ScreenLayout>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={selectedCustomer !== null}
+        onRequestClose={() => setSelectedCustomer(null)}
+      >
+        {selectedCustomer ? (
+          <CustomerBatchesModalContent
+            customerGroup={selectedCustomer}
+            onClose={() => setSelectedCustomer(null)}
+            onSelectBatch={(batch) => {
+              setSelectedBatch(batch);
+              setModalTab('ALL');
+            }}
+          />
+        ) : null}
+      </Modal>
 
       <Modal
         animationType="fade"
@@ -589,6 +807,82 @@ export default function LogScreen({ leftAction = 'home' }: LogScreenProps) {
     </>
   );
 }
+
+const CustomerBatchesModalContent = ({
+  customerGroup,
+  onClose,
+  onSelectBatch,
+}: {
+  customerGroup: CustomerGroup;
+  onClose: () => void;
+  onSelectBatch: (batch: BatchGroup) => void;
+}) => (
+  <View style={modalStyles.overlay}>
+    <Pressable onPress={onClose} style={modalStyles.backdrop} />
+    <GlassCard blurRadius={24} style={modalStyles.card}>
+      <View style={modalStyles.header}>
+        <Ionicons color={colors.white} name="person-outline" size={26} />
+        <View style={modalStyles.headerTextWrap}>
+          <Text numberOfLines={1} style={modalStyles.title}>
+            {customerGroup.customerName}
+          </Text>
+          <Text numberOfLines={1} style={modalStyles.subtitle}>
+            {customerGroup.batchCount} erää · {customerGroup.eventCount} tapahtumaa
+          </Text>
+        </View>
+        <Pressable hitSlop={12} onPress={onClose}>
+          <Ionicons color={colors.white} name="close" size={26} />
+        </Pressable>
+      </View>
+
+      <View style={modalStyles.divider} />
+
+      <FlatList
+        contentContainerStyle={modalStyles.listContent}
+        data={customerGroup.relatedBatchGroups}
+        keyExtractor={(item) => item.batchKey}
+        showsVerticalScrollIndicator={false}
+        style={modalStyles.list}
+        ListEmptyComponent={
+          <Text style={modalStyles.emptyText}>Ei eriä.</Text>
+        }
+        renderItem={({ item }) => {
+          const badgeText =
+            item.eventCount > 1
+              ? `${item.eventCount} tapahtumaa`
+              : item.eventCount === 1
+                ? '1 tapahtuma'
+                : item.isDeleted
+                  ? 'Poistettu erä'
+                  : 'Ei tapahtumia';
+
+          return (
+            <Pressable
+              onPress={() => onSelectBatch(item)}
+              style={({ pressed }) => [
+                modalStyles.batchItem,
+                item.isDeleted && modalStyles.batchItemDeleted,
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={modalStyles.batchItemTitle}>{item.batchLabel}</Text>
+                <Text numberOfLines={1} style={modalStyles.batchItemSubtitle}>
+                  {[item.productName, item.lastEventLabel].filter(Boolean).join(' / ')}
+                </Text>
+                <Text style={modalStyles.batchItemMeta}>
+                  {badgeText}
+                  {item.lastEventDate ? `  ·  ${formatDate(item.lastEventDate) ?? ''}` : ''}
+                </Text>
+              </View>
+              <Ionicons color="rgba(255,255,255,0.45)" name="chevron-forward" size={18} />
+            </Pressable>
+          );
+        }}
+      />
+    </GlassCard>
+  </View>
+);
 
 const BatchEventsModalContent = ({
   activeTab,
@@ -619,10 +913,29 @@ const BatchEventsModalContent = ({
     const timeLabel = formatTime(item.event_date);
     const orderLabel = getOrderLabel(item);
     const weightLabel = formatWeightChange(item.weight_change) ?? '0 kg';
+    const highlight = EVENT_HIGHLIGHT[item.event_code];
+    const totalWeightKg =
+      typeof item.total_weight === 'number'
+        ? (item.total_weight / GRAMS_PER_KG).toLocaleString('fi-FI', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 3,
+          }) + ' kg'
+        : null;
 
     return (
-      <View style={modalStyles.eventItem}>
+      <View
+        style={[
+          modalStyles.eventItem,
+          highlight === 'create' && modalStyles.eventItemCreate,
+          highlight === 'empty'  && modalStyles.eventItemEmpty,
+          highlight === 'delete' && modalStyles.eventItemDelete,
+          highlight === 'return' && modalStyles.eventItemReturn,
+        ]}
+      >
         <Text style={modalStyles.eventTitle}>{label}</Text>
+        {totalWeightKg ? (
+          <Text style={modalStyles.eventTotalWeight}>Kokonaispaino: {totalWeightKg}</Text>
+        ) : null}
         {item.description ? (
           <Text style={modalStyles.eventSubtitle}>{item.description}</Text>
         ) : null}

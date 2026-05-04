@@ -20,6 +20,7 @@ import { colors } from '@/src/shared/constants/colors';
 import { spacing } from '@/src/shared/constants/spacing';
 import { routes } from '@/src/shared/navigation/routes';
 import { components } from '@/src/shared/styles/components';
+import { batchStyles } from '@/src/shared/styles/batches';
 import { screen } from '@/src/shared/styles/screen';
 import { type AppHeaderAction } from '@/src/shared/ui/AppHeader/AppHeader';
 import { ProductList } from '@/src/shared/ui/ProductList/ProductList';
@@ -47,7 +48,9 @@ const isOld = (value?: string | null) => {
   if (!value) return false;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return false;
-  return Date.now() - date.getTime() > 365 * 24 * 60 * 60 * 1000;
+  const nineMonthsAgo = new Date();
+  nineMonthsAgo.setMonth(nineMonthsAgo.getMonth() - 9);
+  return date < nineMonthsAgo;
 };
 
 export default function BatchListScreen({ productId }: BatchListScreenProps) {
@@ -226,16 +229,16 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
         <View style={{ flex: 1 }}>
           {!collapsed ? (
             <>
-              <Text style={components.blColHeader}>Erä</Text>
+              <Text style={batchStyles.blColHeader}>Erä</Text>
               <FlatList
                 data={filteredBatches}
                 keyExtractor={(batch) => String(batch.id)}
-                ListEmptyComponent={<Text style={components.blEmpty}>Ei eriä.</Text>}
+                ListEmptyComponent={<Text style={batchStyles.blEmpty}>Ei eriä.</Text>}
                 ListFooterComponent={
                   filteredBatches.length > 0 ? (
-                    <View style={components.blTotalRow}>
-                      <Text style={components.blTotalLabel}>YHTEENSÄ</Text>
-                      <Text style={components.blTotalValue}>{formatKg(totalWeight)} kg</Text>
+                    <View style={batchStyles.blTotalRow}>
+                      <Text style={batchStyles.blTotalLabel}>YHTEENSÄ</Text>
+                      <Text style={batchStyles.blTotalValue}>{formatKg(totalWeight)} kg</Text>
                     </View>
                   ) : null
                 }
@@ -244,37 +247,37 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
                   const old = isOld(item.production_date);
 
                   return (
-                    <View style={components.blRow}>
-                      <Text style={components.blDateText}>{dateLabel}</Text>
+                    <View style={batchStyles.blRow}>
+                      <Text style={batchStyles.blDateText}>{dateLabel}</Text>
                       {old ? (
                         <Ionicons
                           color="#E57C00"
                           name="warning-outline"
                           size={16}
-                          style={components.blWarnIcon}
+                          style={batchStyles.blWarnIcon}
                         />
                       ) : null}
-                      <View style={components.blBtnGroup}>
+                      <View style={batchStyles.blBtnGroup}>
                         <TouchableOpacity
                           onPress={() => handleDelete(item)}
-                          style={components.blAdjBtn}
+                          style={batchStyles.blAdjBtn}
                         >
                           <Ionicons color={colors.textOnDark} name="trash-outline" size={26} />
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => openAdjust(item.id, 'add')}
-                          style={components.blAdjBtn}
+                          style={batchStyles.blAdjBtn}
                         >
                           <Ionicons color={colors.textOnDark} name="add" size={26} />
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => openAdjust(item.id, 'sub')}
-                          style={components.blAdjBtn}
+                          style={batchStyles.blAdjBtn}
                         >
                           <Ionicons color={colors.textOnDark} name="remove" size={26} />
                         </TouchableOpacity>
                       </View>
-                      <Text style={components.blWeightText}>
+                      <Text style={batchStyles.blWeightText}>
                         {formatKg(item.current_weight)} kg
                       </Text>
                     </View>
@@ -293,9 +296,9 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
             <View>
               <TouchableOpacity
                 onPress={() => setShowArchive((v) => !v)}
-                style={components.blArchiveHeader}
+                style={batchStyles.blArchiveHeader}
               >
-                <Text style={components.blArchiveHeaderText}>
+                <Text style={batchStyles.blArchiveHeaderText}>
                   Arkisto ({archivedBatches.length})
                 </Text>
                 <Ionicons
@@ -312,15 +315,15 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
                   <TouchableOpacity
                     key={batch.id}
                     onPress={() => router.push(routes.inventoryBatch(batch.id, batch.batch_number))}
-                    style={components.blArchiveRow}
+                    style={batchStyles.blArchiveRow}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text style={components.blArchiveLabel}>{dateLabel}</Text>
+                      <Text style={batchStyles.blArchiveLabel}>{dateLabel}</Text>
                       {deletedLabel ? (
-                        <Text style={components.blArchiveSub}>Poistettu {deletedLabel}</Text>
+                        <Text style={batchStyles.blArchiveSub}>Poistettu {deletedLabel}</Text>
                       ) : null}
                     </View>
-                    <Text style={components.blArchiveWeight}>
+                    <Text style={batchStyles.blArchiveWeight}>
                       {formatKg(batch.initial_weight)} kg
                     </Text>
                     <Ionicons color="rgba(255,255,255,0.35)" name="chevron-forward" size={16} />
@@ -330,12 +333,12 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
             </View>
           ) : null}
 
-          <View style={components.blFooter}>
+          <View style={batchStyles.blFooter}>
             <TouchableOpacity
               onPress={() => router.push(routes.inventory)}
-              style={components.blValmisBtn}
+              style={batchStyles.blValmisBtn}
             >
-              <Text style={components.blValmisBtnText}>Valmis</Text>
+              <Text style={batchStyles.blValmisBtnText}>Valmis</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -385,9 +388,6 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
               >
                 <Text style={adjStyles.cancelBtnText}>Peruuta</Text>
               </Pressable>
-
-
-//If add button text is Lisää painio, if subtract button text is Vähennä painoa
               <Pressable
                 disabled={adjSaving}
                 onPress={handleAdjustSave}

@@ -43,7 +43,7 @@ export const logModalStyles = StyleSheet.create({
     color: colors.white,
     ...Platform.select({
       web: { textShadow: '0px 1px 4px rgba(0,0,0,0.38)' } as object,
-      default: { textShadowColor: 'rgba(0,0,0,0.38)', textShadowRadius: 4 },
+      default: { textShadowColor: 'rgba(0,0,0,0.38)', textShadowRadius: 1 },
     }),
   },
   subtitle: {
@@ -137,11 +137,45 @@ export const logModalStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
   },
+  // CREATE: vihreä korostus — erä luotu
+  eventItemCreate: {
+    backgroundColor: 'rgba(80,180,100,0.18)',
+    borderColor: 'rgba(120,220,140,0.32)',
+    borderLeftWidth: 4,
+    borderLeftColor: 'rgba(80,200,100,0.72)',
+  },
+  // EMPTY: oranssi korostus — erä tyhjentyi
+  eventItemEmpty: {
+    backgroundColor: 'rgba(220,130,40,0.18)',
+    borderColor: 'rgba(255,180,80,0.32)',
+    borderLeftWidth: 4,
+    borderLeftColor: 'rgba(240,150,30,0.72)',
+  },
+  // DELETE: punainen korostus — erä poistettu
+  eventItemDelete: {
+    backgroundColor: 'rgba(196,60,60,0.22)',
+    borderColor: 'rgba(255,120,120,0.30)',
+    borderLeftWidth: 4,
+    borderLeftColor: 'rgba(220,60,60,0.72)',
+  },
+  // RETURN: sininen korostus — paino palautettu
+  eventItemReturn: {
+    backgroundColor: 'rgba(60,130,220,0.18)',
+    borderColor: 'rgba(100,180,255,0.30)',
+    borderLeftWidth: 4,
+    borderLeftColor: 'rgba(60,140,240,0.72)',
+  },
   eventTitle: {
     fontFamily: 'Montserrat_500Medium',
     fontSize: 20,
     color: '#EDEDED',
     marginBottom: spacing.xs,
+  },
+  eventTotalWeight: {
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.90)',
+    marginBottom: spacing.xs / 2,
   },
   eventSubtitle: {
     fontFamily: 'Montserrat_400Regular',
@@ -156,10 +190,70 @@ export const logModalStyles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255,255,255,0.6)',
   },
+  batchItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(217,217,217,0.12)',
+    borderRadius: 16,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    gap: spacing.sm,
+  },
+  batchItemDeleted: {
+    backgroundColor: 'rgba(196,60,60,0.15)',
+    borderColor: 'rgba(255,120,120,0.20)',
+  },
+  batchItemTitle: {
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 18,
+    color: '#EDEDED',
+    marginBottom: 2,
+  },
+  batchItemSubtitle: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.72)',
+  },
+  batchItemMeta: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.48)',
+    marginTop: 2,
+  },
 });
 
 // Main list / item styles (was `styles` in LogScreen)
 export const logStyles = StyleSheet.create({
+  screenTabRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  screenTab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.xs + 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(217,217,217,0.10)',
+  },
+  screenTabActive: {
+    backgroundColor: '#E4E4E4',
+    borderColor: '#E4E4E4',
+  },
+  screenTabText: {
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 14,
+    color: '#E4E4E4',
+  },
+  screenTabTextActive: {
+    color: 'rgba(0,0,0,0.78)',
+  },
   separator: {
     height: 1,
     backgroundColor: 'rgba(255,255,255,0.07)',

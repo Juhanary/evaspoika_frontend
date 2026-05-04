@@ -18,7 +18,7 @@ export const batchStyles = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 4,
     fontSize: 30,
-    color: '#666',
+    color: '#E5E5E5',
     fontWeight: '500' as const,
   },
   blRow: {
@@ -29,7 +29,7 @@ export const batchStyles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E5E5',
   },
-  blDateText: { flex: 1, fontSize: 25, color: '#111' },
+  blDateText: { flex: 1, fontSize: 25, color: '#E5E5E5' },
   blWarnIcon: { marginRight: 6 },
   blBtnGroup: { flexDirection: 'row' as const, gap: 8, marginRight: 12 },
   blAdjBtn: {

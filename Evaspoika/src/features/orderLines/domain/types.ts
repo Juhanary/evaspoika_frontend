@@ -1,7 +1,6 @@
 export type OrderLineProduct = {
   id: number;
   name: string;
-  ean?: string | null;
 };
 
 export type OrderLineBatch = {

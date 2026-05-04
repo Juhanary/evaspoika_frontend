@@ -13,3 +13,10 @@ export function createOrderLine(input: CreateOrderLineInput) {
     body: JSON.stringify(input),
   });
 }
+
+export function deleteOrderLine(id: number) {
+  return apiRequest<{ message: string; orderLineId: number }>(
+    `${endpoints.orderLines}/${id}`,
+    { method: 'DELETE', auth: 'netvisorWrite' },
+  );
+}

@@ -201,6 +201,29 @@ export const orderStyles = StyleSheet.create({
     fontSize: 22,
     color: 'rgba(0,0,0,0.82)',
   },
+  odBatchSubLabel: {
+    fontFamily: 'Montserrat_300Light',
+    fontSize: 15,
+    color: 'rgba(0,0,0,0.5)',
+    paddingLeft: 8,
+    paddingTop: 6,
+    paddingBottom: 2,
+  },
+  odLineRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingVertical: 5,
+    paddingLeft: 16,
+  },
+  odLineWeight: {
+    flex: 1,
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 18,
+    color: 'rgba(0,0,0,0.74)',
+  },
+  odLineDeleteBtn: {
+    padding: 6,
+  },
   odSkannaaBtn: {
     ...glassActionSurface,
     alignSelf: 'center' as const,
@@ -209,10 +232,35 @@ export const orderStyles = StyleSheet.create({
     paddingHorizontal: 52,
     marginTop: 4,
   },
-  odSkaannaaBtnText: {
+  odVirtualScanBtn: {
+    ...glassActionSurface,
+    alignSelf: 'center' as const,
+    borderRadius: 81,
+    paddingVertical: 16,
+    paddingHorizontal: 52,
+    marginTop: 4,
+  },
+  odVirtualScanBtnText: {
     fontFamily: 'Montserrat_400Regular',
-    fontSize: 32,
+    fontSize: 24,
     color: colors.textOnDark,
+  },
+  odFooterButtons: {
+    flexDirection: 'row' as const,
+    gap: spacing.md,
+  },
+  odDeleteBtn: {
+    flex: 1,
+    borderRadius: 81,
+    paddingVertical: 14,
+    alignItems: 'center' as const,
+    backgroundColor: '#FF4444',
+    boxShadow: '0px 2px 6px rgba(0,0,0,0.20)',
+  },
+  odDeleteBtnText: {
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 20,
+    color: '#FFFFFF',
   },
   odFooter: {
     paddingHorizontal: 20,
@@ -245,6 +293,7 @@ export const orderStyles = StyleSheet.create({
   smShell: {
     ...glassActionSurface,
     flex: 1,
+    minHeight: 0,
     maxHeight: '92%',
     borderRadius: 44,
     paddingHorizontal: spacing.xl,
@@ -277,6 +326,7 @@ export const orderStyles = StyleSheet.create({
   },
   smPanel: {
     flex: 1,
+    minHeight: 0,
     backgroundColor: 'rgba(245,245,245,0.96)',
     borderRadius: 42,
     paddingHorizontal: spacing.lg,
@@ -408,5 +458,72 @@ export const orderStyles = StyleSheet.create({
     fontFamily: 'Montserrat_600SemiBold',
     color: 'rgba(0,0,0,0.84)',
     fontSize: 18,
+  },
+
+  // --- Virtual scan modal (smVirtual*) ---
+  smVirtualTitle: {
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 24,
+    color: 'rgba(0,0,0,0.82)',
+    textAlign: 'center' as const,
+    marginBottom: spacing.lg,
+  },
+  smVirtualScroll: {
+    flex: 1,
+    minHeight: 0,
+  },
+  smVirtualScrollContent: {
+    paddingBottom: spacing.sm,
+  },
+  smVirtualField: {
+    marginBottom: spacing.lg,
+  },
+  smVirtualFieldLabel: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 16,
+    color: 'rgba(0,0,0,0.62)',
+    marginBottom: spacing.sm,
+  },
+  smVirtualPicker: {
+    flexGrow: 0,
+    maxHeight: 200,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.12)',
+    overflow: 'hidden' as const,
+  },
+  smVirtualPickerOption: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.08)',
+  },
+  smVirtualPickerSelected: {
+    backgroundColor: 'rgba(57, 245, 106, 0.1)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#39F56A',
+  },
+  smVirtualPickerText: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 16,
+    color: 'rgba(0,0,0,0.82)',
+  },
+  smVirtualPickerSubText: {
+    fontFamily: 'Montserrat_300Light',
+    fontSize: 14,
+    color: 'rgba(0,0,0,0.52)',
+    marginTop: 2,
+  },
+  smVirtualWeightInput: {
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.12)',
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 18,
+    color: 'rgba(0,0,0,0.82)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
 });

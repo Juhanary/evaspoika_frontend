@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+﻿import React, { useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -11,16 +11,18 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { useOrder } from '../hooks/useOrders';
-import { fetchOrderLines } from '@/src/features/orderLines/infrastructure/orderLinesApi';
-import { updateOrder } from '@/src/features/orders/infrastructure/ordersApi';
+import { fetchOrderLines, createOrderLine, deleteOrderLine } from '@/src/features/orderLines/infrastructure/orderLinesApi';
+import { deleteOrder } from '@/src/features/orders/infrastructure/ordersApi';
+import { fetchBoxByEan } from '@/src/features/boxes/infrastructure/boxesApi';
 import { OrderLine } from '@/src/features/orderLines/domain/types';
 import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
-import { confirmScan, fetchScanBoxes } from '@/src/features/scan/infrastructure/scanApi';
-import { ScanInventoryBox } from '@/src/features/scan/domain/types';
+import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
+import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
 import { colors } from '@/src/shared/constants/colors';
 import { formatKg } from '@/src/shared/utils/weight';
 import { ApiError } from '@/src/infrastructure/api/error';
@@ -32,30 +34,31 @@ type Props = { orderId?: number };
 
 type BoxLineState = {
   id: string;
-  productId: number;
+  ean: string;
+  productId: number | null;
   productName: string;
   weightKg: string;
   weightEdited: boolean;
   selectedBatchId: number | null;
   selectedBatchNumber: string | null;
-  assignedBoxId: number | null;
-  assignedBoxWeightKg: number | null;
   pricePerKg: number;
 };
 
 type BatchPickerOption = {
   batchId: number;
   batchNumber: string;
+  productId: number;
+  productName: string;
+  pricePerKg: number;
   productionDate?: string | null;
   currentWeight: number;
-  availableCount: number;
-  nextBox: ScanInventoryBox | null;
 };
 
 type ProductBatchSummary = {
   batchKey: string;
   batchLabel: string;
   totalWeight: number;
+  lines: OrderLine[];
 };
 
 type ProductLineGroup = {
@@ -65,17 +68,10 @@ type ProductLineGroup = {
   batches: ProductBatchSummary[];
 };
 
-const gramsToKgStr = (grams: number) => (grams / 1000).toFixed(3);
 
 const kgStrToGrams = (value: string) =>
   Math.round(parseFloat(value.replace(',', '.')) * 1000);
 
-const getUsedAssignedBoxIds = (rows: BoxLineState[], excludeRowId?: string) =>
-  new Set(
-    rows
-      .filter((box) => box.id !== excludeRowId && box.assignedBoxId != null)
-      .map((box) => box.assignedBoxId as number),
-  );
 
 const toFinnishDate = (value?: string | null) => {
   if (!value) return null;
@@ -100,21 +96,22 @@ export default function OrderDetailScreen({ orderId }: Props) {
     enabled: !!orderId,
   });
   const { data: customers } = useCustomers();
+  const { data: batches } = useBatches();
+  const { data: products } = useProducts();
 
   const [showScanModal, setShowScanModal] = useState(false);
+  const [showVirtualScanModal, setShowVirtualScanModal] = useState(false);
   const [eanInput, setEanInput] = useState('');
   const [scannedBoxes, setScannedBoxes] = useState<BoxLineState[]>([]);
   const [batchPickerFor, setBatchPickerFor] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [sendingOrder, setSendingOrder] = useState(false);
+  const [deletingOrder, setDeletingOrder] = useState(false);
+  const [deletingLineId, setDeletingLineId] = useState<number | null>(null);
+  const [virtualProductId, setVirtualProductId] = useState<number | null>(null);
+  const [virtualBatchId, setVirtualBatchId] = useState<number | null>(null);
+  const [virtualWeight, setVirtualWeight] = useState('');
   const eanRef = useRef<TextInput>(null);
   const nextScannedRowId = useRef(1);
-
-  const { data: scanBoxes, isLoading: scanBoxesLoading } = useQuery({
-    queryKey: ['scanBoxes'],
-    queryFn: fetchScanBoxes,
-    enabled: showScanModal,
-  });
 
   const customerName = useMemo(() => {
     if (!order || !customers) return null;
@@ -158,9 +155,11 @@ export default function OrderDetailScreen({ orderId }: Props) {
           batchKey,
           batchLabel,
           totalWeight: 0,
+          lines: [] as OrderLine[],
         };
 
       batchSummary.totalWeight += soldWeight;
+      batchSummary.lines.push(line);
       group.batchMap.set(batchKey, batchSummary);
       group.totalWeight += soldWeight;
       groups.set(productKey, group);
@@ -178,99 +177,35 @@ export default function OrderDetailScreen({ orderId }: Props) {
       );
   }, [activeLines]);
 
-  const boxesByProductId = useMemo(() => {
-    const grouped = new Map<number, ScanInventoryBox[]>();
-
-    (scanBoxes ?? []).forEach((box) => {
-      const productId = box.Batch?.Product?.id;
-
-      if (!productId || !box.Batch?.Product) {
-        return;
-      }
-
-      const existing = grouped.get(productId) ?? [];
-      existing.push(box);
-      grouped.set(productId, existing);
-    });
-
-    return grouped;
-  }, [scanBoxes]);
-
-  const boxesByEan = useMemo(() => {
-    const grouped = new Map<string, ScanInventoryBox[]>();
-
-    (scanBoxes ?? []).forEach((box) => {
-      const ean = box.Batch?.Product?.ean?.trim();
-
-      if (!ean || !box.Batch?.Product) {
-        return;
-      }
-
-      const existing = grouped.get(ean) ?? [];
-      existing.push(box);
-      grouped.set(ean, existing);
-    });
-
-    return grouped;
-  }, [scanBoxes]);
-
-  const findNextAvailableBox = (
-    productId: number,
-    batchId: number,
-    excludeRowId?: string,
-  ) => {
-    const usedIds = getUsedAssignedBoxIds(scannedBoxes, excludeRowId);
-
-    return (
-      (boxesByProductId.get(productId) ?? []).find(
-        (box) => box.Batch?.id === batchId && !usedIds.has(box.id),
-      ) ?? null
-    );
-  };
-
   const batchPickerRow = useMemo(
     () => scannedBoxes.find((box) => box.id === batchPickerFor) ?? null,
     [batchPickerFor, scannedBoxes],
   );
 
   const batchPickerOptions = useMemo<BatchPickerOption[]>(() => {
-    if (!batchPickerRow) {
-      return [];
-    }
+    if (!batchPickerRow) return [];
 
-    const optionsByBatchId = new Map<number, BatchPickerOption>();
-    const usedIds = getUsedAssignedBoxIds(scannedBoxes, batchPickerRow.id);
+    const activeBatches = (batches ?? []).filter(
+      (b) => !b.deleted_at && (b.current_weight ?? 0) > 0,
+    );
+    const filtered =
+      batchPickerRow.productId !== null
+        ? activeBatches.filter((b) => b.ProductId === batchPickerRow.productId)
+        : activeBatches;
 
-    (boxesByProductId.get(batchPickerRow.productId) ?? []).forEach((box) => {
-      const batch = box.Batch;
-
-      if (!batch) {
-        return;
-      }
-
-      const existing =
-        optionsByBatchId.get(batch.id) ??
-        {
+    return filtered
+      .map((batch) => {
+        const product = (products ?? []).find((p) => p.id === batch.ProductId);
+        return {
           batchId: batch.id,
           batchNumber: batch.batch_number,
+          productId: batch.ProductId ?? 0,
+          productName: product?.name ?? 'Tuntematon',
+          pricePerKg: product?.price_per_kg ?? 0,
           productionDate: batch.production_date,
-          currentWeight: batch.current_weight,
-          availableCount: 0,
-          nextBox: null,
+          currentWeight: batch.current_weight ?? 0,
         };
-
-      if (!usedIds.has(box.id)) {
-        existing.availableCount += 1;
-        if (!existing.nextBox) {
-          existing.nextBox = box;
-        }
-      }
-
-      optionsByBatchId.set(batch.id, existing);
-    });
-
-    return [...optionsByBatchId.values()]
-      .filter((option) => option.nextBox != null && option.availableCount > 0)
+      })
       .sort((left, right) => {
         const leftDate = left.productionDate ? Date.parse(left.productionDate) : Number.NaN;
         const rightDate = right.productionDate ? Date.parse(right.productionDate) : Number.NaN;
@@ -279,19 +214,12 @@ export default function OrderDetailScreen({ orderId }: Props) {
           return leftDate - rightDate;
         }
 
-        if (Number.isFinite(leftDate)) {
-          return -1;
-        }
+        if (Number.isFinite(leftDate)) return -1;
+        if (Number.isFinite(rightDate)) return 1;
 
-        if (Number.isFinite(rightDate)) {
-          return 1;
-        }
-
-        return left.batchNumber.localeCompare(right.batchNumber, 'fi', {
-          sensitivity: 'base',
-        });
+        return left.batchNumber.localeCompare(right.batchNumber, 'fi', { sensitivity: 'base' });
       });
-  }, [batchPickerRow, boxesByProductId, scannedBoxes]);
+  }, [batchPickerRow, batches, products]);
 
   const scanTotalWeight = useMemo(
     () =>
@@ -303,81 +231,41 @@ export default function OrderDetailScreen({ orderId }: Props) {
   );
 
   const handleEanChange = (value: string) => {
-    const normalizedValue = value.replace(/\s+/g, '');
-    setEanInput(normalizedValue);
-
-    if (normalizedValue.length === 13) {
-      handleScan(normalizedValue);
-    }
+    setEanInput(value.replace(/\s+/g, ''));
   };
 
-  const handleScan = (ean: string) => {
-    const normalizedEan = ean.replace(/\s+/g, '');
+  const handleScan = async (ean: string) => {
+    const normalizedEan = ean.replace(/\s+/g, '').trim();
+    if (!normalizedEan) return;
 
-    if (!/^\d{13}$/.test(normalizedEan)) {
-      Alert.alert('Virheellinen koodi', 'EAN-13 on 13-numeroinen.');
-      setEanInput('');
-      return;
-    }
-
-    if (scanBoxesLoading || !scanBoxes) {
-      Alert.alert('Odota hetki', 'Laatikkotietoja ladataan viel\u00E4.');
-      setEanInput('');
-      return;
-    }
-
-    const matchingBoxes = boxesByEan.get(normalizedEan) ?? [];
-    const product = matchingBoxes[0]?.Batch?.Product;
-
-    if (!product || matchingBoxes.length === 0) {
-      Alert.alert('Tuotetta ei l\u00F6ydy', 'Skannatulle koodille ei l\u00F6ytynyt varastossa olevaa laatikkoa.');
-      setEanInput('');
-      return;
-    }
-
-    const usedCount = scannedBoxes.filter((box) => box.productId === product.id).length;
-    const suggestedBox = matchingBoxes[usedCount];
-
-    if (!suggestedBox) {
-      Alert.alert(
-        'Ei riitt\u00E4v\u00E4sti laatikoita',
-        `${product.name}: kaikki varastossa olevat laatikot on jo skannattu t\u00E4h\u00E4n tilaukseen.`,
-      );
-      setEanInput('');
-      return;
-    }
-
-    setScannedBoxes((previous) => [
-      ...previous,
-      {
-        id: String(nextScannedRowId.current++),
-        productId: product.id,
-        productName: product.name,
-        weightKg: gramsToKgStr(suggestedBox.weight),
-        weightEdited: false,
-        selectedBatchId: null,
-        selectedBatchNumber: null,
-        assignedBoxId: null,
-        assignedBoxWeightKg: null,
-        pricePerKg: product.price_per_kg,
-      },
-    ]);
     setEanInput('');
+
+    try {
+      const box = await fetchBoxByEan(normalizedEan);
+      const product = (products ?? []).find((p) => p.id === box.ProductId);
+      setScannedBoxes((previous) => [
+        ...previous,
+        {
+          id: String(nextScannedRowId.current++),
+          ean: normalizedEan,
+          productId: box.ProductId,
+          productName: box.productName,
+          weightKg: box.weight_kg.toFixed(3),
+          weightEdited: false,
+          selectedBatchId: box.BatchId,
+          selectedBatchNumber: box.batch_number,
+          pricePerKg: product?.price_per_kg ?? 0,
+        },
+      ]);
+    } catch {
+      Alert.alert('Boksia ei löydy', `Koodilla "${normalizedEan}" ei löydy varastosta bokseja.`);
+    }
+
     setTimeout(() => eanRef.current?.focus(), 50);
   };
 
-  const handleSelectBatch = (batchId: number, batchNumber: string) => {
+  const handleSelectBatch = (option: BatchPickerOption) => {
     if (!batchPickerRow) {
-      return;
-    }
-
-    const nextBox = findNextAvailableBox(batchPickerRow.productId, batchId, batchPickerRow.id);
-
-    if (!nextBox) {
-      Alert.alert(
-        'Er\u00E4 ei ole saatavilla',
-        'Valitusta er\u00E4st\u00E4 ei ole en\u00E4\u00E4 vapaita laatikoita t\u00E4lle riville.',
-      );
       return;
     }
 
@@ -386,11 +274,11 @@ export default function OrderDetailScreen({ orderId }: Props) {
         box.id === batchPickerRow.id
           ? {
               ...box,
-              selectedBatchId: batchId,
-              selectedBatchNumber: batchNumber,
-              assignedBoxId: nextBox.id,
-              assignedBoxWeightKg: nextBox.weight / 1000,
-              weightKg: box.weightEdited ? box.weightKg : gramsToKgStr(nextBox.weight),
+              productId: box.productId ?? option.productId,
+              productName: box.productId === null ? option.productName : box.productName,
+              pricePerKg: box.productId === null ? option.pricePerKg : box.pricePerKg,
+              selectedBatchId: option.batchId,
+              selectedBatchNumber: option.batchNumber,
             }
           : box,
       ),
@@ -413,7 +301,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
     }
 
     for (const box of scannedBoxes) {
-      if (!box.selectedBatchId || !box.assignedBoxId || !box.assignedBoxWeightKg) {
+      if (!box.selectedBatchId) {
         Alert.alert('Er\u00E4 puuttuu', `Valitse er\u00E4 tuotteelle ${box.productName}.`);
         return;
       }
@@ -425,56 +313,38 @@ export default function OrderDetailScreen({ orderId }: Props) {
         return;
       }
 
-      const maxWeight = Math.round(box.assignedBoxWeightKg * 1000);
-
-      if (soldWeight > maxWeight) {
-        Alert.alert(
-          'Liian suuri paino',
-          `${box.productName}: enint\u00E4\u00E4n ${box.assignedBoxWeightKg.toFixed(3)} kg.`,
-        );
-        return;
-      }
     }
 
     setSaving(true);
 
     try {
-      await confirmScan(
-        orderId!,
-        scannedBoxes.map((box) => ({
-          batchId: box.selectedBatchId as number,
-          boxIds: [box.assignedBoxId as number],
-          soldWeight: kgStrToGrams(box.weightKg),
-          pricePerGram: Math.round(box.pricePerKg),
-        })),
+      await Promise.all(
+        scannedBoxes.map((box) =>
+          createOrderLine({
+            orderId: orderId!,
+            batchId: box.selectedBatchId!,
+            sold_weight: kgStrToGrams(box.weightKg),
+            price_per_gram: Math.round(box.pricePerKg),
+          }),
+        ),
       );
 
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ['orderLines', orderId],
-          exact: true,
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ['scanBoxes'],
-          exact: true,
-        }),
-      ]);
+      await queryClient.invalidateQueries({
+        queryKey: ['orderLines', orderId],
+        exact: true,
+      });
 
       setBatchPickerFor(null);
       setEanInput('');
       setScannedBoxes([]);
       setShowScanModal(false);
+      Alert.alert('Tallennettu', 'Skannaukset tallennettu tilaukseen onnistuneesti.');
     } catch (saveError) {
       if (saveError instanceof ApiError && saveError.status === 502) {
-        // Rivit luotu onnistuneesti, mutta Netvisor-synkronointi epäonnistui.
-        // Suljetaan modal ja päivitetään näkymä — käyttäjä voi yrittää lähettää tilauksen myöhemmin.
         setShowScanModal(false);
         setScannedBoxes([]);
         setEanInput('');
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['orderLines', orderId], exact: true }),
-          queryClient.invalidateQueries({ queryKey: ['scanBoxes'], exact: true }),
-        ]);
+        await queryClient.invalidateQueries({ queryKey: ['orderLines', orderId], exact: true });
         const p = saveError.payload as Record<string, unknown> | null;
         const details = String(p?.details ?? p?.error ?? '');
         Alert.alert(
@@ -496,40 +366,119 @@ export default function OrderDetailScreen({ orderId }: Props) {
     }
   };
 
-  const handleSendOrder = () => {
+  const handleDeleteOrder = () => {
     Alert.alert(
-      'Lähetä tilaus',
-      'Haluatko varmasti lähettää tämän tilauksen?',
+      'Poista tilaus',
+      'Haluatko varmasti poistaa tämän tilauksen? Tätä toimintoa ei voi peruuttaa.',
       [
         { text: 'Peruuta', style: 'cancel' },
         {
-          text: 'Lähetä',
-          style: 'default',
+          text: 'Poista',
+          style: 'destructive',
           onPress: async () => {
-            setSendingOrder(true);
+            setDeletingOrder(true);
             try {
-              await updateOrder(orderId!, { status: 'sent' });
-              await Promise.all([
-                queryClient.invalidateQueries({ queryKey: ['orders', orderId], exact: true }),
-                queryClient.invalidateQueries({ queryKey: ['orders'] }),
-              ]);
-              Alert.alert('Tilaus lähetetty', 'Tilaus on lähetetty Netvisoriin.');
-            } catch (sendError) {
+              await deleteOrder(orderId!);
+              await queryClient.invalidateQueries({ queryKey: ['orders'] });
+              router.back();
+              Alert.alert('Tilaus poistettu', 'Tilaus on poistettu onnistuneesti.');
+            } catch (deleteError) {
               const errMessage = (() => {
-                if (sendError instanceof ApiError) {
-                  const p = sendError.payload as Record<string, unknown> | null;
-                  return String(p?.details ?? p?.error ?? sendError.message);
+                if (deleteError instanceof ApiError) {
+                  const p = deleteError.payload as Record<string, unknown> | null;
+                  return String(p?.details ?? p?.error ?? deleteError.message);
                 }
-                return sendError instanceof Error ? sendError.message : 'Lähetys epäonnistui';
+                return deleteError instanceof Error ? deleteError.message : 'Poisto epäonnistui';
               })();
-              Alert.alert('Lähetys epäonnistui', errMessage);
+              Alert.alert('Poisto epäonnistui', errMessage);
             } finally {
-              setSendingOrder(false);
+              setDeletingOrder(false);
             }
           },
         },
       ],
     );
+  };
+
+  const handleDeleteLine = (lineId: number) => {
+    Alert.alert(
+      'Poista tilausrivi',
+      'Haluatko varmasti poistaa tämän tilausrivin? Erän paino palautetaan.',
+      [
+        { text: 'Peruuta', style: 'cancel' },
+        {
+          text: 'Poista',
+          style: 'destructive',
+          onPress: async () => {
+            setDeletingLineId(lineId);
+            try {
+              await deleteOrderLine(lineId);
+              await queryClient.invalidateQueries({ queryKey: ['orderLines', orderId], exact: true });
+            } catch (err) {
+              const errMessage = (() => {
+                if (err instanceof ApiError) {
+                  const p = err.payload as Record<string, unknown> | null;
+                  return String(p?.error ?? err.message);
+                }
+                return err instanceof Error ? err.message : 'Poisto epäonnistui';
+              })();
+              Alert.alert('Poisto epäonnistui', errMessage);
+            } finally {
+              setDeletingLineId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleAddVirtualBox = async () => {
+    if (!virtualProductId || !virtualBatchId || !virtualWeight) {
+      Alert.alert('Virhe', 'Valitse tuote, erä ja paino.');
+      return;
+    }
+
+    const weightGrams = kgStrToGrams(virtualWeight);
+    if (!Number.isFinite(weightGrams) || weightGrams <= 0) {
+      Alert.alert('Virheellinen paino', 'Tarkista paino.');
+      return;
+    }
+
+    const product = products?.find(p => p.id === virtualProductId);
+    const batch = batches?.find(b => b.id === virtualBatchId);
+
+    if (!product || !batch) {
+      Alert.alert('Virhe', 'Tuotetta tai erää ei löydy.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await createOrderLine({
+        orderId: orderId!,
+        batchId: virtualBatchId,
+        sold_weight: weightGrams,
+        price_per_gram: Math.round(product.price_per_kg),
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ['orderLines', orderId], exact: true });
+      setShowVirtualScanModal(false);
+      setVirtualProductId(null);
+      setVirtualBatchId(null);
+      setVirtualWeight('');
+      Alert.alert('Laatiko lisätty', 'Laatiko on lisätty tilaukseen onnistuneesti.');
+    } catch (error) {
+      const errMessage = (() => {
+        if (error instanceof ApiError) {
+          const p = error.payload as Record<string, unknown> | null;
+          return String(p?.details ?? p?.error ?? error.message);
+        }
+        return error instanceof Error ? error.message : 'Lisäys epäonnistui';
+      })();
+      Alert.alert('Virhe', errMessage);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!orderId || (!isLoading && (error || !order))) {
@@ -557,46 +506,57 @@ export default function OrderDetailScreen({ orderId }: Props) {
   return (
     <ScreenLayout leftAction="back" title="TILAUS">
       <ScrollView
-        contentContainerStyle={components.odScrollContent}
+        contentContainerStyle={orderStyles.odScrollContent}
         showsVerticalScrollIndicator={false}
-        style={components.odScroll}
+        style={orderStyles.odScroll}
       >
-        <View style={components.odCustomerPill}>
-          <Text numberOfLines={1} style={components.odCustomerPillText}>
+        <View style={orderStyles.odCustomerPill}>
+          <Text numberOfLines={1} style={orderStyles.odCustomerPillText}>
             {customerName ?? 'Tilaus'}
           </Text>
-          {dateLabel ? <Text style={components.odDateText}>{dateLabel}</Text> : null}
+          {dateLabel ? <Text style={orderStyles.odDateText}>{dateLabel}</Text> : null}
         </View>
 
         {groupedLines.length === 0 ? (
-          <Text style={components.odTableEmptyText}>Ei tilausrivejä vielä.</Text>
+          <Text style={orderStyles.odTableEmptyText}>Ei tilausrivejä vielä.</Text>
         ) : (
           groupedLines.map((group) => (
-            <View key={group.productKey} style={components.odProductCard}>
-              <View style={components.odProductCardHeader}>
-                <Text numberOfLines={1} style={components.odProductCardName}>
+            <View key={group.productKey} style={orderStyles.odProductCard}>
+              <View style={orderStyles.odProductCardHeader}>
+                <Text numberOfLines={1} style={orderStyles.odProductCardName}>
                   {group.productName}
                 </Text>
               </View>
 
               {group.batches.map((batch, batchIndex) => (
                 <View key={batch.batchKey}>
-                  <View style={components.odBatchRow}>
-                    <Text style={components.odBatchRowLabel}>{batch.batchLabel}</Text>
-                    <Text style={components.odBatchRowWeight}>
-                      {formatKg(batch.totalWeight)} kg
-                    </Text>
-                  </View>
+                  <Text style={orderStyles.odBatchSubLabel}>{batch.batchLabel}</Text>
+                  {batch.lines.map((line) => (
+                    <View key={line.id} style={orderStyles.odLineRow}>
+                      <Text style={orderStyles.odLineWeight}>{formatKg(line.sold_weight)} kg</Text>
+                      <TouchableOpacity
+                        disabled={deletingLineId === line.id}
+                        onPress={() => handleDeleteLine(line.id)}
+                        style={orderStyles.odLineDeleteBtn}
+                      >
+                        <Ionicons
+                          color={deletingLineId === line.id ? 'rgba(220,50,50,0.3)' : 'rgba(220,50,50,0.72)'}
+                          name="trash-outline"
+                          size={20}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
                   {batchIndex < group.batches.length - 1 ? (
-                    <View style={components.odTableRowDivider} />
+                    <View style={orderStyles.odTableRowDivider} />
                   ) : null}
                 </View>
               ))}
 
-              <View style={components.odProductCardTotalDivider} />
-              <View style={components.odProductCardTotalRow}>
-                <Text style={components.odProductCardTotalLabel}>YHTEENSÄ</Text>
-                <Text style={components.odProductCardTotalWeight}>
+              <View style={orderStyles.odProductCardTotalDivider} />
+              <View style={orderStyles.odProductCardTotalRow}>
+                <Text style={orderStyles.odProductCardTotalLabel}>YHTEENSÄ</Text>
+                <Text style={orderStyles.odProductCardTotalWeight}>
                   {formatKg(group.totalWeight)} kg
                 </Text>
               </View>
@@ -606,25 +566,34 @@ export default function OrderDetailScreen({ orderId }: Props) {
 
         <Pressable
           onPress={() => setShowScanModal(true)}
-          style={({ pressed }) => [components.odSkannaaBtn, pressed && screen.pressed]}
+          style={({ pressed }) => [orderStyles.odSkannaaBtn, pressed && screen.pressed]}
         >
-          <Text style={components.odSkaannaaBtnText}>SKANNAA</Text>
+          <Text style={orderStyles.odVirtualScanBtnText}>SKANNAA</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => setShowVirtualScanModal(true)}
+          style={({ pressed }) => [orderStyles.odVirtualScanBtn, pressed && screen.pressed]}
+        >
+          <Text style={orderStyles.odVirtualScanBtnText}>LISÄÄ LAATIKKO</Text>
         </Pressable>
       </ScrollView>
 
-      <View style={components.odFooter}>
-        <Pressable
-          disabled={sendingOrder}
-          onPress={handleSendOrder}
-          style={({ pressed }) => [
-            components.odLahetaBtn,
-            (pressed || sendingOrder) && screen.pressed,
-          ]}
-        >
-          <Text style={components.odLahetaBtnText}>
-            {sendingOrder ? 'LÄHETETÄÄN...' : 'LÄHETÄ TILAUS'}
-          </Text>
-        </Pressable>
+      <View style={orderStyles.odFooter}>
+        <View style={orderStyles.odFooterButtons}>
+          <Pressable
+            disabled={deletingOrder}
+            onPress={handleDeleteOrder}
+            style={({ pressed }) => [
+              orderStyles.odDeleteBtn,
+              (pressed || deletingOrder) && screen.pressed,
+            ]}
+          >
+            <Text style={orderStyles.odDeleteBtnText}>
+              {deletingOrder ? 'POISTETAAN...' : 'POISTA TILAUS'}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       <Modal
@@ -633,11 +602,11 @@ export default function OrderDetailScreen({ orderId }: Props) {
         transparent
         visible={showScanModal}
       >
-        <SafeAreaView style={components.smOverlay}>
-          <View style={components.smShell}>
-            <View style={components.smTopRow}>
-              <View style={components.smCustomerPill}>
-                <Text numberOfLines={1} style={components.smCustomerPillText}>
+        <SafeAreaView style={orderStyles.smOverlay}>
+          <View style={orderStyles.smShell}>
+            <View style={orderStyles.smTopRow}>
+              <View style={orderStyles.smCustomerPill}>
+                <Text numberOfLines={1} style={orderStyles.smCustomerPillText}>
                   {customerName ?? 'Tilaus'}
                 </Text>
               </View>
@@ -652,59 +621,56 @@ export default function OrderDetailScreen({ orderId }: Props) {
               </Pressable>
             </View>
 
-            <View style={components.smPanel}>
-              <View style={components.smScanFieldRow}>
+            <View style={orderStyles.smPanel}>
+              <View style={orderStyles.smScanFieldRow}>
                 <TextInput
                   autoFocus
                   keyboardType="numeric"
                   onChangeText={handleEanChange}
+                  onSubmitEditing={() => handleScan(eanInput)}
                   placeholder="ALOITA SKANNAAMINEN..."
                   placeholderTextColor="rgba(0,0,0,0.32)"
                   ref={eanRef}
                   returnKeyType="done"
-                  style={components.smScanFieldInput}
+                  style={orderStyles.smScanFieldInput}
                   value={eanInput}
                 />
                 <Ionicons color="rgba(0,0,0,0.42)" name="barcode-outline" size={28} />
               </View>
 
-              <View style={components.smTableHeader}>
-                <View style={components.smDeleteCell} />
-                <Text style={[components.smTableHeaderText, components.smProductCell]}>
+              <View style={orderStyles.smTableHeader}>
+                <View style={orderStyles.smDeleteCell} />
+                <Text style={[orderStyles.smTableHeaderText, orderStyles.smProductCell]}>
                   TUOTE
                 </Text>
-                <Text style={[components.smTableHeaderText, components.smBatchCell]}>ERÄ</Text>
-                <Text style={[components.smTableHeaderText, components.smWeightCell]}>PAINO</Text>
+                <Text style={[orderStyles.smTableHeaderText, orderStyles.smBatchCell]}>ERÄ</Text>
+                <Text style={[orderStyles.smTableHeaderText, orderStyles.smWeightCell]}>PAINO</Text>
               </View>
-
-              {scanBoxesLoading ? (
-                <Text style={components.smScanningText}>Ladataan skannattavia laatikoita...</Text>
-              ) : null}
 
               <FlatList
                 data={scannedBoxes}
-                ItemSeparatorComponent={() => <View style={components.smTableDivider} />}
+                ItemSeparatorComponent={() => <View style={orderStyles.smTableDivider} />}
                 keyboardShouldPersistTaps="handled"
                 keyExtractor={(item) => item.id}
                 ListEmptyComponent={
-                  <Text style={components.smScanEmpty}>
+                  <Text style={orderStyles.smScanEmpty}>
                     Skannaa viivakoodeja, valitse erä jokaiselle riville ja tarkista painot.
                   </Text>
                 }
                 renderItem={({ item }) => (
-                  <View style={components.smTableRow}>
+                  <View style={orderStyles.smTableRow}>
                     <TouchableOpacity
                       accessibilityRole="button"
                       disabled={saving}
                       onPress={() => handleRemoveScannedRow(item.id)}
-                      style={components.smDeleteCell}
+                      style={orderStyles.smDeleteCell}
                     >
                       <Ionicons color="rgba(0,0,0,0.54)" name="close" size={22} />
                     </TouchableOpacity>
 
                     <Text
                       numberOfLines={1}
-                      style={[components.smTableRowText, components.smProductCell]}
+                      style={[orderStyles.smTableRowText, orderStyles.smProductCell]}
                     >
                       {item.productName}
                     </Text>
@@ -712,13 +678,13 @@ export default function OrderDetailScreen({ orderId }: Props) {
                     <TouchableOpacity
                       accessibilityRole="button"
                       onPress={() => setBatchPickerFor(item.id)}
-                      style={[components.smBatchCell, components.smBatchSelectBtn]}
+                      style={[orderStyles.smBatchCell, orderStyles.smBatchSelectBtn]}
                     >
                       <Text
                         numberOfLines={1}
                         style={[
-                          components.smBatchSelectText,
-                          !item.selectedBatchNumber && components.smBatchSelectPlaceholder,
+                          orderStyles.smBatchSelectText,
+                          !item.selectedBatchNumber && orderStyles.smBatchSelectPlaceholder,
                         ]}
                       >
                         {item.selectedBatchNumber ?? 'VALITSE'}
@@ -738,27 +704,27 @@ export default function OrderDetailScreen({ orderId }: Props) {
                         )
                       }
                       selectTextOnFocus
-                      style={components.smWeightInput}
+                      style={orderStyles.smWeightInput}
                       value={item.weightKg}
                     />
                   </View>
                 )}
                 showsVerticalScrollIndicator={false}
-                style={components.smTableList}
+                style={orderStyles.smTableList}
               />
 
-              <View style={components.smFooterRow}>
-                <Text style={components.smScanTotal}>Yhteensä {formatKg(scanTotalWeight)} kg</Text>
+              <View style={orderStyles.smFooterRow}>
+                <Text style={orderStyles.smScanTotal}>Yhteensä {formatKg(scanTotalWeight)} kg</Text>
 
                 <TouchableOpacity
                   disabled={saving || scannedBoxes.length === 0}
                   onPress={handleSave}
                   style={[
-                    components.smSavePill,
-                    (saving || scannedBoxes.length === 0) && components.smSaveBtnDisabled,
+                    orderStyles.smSavePill,
+                    (saving || scannedBoxes.length === 0) && orderStyles.smSaveBtnDisabled,
                   ]}
                 >
-                  <Text style={components.smSavePillText}>
+                  <Text style={orderStyles.smSavePillText}>
                     {saving ? 'Tallennetaan...' : 'TALLENNA'}
                   </Text>
                 </TouchableOpacity>
@@ -783,13 +749,17 @@ export default function OrderDetailScreen({ orderId }: Props) {
                 batchPickerOptions.map((option) => (
                   <TouchableOpacity
                     key={option.batchId}
-                    onPress={() => handleSelectBatch(option.batchId, option.batchNumber)}
+                    onPress={() => handleSelectBatch(option)}
                     style={components.modalRow}
                   >
-                    <Text style={components.modalRowText}>{option.batchNumber}</Text>
+                    {batchPickerRow?.productId === null ? (
+                      <Text style={components.modalRowText}>{option.batchNumber} \u2014 {option.productName}</Text>
+                    ) : (
+                      <Text style={components.modalRowText}>{option.batchNumber}</Text>
+                    )}
                     <Text style={components.modalRowSubText}>
                       {(toFinnishDate(option.productionDate) ?? 'Ei p\u00E4iv\u00E4yst\u00E4') +
-                        ` / ${option.availableCount} laatikkoa / ${formatKg(option.currentWeight)} kg`}
+                        ` / ${formatKg(option.currentWeight)} kg`}
                     </Text>
                   </TouchableOpacity>
                 ))
@@ -804,6 +774,124 @@ export default function OrderDetailScreen({ orderId }: Props) {
             </View>
           </View>
         </Modal>
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setShowVirtualScanModal(false)}
+        transparent
+        visible={showVirtualScanModal}
+      >
+        <SafeAreaView style={orderStyles.smOverlay}>
+          <View style={orderStyles.smShell}>
+            <View style={orderStyles.smTopRow}>
+              <View style={orderStyles.smCustomerPill}>
+                <Text numberOfLines={1} style={orderStyles.smCustomerPillText}>
+                  {customerName ?? 'Tilaus'}
+                </Text>
+              </View>
+
+              <Pressable
+                accessibilityLabel="Sulje"
+                accessibilityRole="button"
+                hitSlop={12}
+                onPress={() => setShowVirtualScanModal(false)}
+              >
+                <Ionicons color={colors.textOnDark} name="close" size={28} />
+              </Pressable>
+            </View>
+
+            <View style={orderStyles.smPanel}>
+              <Text style={orderStyles.smVirtualTitle}>Lisää laatikko tilaukseen</Text>
+
+              <ScrollView
+                contentContainerStyle={orderStyles.smVirtualScrollContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                style={orderStyles.smVirtualScroll}
+              >
+                <View style={orderStyles.smVirtualField}>
+                  <Text style={orderStyles.smVirtualFieldLabel}>Tuote</Text>
+                  <ScrollView
+                    keyboardShouldPersistTaps="handled"
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}
+                    style={orderStyles.smVirtualPicker}
+                  >
+                    {products?.map((product) => (
+                      <Pressable
+                        key={product.id}
+                        onPress={() => setVirtualProductId(product.id)}
+                        style={[
+                          orderStyles.smVirtualPickerOption,
+                          virtualProductId === product.id && orderStyles.smVirtualPickerSelected,
+                        ]}
+                      >
+                        <Text style={orderStyles.smVirtualPickerText}>{product.name}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                {virtualProductId && (
+                  <View style={orderStyles.smVirtualField}>
+                    <Text style={orderStyles.smVirtualFieldLabel}>Erä</Text>
+                    <ScrollView
+                      keyboardShouldPersistTaps="handled"
+                      nestedScrollEnabled
+                      showsVerticalScrollIndicator={false}
+                      style={orderStyles.smVirtualPicker}
+                    >
+                      {batches
+                        ?.filter((batch) => batch.ProductId === virtualProductId && !batch.deleted_at)
+                        .map((batch) => (
+                          <Pressable
+                            key={batch.id}
+                            onPress={() => setVirtualBatchId(batch.id)}
+                            style={[
+                              orderStyles.smVirtualPickerOption,
+                              virtualBatchId === batch.id && orderStyles.smVirtualPickerSelected,
+                            ]}
+                          >
+                            <Text style={orderStyles.smVirtualPickerText}>{batch.batch_number}</Text>
+                            <Text style={orderStyles.smVirtualPickerSubText}>
+                              {formatKg(batch.current_weight)} kg jäljellä
+                            </Text>
+                          </Pressable>
+                        ))}
+                    </ScrollView>
+                  </View>
+                )}
+
+                <View style={orderStyles.smVirtualField}>
+                  <Text style={orderStyles.smVirtualFieldLabel}>Paino (kg)</Text>
+                  <TextInput
+                    keyboardType="decimal-pad"
+                    onChangeText={setVirtualWeight}
+                    placeholder="0.000"
+                    style={orderStyles.smVirtualWeightInput}
+                    value={virtualWeight}
+                  />
+                </View>
+              </ScrollView>
+
+              <View style={orderStyles.smFooterRow}>
+                <TouchableOpacity
+                  disabled={saving || !virtualProductId || !virtualBatchId || !virtualWeight}
+                  onPress={handleAddVirtualBox}
+                  style={[
+                    orderStyles.smSavePill,
+                    (saving || !virtualProductId || !virtualBatchId || !virtualWeight) && orderStyles.smSaveBtnDisabled,
+                  ]}
+                >
+                  <Text style={orderStyles.smSavePillText}>
+                    {saving ? 'Lisätään...' : 'LISÄÄ'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </SafeAreaView>
       </Modal>
     </ScreenLayout>
   );

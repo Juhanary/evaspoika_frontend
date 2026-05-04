@@ -3,6 +3,7 @@ export type BatchLog = {
   BatchId: number;
   event_code: string;
   weight_change: number;
+  total_weight?: number | null;
   description?: string | null;
   user_id?: number | null;
   reference_id?: number | null;
@@ -15,7 +16,6 @@ export type BatchLog = {
     Product?: {
       id: number;
       name: string;
-      ean?: string | null;
     } | null;
   } | null;
   OrderLine?: {

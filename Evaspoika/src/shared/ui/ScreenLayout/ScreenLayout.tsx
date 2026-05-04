@@ -12,6 +12,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
+import { useBatchEvents } from '@/src/features/batchEvents/presentation/hooks/useBatchEvents';
 import { spacing } from '@/src/shared/constants/spacing';
 import { goBackOrHome } from '@/src/shared/navigation/goBackOrHome';
 import { routes } from '@/src/shared/navigation/routes';
@@ -58,10 +59,11 @@ export function ScreenLayout({
   const insets = useSafeAreaInsets();
   const { data: products } = useProducts();
   const { data: batches } = useBatches();
+  const { data: batchEvents } = useBatchEvents({ types: 'WEIGHING,CREATE', limit: 9999 });
 
   const inventoryItems = useMemo(
-    () => buildInventorySummary(products, batches),
-    [products, batches],
+    () => buildInventorySummary(products, batches, batchEvents),
+    [products, batches, batchEvents],
   );
   const inlineSearch = wrapInCard ? headerSearch : undefined;
 

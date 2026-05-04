@@ -15,6 +15,7 @@ export const colors = {
   textSubtle: '#4B5563',
   muted: '#6B7280',
   textTertiary: '#9CA3AF',
+  textWhite: '#F0F0F0', 
 
   // Borders
   border: '#E5E7EB',
