@@ -1,5 +1,29 @@
 const pad2 = (value: number) => String(value).padStart(2, '0');
 
+export const parseDateSafe = (value: string): Date | null => {
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (isoMatch) {
+    const d = new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+    if (!isNaN(d.getTime())) return d;
+  }
+  const fiMatch = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(value);
+  if (fiMatch) {
+    const d = new Date(Number(fiMatch[3]), Number(fiMatch[2]) - 1, Number(fiMatch[1]));
+    if (!isNaN(d.getTime())) return d;
+  }
+  // DDMMYYYY compact (same format as batch_number, e.g. "07082025")
+  const compactMatch = /^(\d{2})(\d{2})(\d{4})$/.exec(value);
+  if (compactMatch) {
+    const month = Number(compactMatch[2]);
+    if (month >= 1 && month <= 12) {
+      const d = new Date(Number(compactMatch[3]), month - 1, Number(compactMatch[1]));
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+};
+
 export const formatDateIso = (date: Date) =>
   `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 
@@ -8,6 +32,12 @@ export const formatDateDisplay = (date: Date) =>
 
 export const formatBatchNumber = (date: Date) =>
   `${pad2(date.getDate())}${pad2(date.getMonth() + 1)}${date.getFullYear()}`;
+
+export const addDays = (date: Date, days: number): Date => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};
 
 export const addOneYear = (date: Date) => {
   const next = new Date(date);

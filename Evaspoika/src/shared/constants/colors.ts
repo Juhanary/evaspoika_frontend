@@ -1,6 +1,7 @@
 export const colors = {
   // Brand
   primary: '#2563EB',
+  
 
   // Backgrounds
   background: '#FFFFFF',

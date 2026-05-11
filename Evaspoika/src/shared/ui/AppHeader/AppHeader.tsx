@@ -19,6 +19,7 @@ export type AppHeaderAction = {
 export type AppHeaderSearch = {
   value: string;
   onChangeText: (text: string) => void;
+  onfocus?: () => void; 
   placeholder?: string;
 };
 
@@ -54,8 +55,10 @@ export function AppHeader({
       <View style={components.appHeaderCenter}>
         {search ? (
           <SearchInput
+          //if not focused, clear the search input and hide the keyboard
+           
             label={title}
-            onChangeText={search.onChangeText}
+            onChangeText={search.onChangeText ?? (() => {})}
             placeholder={search.placeholder ?? 'Hae...'}
             style={components.appHeaderSearch}
             value={search.value}

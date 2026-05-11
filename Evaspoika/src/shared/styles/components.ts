@@ -188,7 +188,7 @@ export const components = {
       height: 70,
       backgroundColor: 'rgba(255,255,255,0.95)',
       borderRadius: radii.full,
-      paddingHorizontal: 16,
+      paddingHorizontal: 30,
       justifyContent: 'space-between',
     },
   ] as ViewStyle[],
@@ -198,23 +198,23 @@ export const components = {
   invDropdown: [
     {
       backgroundColor: 'rgba(255,255,255,0.9)',
-      borderBottomLeftRadius: 20,
-      borderBottomRightRadius: 20,
-            padding: 16,
+      borderBottomLeftRadius: radii['3xl'],
+      borderBottomRightRadius: radii['3xl'],
+            padding: 10,
       marginTop: -2,
       zIndex: -1,
     },
   ] as ViewStyle[],
   invDropdownLabel: textFactory({ size: '3xl', color: colors.textSubtle }),
   invDropdownLabelYhteensa: textFactory({ weight: 'bold', color: colors.textDark, size: '3xl' }),
-  invDropdownRow: [base.row, { justifyContent: 'space-between', paddingVertical: 4 }] as ViewStyle[],
+  invDropdownRow: [base.row, { justifyContent: 'space-between', paddingVertical: 10, paddingLeft: 20, paddingRight: 20 }] as ViewStyle[],
   invDropdownWeight: textFactory({ weight: 'bold', color: colors.textDark, size: '3xl' }),
   invDropdownDivider: [
-    { height: 1, backgroundColor: 'rgba(0,0,0,0.08)', marginVertical: 8 },
+    { height: 1, backgroundColor: colors.borderMid, marginVertical: 8 },
   ] as ViewStyle[],
   invDropdownBtn: [
     base.center,
-    { backgroundColor: colors.darkBg, borderRadius: radii.md, paddingVertical: 10, marginTop: 4 },
+    { backgroundColor: colors.darkBg, borderRadius: radii['3xl'], paddingVertical: 10, margin: 20, },
   ] as ViewStyle[],
   invDropdownBtnText: textFactory({ weight: 'bold', color: colors.white, size: '3xl' }),
   invPillRight: [
@@ -222,16 +222,29 @@ export const components = {
     {
       width: 130,
       height: 70,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      borderRadius: radii.full,
+           borderRadius: radii.full,
       paddingHorizontal: 14,
       justifyContent: 'center',
       gap: 10,
     },
   ] as ViewStyle[],
   invPillWeight: textFactory({ weight: 'bold', color: colors.white, size: '3xl' }),
-  invPillDivider: [{ width: 1, height: 16, backgroundColor: 'rgba(255,255,255,0.2)' }] as ViewStyle[],
+  invPillDivider: [{ width: 2, height: 20, backgroundColor: colors.borderMid }] as ViewStyle[],
   invPillCount: textFactory({ weight: 'bold', color: colors.white, size: '3xl' }),
+
+  invAddBoxBtn: [
+    base.row,
+    {
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: radii.full,
+      backgroundColor: 'rgba(255,255,255,0.85)',
+      minHeight: 50,
+    },
+  ] as ViewStyle[],
+  invAddBoxBtnText: textFactory({ size: 'md', weight: 'semibold', color: colors.textDark }),
 
   // Button internals
   glassActionSurface: [{ backgroundColor: colors.darkCard }] as ViewStyle[],

@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryProvider } from '@/src/providers/QueryProvider';
 import {
   useFonts,
@@ -36,10 +37,12 @@ export default function Layout() {
   if (!fontsLoaded) return null;
 
   return (
-    <QueryProvider>
-      <Stack screenOptions={{ headerTitleAlign: 'center' }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
-    </QueryProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryProvider>
+        <Stack screenOptions={{ headerTitleAlign: 'center' }}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        </Stack>
+      </QueryProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
 import { syncCustomersFromNetvisor } from '@/src/features/customers/infrastructure/customersApi';
 import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
@@ -84,6 +84,11 @@ export default function HomeScreen() {
   const [query, setQuery] = useState('');
   const [syncing, setSyncing] = useState(false);
   const syncingRef = useRef(false);
+
+  const handleNavigate = (href: Href) => {
+    setQuery('');
+    router.push(href);
+  };
 
   const handleSync = async () => {
     if (syncingRef.current) return;
@@ -198,6 +203,7 @@ export default function HomeScreen() {
       headerSearch={{
         value: query,
         onChangeText: setQuery,
+        
         placeholder: 'Hae...',
       }}
       leftAction="none"
@@ -225,7 +231,7 @@ export default function HomeScreen() {
                 {searchResults.products.map((p) => (
                   <Pressable
                     key={p.id}
-                    onPress={() => router.push(routes.inventoryProduct(p.id))}
+                    onPress={() => handleNavigate(routes.inventoryProduct(p.id))}
                     style={({ pressed }) => [dark.row, pressed && dark.pressed]}
                   >
                     <Text style={dark.rowTitle}>{p.name}</Text>
@@ -238,10 +244,14 @@ export default function HomeScreen() {
                 label={`Asiakkaat (${searchResults.customers.length})`}
               >
                 {searchResults.customers.map((c) => (
-                  <View key={c.id} style={dark.row}>
+                  <Pressable
+                    key={c.id}
+                    onPress={() => handleNavigate(routes.customerLogs(c.id))}
+                    style={({ pressed }) => [dark.row, pressed && dark.pressed]}
+                  >
                     <Text style={dark.rowTitle}>{c.name}</Text>
                     {c.email ? <Text style={dark.rowSub}>{c.email}</Text> : null}
-                  </View>
+                  </Pressable>
                 ))}
               </SearchSection>
 
@@ -253,7 +263,7 @@ export default function HomeScreen() {
                   <Pressable
                     key={b.id}
                     onPress={() =>
-                      router.push(routes.inventoryBatch(b.id, b.batch_number))
+                      handleNavigate(routes.inventoryBatch(b.id, b.batch_number))
                     }
                     style={({ pressed }) => [dark.row, pressed && dark.pressed]}
                   >
@@ -270,7 +280,7 @@ export default function HomeScreen() {
                 {searchResults.orders.map((o) => (
                   <Pressable
                     key={o.id}
-                    onPress={() => router.push(routes.orderDetail(o.id))}
+                    onPress={() => handleNavigate(routes.orderDetail(o.id))}
                     style={({ pressed }) => [dark.row, pressed && dark.pressed]}
                   >
                     <Text style={dark.rowTitle}>

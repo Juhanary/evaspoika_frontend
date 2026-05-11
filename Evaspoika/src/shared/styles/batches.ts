@@ -59,6 +59,7 @@ export const batchStyles = StyleSheet.create({
   },
   blValmisBtn: {
     ...glassActionSurface,
+    
     borderRadius: 50,
     paddingHorizontal: 28,
     paddingVertical: 12,
@@ -66,7 +67,7 @@ export const batchStyles = StyleSheet.create({
   blValmisBtnText: {
     color: colors.textOnDark,
     fontWeight: '700' as const,
-    fontSize: 15,
+    fontSize: 25,
   },
   blTotalText: { fontSize: 14, fontWeight: '700' as const, color: '#111', letterSpacing: 0.5 },
   blTotalRow: {
@@ -78,13 +79,13 @@ export const batchStyles = StyleSheet.create({
   },
   blTotalLabel: {
     fontFamily: 'Montserrat_600SemiBold',
-    fontSize: 16,
+    fontSize: 26,
     color: 'rgba(255,255,255,0.85)',
     letterSpacing: 1,
   },
   blTotalValue: {
     fontFamily: 'Montserrat_600SemiBold',
-    fontSize: 20,
+    fontSize: 26,
     color: '#FFFFFF',
   },
   blArchiveHeader: {
