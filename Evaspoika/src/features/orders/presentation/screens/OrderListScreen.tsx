@@ -35,11 +35,6 @@ const isOpen = (o: Order) =>
   !CLOSED.has((o.status ?? '').toLowerCase()) &&
   !CLOSED.has((o.netvisor_status ?? '').toLowerCase());
 
-const isPast = (o: Order) =>
-  !o.deleted_at &&
-  (CLOSED.has((o.status ?? '').toLowerCase()) ||
-    CLOSED.has((o.netvisor_status ?? '').toLowerCase()));
-
 const sortNewest = (a: Order, b: Order) => {
   const da = a.order_date ? Date.parse(a.order_date) : 0;
   const db = b.order_date ? Date.parse(b.order_date) : 0;
@@ -72,7 +67,6 @@ const formatOrderDate = (value?: string | null) => {
 export default function OrderScreen() {
   const { data: customers, isLoading: customersLoading } = useCustomers();
   const { data: orders, isLoading: ordersLoading } = useOrders();
-  const [showPastOrders, setShowPastOrders] = useState(false);
   const [query, setQuery] = useState('');
 
   const rows = useMemo<OrderRow[]>(() => {
@@ -86,7 +80,7 @@ export default function OrderScreen() {
       });
 
     return (orders ?? [])
-      .filter((order) => (showPastOrders ? isPast(order) : isOpen(order)))
+      .filter(isOpen)
       .sort(sortNewest)
       .map((order) => {
         const customerId = Number(order.customer_id ?? order.CustomerId);
@@ -110,7 +104,7 @@ export default function OrderScreen() {
           order.netvisor_status ?? '',
         ].some((value) => value.toLowerCase().includes(normalizedQuery));
       });
-  }, [customers, orders, query, showPastOrders]);
+  }, [customers, orders, query]);
 
   const orderLineQueries = useQueries({
     queries: rows.map(({ order }) => ({
@@ -148,9 +142,7 @@ export default function OrderScreen() {
       headerSearch={{
         value: query,
         onChangeText: setQuery,
-        placeholder: showPastOrders
-          ? 'Hae menneit\u00E4 tilauksia...'
-          : 'Hae avoimia tilauksia...',
+        placeholder: 'Hae avoimia tilauksia...',
       }}
       title="TILAUKSET"
     >
@@ -163,22 +155,9 @@ export default function OrderScreen() {
             labelStyle={orderStyles.actionButtonText}
             variant="glassNav"
           />
-          <Button
-            label={
-              showPastOrders
-                ? 'Näytä avoimet tilaukset'
-                : 'Näytä menneet tilaukset'
-            }
-            onPress={() => setShowPastOrders((current) => !current)}
-            style={orderStyles.actionButton}
-            labelStyle={orderStyles.actionButtonText}
-            variant="glassNav"
-          />
         </View>
 
-        <Text style={screen.sectionTitle}>
-          {showPastOrders ? 'MENNEET TILAUKSET' : 'AVOIMET TILAUKSET'}
-        </Text>
+        <Text style={screen.sectionTitle}>AVOIMET TILAUKSET</Text>
         <View style={screen.divider} />
         {isLoading ? (
           <Text style={screen.muted}>Ladataan...</Text>
@@ -189,9 +168,7 @@ export default function OrderScreen() {
             showsVerticalScrollIndicator={false}
             style={{ flex: 1 }}
             ListEmptyComponent={
-              <Text style={screen.muted}>
-                {showPastOrders ? 'Ei menneit\u00E4 tilauksia.' : 'Ei avoimia tilauksia.'}
-              </Text>
+              <Text style={screen.muted}>Ei avoimia tilauksia.</Text>
             }
             ItemSeparatorComponent={() => <View style={screen.rowDivider} />}
             renderItem={({ item }) => (
@@ -232,7 +209,7 @@ export default function OrderScreen() {
                       fontFamily: 'Montserrat_400Regular',
                       marginTop: 2,
                     }}>
-                      Ei Netvisorissa
+                      Ei Netvisorissa koska ei vielä tilausrivejä
                     </Text>
                   ) : null}
                 </View>

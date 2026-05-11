@@ -1,10 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchOrder, fetchOrders } from '../../infrastructure/ordersApi';
+import { fetchOrder, fetchClosedOrders, fetchOrders } from '../../infrastructure/ordersApi';
 
 export function useOrders() {
   return useQuery({
     queryKey: ['orders'],
     queryFn: fetchOrders,
+  });
+}
+
+export function useClosedOrders() {
+  return useQuery({
+    queryKey: ['orders', 'closed'],
+    queryFn: fetchClosedOrders,
   });
 }
 

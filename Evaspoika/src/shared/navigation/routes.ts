@@ -38,4 +38,10 @@ export const routes = {
       params,
     } as Href;
   },
+  customerLogs(customerId: RouteParam) {
+    return {
+      pathname: '/more/logs',
+      params: { customerId: toParam(customerId) },
+    } as Href;
+  },
 };

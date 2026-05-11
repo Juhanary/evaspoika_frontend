@@ -14,3 +14,17 @@ export type BoxLookup = {
 export function fetchBoxByEan(ean: string) {
   return apiRequest<BoxLookup>(`${endpoints.boxes}/by-ean/${encodeURIComponent(ean)}`);
 }
+
+export type ParsedEan = {
+  ean: string;
+  weight_kg: number;
+  weight_grams: number;
+  productId: number | null;
+  productName: string | null;
+  price_per_kg: number | null;
+  plu: string;
+};
+
+export function parseBoxEan(ean: string) {
+  return apiRequest<ParsedEan>(`${endpoints.boxes}/parse-ean/${encodeURIComponent(ean)}`);
+}

@@ -318,6 +318,7 @@ export const orderStyles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
+    
   },
   smCustomerPillText: {
     fontFamily: 'Montserrat_400Regular',

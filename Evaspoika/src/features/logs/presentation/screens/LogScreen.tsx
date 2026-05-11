@@ -18,8 +18,9 @@ import {
   useBatchLog,
 } from '@/src/features/batchEvents/presentation/hooks/useBatchEvents';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
-import { useOrders } from '@/src/features/orders/presentation/hooks/useOrders';
+import { useClosedOrders, useOrders } from '@/src/features/orders/presentation/hooks/useOrders';
 import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
+import { fetchOrderLines } from '@/src/features/orderLines/infrastructure/orderLinesApi';
 import { colors } from '@/src/shared/constants/colors';
 import { screen } from '@/src/shared/styles/screen';
 import { logModalStyles as modalStyles, logStyles as styles } from '@/src/shared/styles/logs';
@@ -29,6 +30,8 @@ import {
   ScreenLayout,
 } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { GRAMS_PER_KG } from '@/src/shared/utils/weight';
+import { useQuery } from '@tanstack/react-query';
+import { Order } from '@/src/features/orders/domain/types';
 
 type ModalTab = 'ALL' | 'SALE' | 'WEIGHING' | 'INVENTORY';
 type ScreenTab = 'CUSTOMERS' | 'BATCHES';
@@ -58,6 +61,22 @@ type CustomerGroup = {
   relatedBatchGroups: BatchGroup[];
 };
 
+type OrderGroup = {
+  orderId: number;
+  orderLabel: string;
+  orderDate?: string | null;
+  status?: string | null;
+  batchCount: number;
+  relatedBatchGroups: BatchGroup[];
+};
+
+type CustomerOrdersGroup = {
+  customerId: number;
+  customerName: string;
+  orderCount: number;
+  relatedOrders: OrderGroup[];
+};
+
 const UNKNOWN_PRODUCT_LABEL = 'Tuntematon tuote';
 
 const SCREEN_TABS: { key: ScreenTab; label: string }[] = [
@@ -75,7 +94,7 @@ const EVENT_META: Record<
   CREATE:    { label: 'Uusi erä luotu',      topic: 'BATCH' },
   WEIGHING:  { label: 'Punnitus',             topic: 'WEIGHING' },
   SALE:      { label: 'Myynti',               topic: 'SALE' },
-  RETURN:    { label: 'Palautus',             topic: 'SALE' },
+  RETURN:    { label: '',             topic: 'SALE' },
   INVENTORY: { label: 'Manuaalinen korjaus',  topic: 'INVENTORY' },
   EMPTY:     { label: 'Erä tyhjentyi',        topic: 'BATCH' },
   DELETE:    { label: 'Erä poistettu',        topic: 'BATCH' },
@@ -275,19 +294,23 @@ const mergeEvents = (primary: BatchLog[], secondary: BatchLog[]) => {
 
 type LogScreenProps = {
   leftAction?: ScreenLayoutLeftAction;
+  customerId?: number;
 };
 
-export default function LogScreen({ leftAction = 'home' }: LogScreenProps) {
+export default function LogScreen({ leftAction = 'home', customerId }: LogScreenProps) {
   const [query, setQuery] = useState('');
   const [screenTab, setScreenTab] = useState<ScreenTab>('CUSTOMERS');
   const [selectedBatch, setSelectedBatch] = useState<BatchGroup | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerGroup | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<OrderGroup | null>(null);
+  const [selectedOrderForLines, setSelectedOrderForLines] = useState<Order | null>(null);
   const [modalTab, setModalTab] = useState<ModalTab>('ALL');
   const deferredQuery = useDeferredValue(query);
   const { data: batches } = useBatches();
   const { data: deletedBatches } = useDeletedBatches();
   const { data: products } = useProducts();
   const { data: orders } = useOrders();
+  const { data: closedOrders } = useClosedOrders();
   const { data: customers } = useCustomers();
 
   const batchEventQueryParams = useMemo(
@@ -320,6 +343,26 @@ export default function LogScreen({ leftAction = 'home' }: LogScreenProps) {
     (customers ?? []).forEach((c) => map.set(c.id, c.name));
     return map;
   }, [customers]);
+
+  const customerOrdersMap = useMemo(() => {
+    const map = new Map<number, Order[]>();
+    (closedOrders ?? []).forEach((order) => {
+      if (order.deleted_at) return;
+      const custId = Number(order.customer_id ?? order.CustomerId);
+      if (!custId) return;
+      const existing = map.get(custId) ?? [];
+      existing.push(order);
+      map.set(custId, existing);
+    });
+    map.forEach((list) => {
+      list.sort((a, b) => {
+        const at = a.order_date ? Date.parse(a.order_date) : 0;
+        const bt = b.order_date ? Date.parse(b.order_date) : 0;
+        return bt - at || b.id - a.id;
+      });
+    });
+    return map;
+  }, [closedOrders]);
 
   const orderCustomerMap = useMemo(() => {
     const map = new Map<number, { id: number; name: string }>();
@@ -548,6 +591,44 @@ export default function LogScreen({ leftAction = 'home' }: LogScreenProps) {
     );
   }, [customerGroups, deferredQuery]);
 
+  const customerOrdersGroup = useMemo(() => {
+    if (!customerId) return null;
+
+    const customer = customers?.find((c) => c.id === customerId);
+    if (!customer) return null;
+
+    const customerOrdersByOrderId = new Map<number, OrderGroup>();
+
+    (orders ?? [])
+      .filter((order) => Number(order.customer_id ?? order.CustomerId) === customerId)
+      .forEach((order) => {
+        const key = `o:${order.id}`;
+        const orderBatches = batchGroups.filter((bg) =>
+          bg.events.some((evt) => evt.OrderLine?.OrderId === order.id)
+        );
+
+        customerOrdersByOrderId.set(order.id, {
+          orderId: order.id,
+          orderLabel: `Tilaus ${order.id}`,
+          orderDate: order.order_date,
+          status: order.status ?? order.netvisor_status,
+          batchCount: orderBatches.length,
+          relatedBatchGroups: orderBatches,
+        });
+      });
+
+    return {
+      customerId,
+      customerName: customer.name,
+      orderCount: customerOrdersByOrderId.size,
+      relatedOrders: Array.from(customerOrdersByOrderId.values()).sort((a, b) => {
+        const aTime = a.orderDate ? Date.parse(a.orderDate) : 0;
+        const bTime = b.orderDate ? Date.parse(b.orderDate) : 0;
+        return bTime - aTime || b.orderId - a.orderId;
+      }),
+    };
+  }, [customerId, orders, customers, batchGroups]);
+
   const resultCount = batchGroups.length;
 
   const selectedBatchEvents = useMemo(() => {
@@ -603,35 +684,88 @@ export default function LogScreen({ leftAction = 'home' }: LogScreenProps) {
         headerSearch={{
           value: query,
           onChangeText: setQuery,
-          placeholder: screenTab === 'CUSTOMERS'
-            ? 'Hae asiakasta...'
-            : 'Hae tuotetta, erää, tilausta tai tapahtumaa...',
+          placeholder:
+            customerId
+              ? 'Hae tilausta...'
+              : screenTab === 'CUSTOMERS'
+              ? 'Hae asiakasta...'
+              : 'Hae tuotetta, erää, tilausta tai tapahtumaa...',
         }}
         leftAction={leftAction}
-        title="LOKI"
+        title={customerId ? 'ASIAKKAAN TILAUKSET' : 'LOKI'}
       >
         <View style={screen.inner}>
-          <Text style={screen.sectionTitle}>LOKI</Text>
+          <Text style={screen.sectionTitle}>{customerId ? 'ASIAKKAAN TILAUKSET' : 'LOKI'}</Text>
           <View style={screen.divider} />
 
-          <View style={styles.screenTabRow}>
-            {SCREEN_TABS.map((tab) => {
-              const isActive = screenTab === tab.key;
-              return (
-                <Pressable
-                  key={tab.key}
-                  onPress={() => handleScreenTabChange(tab.key)}
-                  style={[styles.screenTab, isActive && styles.screenTabActive]}
-                >
-                  <Text style={[styles.screenTabText, isActive && styles.screenTabTextActive]}>
-                    {tab.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          {!customerId && (
+            <View style={styles.screenTabRow}>
+              {SCREEN_TABS.map((tab) => {
+                const isActive = screenTab === tab.key;
+                return (
+                  <Pressable
+                    key={tab.key}
+                    onPress={() => handleScreenTabChange(tab.key)}
+                    style={[styles.screenTab, isActive && styles.screenTabActive]}
+                  >
+                    <Text style={[styles.screenTabText, isActive && styles.screenTabTextActive]}>
+                      {tab.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
 
-          {screenTab === 'CUSTOMERS' ? (
+          {customerId && customerOrdersGroup ? (
+            <>
+              <Text style={styles.resultSummary}>
+                {customerOrdersGroup.orderCount} tilaus{customerOrdersGroup.orderCount !== 1 ? 'ta' : ''}
+              </Text>
+              <FlatList
+                contentContainerStyle={
+                  !customerOrdersGroup.relatedOrders.length ? styles.emptyListContent : undefined
+                }
+                data={customerOrdersGroup.relatedOrders}
+                keyExtractor={(item) => `o:${item.orderId}`}
+                keyboardShouldPersistTaps="handled"
+                ListEmptyComponent={
+                  <Text style={screen.muted}>Ei tilauksia.</Text>
+                }
+                renderItem={({ item, index }) => (
+                  <Pressable
+                    onPress={() => {
+                      setSelectedOrder(item);
+                      setModalTab('ALL');
+                    }}
+                    style={({ pressed }) => [
+                      styles.logItem,
+                      index === customerOrdersGroup.relatedOrders.length - 1 && styles.logItemLast,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <View style={styles.logItemContent}>
+                      <Text numberOfLines={1} style={styles.logItemTitle}>
+                        {item.orderLabel}
+                      </Text>
+                      <Text numberOfLines={1} style={styles.logItemSummary}>
+                        {item.status && formatDate(item.orderDate)}
+                        {item.status ? `  ·  ${item.status}` : ''}
+                      </Text>
+                      <View style={styles.logItemFooter}>
+                        <Text style={styles.logItemDescription}>
+                          {item.batchCount} erä{item.batchCount !== 1 ? 'a' : ''}
+                        </Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                )}
+                ItemSeparatorComponent={() => <View style={styles.separator} />}
+                showsVerticalScrollIndicator={false}
+                style={styles.list}
+              />
+            </>
+          ) : !customerId && screenTab === 'CUSTOMERS' ? (
             <>
               <Text style={styles.resultSummary}>{filteredCustomerGroups.length} asiakasta</Text>
               <FlatList
@@ -657,15 +791,6 @@ export default function LogScreen({ leftAction = 'home' }: LogScreenProps) {
                       <Text numberOfLines={1} style={styles.logItemTitle}>
                         {item.customerName}
                       </Text>
-                      <Text numberOfLines={1} style={styles.logItemSummary}>
-                        {item.lastEventLabel}
-                        {item.lastEventDate ? `  ·  ${formatDate(item.lastEventDate)}` : ''}
-                      </Text>
-                      <View style={styles.logItemFooter}>
-                        <Text style={styles.logItemDescription}>
-                          {item.batchCount} erää · {item.eventCount} tapahtumaa
-                        </Text>
-                      </View>
                     </View>
                   </Pressable>
                 )}
@@ -772,13 +897,25 @@ export default function LogScreen({ leftAction = 'home' }: LogScreenProps) {
         onRequestClose={() => setSelectedCustomer(null)}
       >
         {selectedCustomer ? (
-          <CustomerBatchesModalContent
+          <CustomerOrdersModalContent
             customerGroup={selectedCustomer}
+            orders={customerOrdersMap.get(selectedCustomer.customerId) ?? []}
             onClose={() => setSelectedCustomer(null)}
-            onSelectBatch={(batch) => {
-              setSelectedBatch(batch);
-              setModalTab('ALL');
-            }}
+            onSelectOrder={(order) => setSelectedOrderForLines(order)}
+          />
+        ) : null}
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={selectedOrderForLines !== null}
+        onRequestClose={() => setSelectedOrderForLines(null)}
+      >
+        {selectedOrderForLines ? (
+          <OrderLinesModalContent
+            order={selectedOrderForLines}
+            onClose={() => setSelectedOrderForLines(null)}
           />
         ) : null}
       </Modal>
@@ -804,18 +941,38 @@ export default function LogScreen({ leftAction = 'home' }: LogScreenProps) {
           />
         ) : null}
       </Modal>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={selectedOrder !== null}
+        onRequestClose={() => setSelectedOrder(null)}
+      >
+        {selectedOrder ? (
+          <OrderBatchesModalContent
+            orderGroup={selectedOrder}
+            onClose={() => setSelectedOrder(null)}
+            onSelectBatch={(batch) => {
+              setSelectedBatch(batch);
+              setModalTab('ALL');
+            }}
+          />
+        ) : null}
+      </Modal>
     </>
   );
 }
 
-const CustomerBatchesModalContent = ({
+const CustomerOrdersModalContent = ({
   customerGroup,
+  orders,
   onClose,
-  onSelectBatch,
+  onSelectOrder,
 }: {
   customerGroup: CustomerGroup;
+  orders: Order[];
   onClose: () => void;
-  onSelectBatch: (batch: BatchGroup) => void;
+  onSelectOrder: (order: Order) => void;
 }) => (
   <View style={modalStyles.overlay}>
     <Pressable onPress={onClose} style={modalStyles.backdrop} />
@@ -827,7 +984,7 @@ const CustomerBatchesModalContent = ({
             {customerGroup.customerName}
           </Text>
           <Text numberOfLines={1} style={modalStyles.subtitle}>
-            {customerGroup.batchCount} erää · {customerGroup.eventCount} tapahtumaa
+            {orders.length} tilaus{orders.length !== 1 ? 'ta' : ''}
           </Text>
         </View>
         <Pressable hitSlop={12} onPress={onClose}>
@@ -839,50 +996,125 @@ const CustomerBatchesModalContent = ({
 
       <FlatList
         contentContainerStyle={modalStyles.listContent}
-        data={customerGroup.relatedBatchGroups}
-        keyExtractor={(item) => item.batchKey}
+        data={orders}
+        keyExtractor={(item) => `o:${item.id}`}
         showsVerticalScrollIndicator={false}
         style={modalStyles.list}
         ListEmptyComponent={
-          <Text style={modalStyles.emptyText}>Ei eriä.</Text>
+          <Text style={modalStyles.emptyText}>Ei tilauksia.</Text>
         }
-        renderItem={({ item }) => {
-          const badgeText =
-            item.eventCount > 1
-              ? `${item.eventCount} tapahtumaa`
-              : item.eventCount === 1
-                ? '1 tapahtuma'
-                : item.isDeleted
-                  ? 'Poistettu erä'
-                  : 'Ei tapahtumia';
-
-          return (
-            <Pressable
-              onPress={() => onSelectBatch(item)}
-              style={({ pressed }) => [
-                modalStyles.batchItem,
-                item.isDeleted && modalStyles.batchItemDeleted,
-                pressed && { opacity: 0.7 },
-              ]}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={modalStyles.batchItemTitle}>{item.batchLabel}</Text>
+        renderItem={({ item }) => (
+          <Pressable
+            onPress={() => onSelectOrder(item)}
+            style={({ pressed }) => [
+              modalStyles.batchItem,
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={modalStyles.batchItemTitle}>
+                {formatDate(item.order_date) ?? 'Ei päivämäärää'}
+              </Text>
+              {(item.status ?? item.netvisor_status) ? (
                 <Text numberOfLines={1} style={modalStyles.batchItemSubtitle}>
-                  {[item.productName, item.lastEventLabel].filter(Boolean).join(' / ')}
+                  {item.status ?? item.netvisor_status}
                 </Text>
-                <Text style={modalStyles.batchItemMeta}>
-                  {badgeText}
-                  {item.lastEventDate ? `  ·  ${formatDate(item.lastEventDate) ?? ''}` : ''}
-                </Text>
-              </View>
-              <Ionicons color="rgba(255,255,255,0.45)" name="chevron-forward" size={18} />
-            </Pressable>
-          );
-        }}
+              ) : null}
+            </View>
+            <Ionicons color="rgba(255,255,255,0.45)" name="chevron-forward" size={18} />
+          </Pressable>
+        )}
       />
     </GlassCard>
   </View>
 );
+
+const OrderLinesModalContent = ({
+  order,
+  onClose,
+}: {
+  order: Order;
+  onClose: () => void;
+}) => {
+  const { data: lines, isLoading } = useQuery({
+    queryKey: ['orderLines', order.id],
+    queryFn: () => fetchOrderLines(order.id),
+  });
+
+  return (
+    <View style={modalStyles.overlay}>
+      <Pressable onPress={onClose} style={modalStyles.backdrop} />
+      <GlassCard blurRadius={24} style={modalStyles.card}>
+        <View style={modalStyles.header}>
+          <Ionicons color={colors.white} name="document-outline" size={26} />
+          <View style={modalStyles.headerTextWrap}>
+            <Text numberOfLines={1} style={modalStyles.title}>
+              {formatDate(order.order_date) ?? 'Tilaus'}
+            </Text>
+            {(order.status ?? order.netvisor_status) ? (
+              <Text numberOfLines={1} style={modalStyles.subtitle}>
+                {order.status ?? order.netvisor_status}
+              </Text>
+            ) : null}
+          </View>
+          <Pressable hitSlop={12} onPress={onClose}>
+            <Ionicons color={colors.white} name="close" size={26} />
+          </Pressable>
+        </View>
+
+        <View style={modalStyles.divider} />
+
+        <FlatList
+          contentContainerStyle={modalStyles.listContent}
+          data={(lines ?? []).filter((line) => !line.deleted_at)}
+          keyExtractor={(item) => String(item.id)}
+          showsVerticalScrollIndicator={false}
+          style={modalStyles.list}
+          ListEmptyComponent={
+            isLoading ? (
+              <Text style={modalStyles.emptyText}>Ladataan...</Text>
+            ) : (
+              <Text style={modalStyles.emptyText}>Ei tilausrivejä.</Text>
+            )
+          }
+          renderItem={({ item }) => {
+            const productName = item.Batch?.Product?.name ?? 'Tuntematon tuote';
+            const batchNumber = item.Batch?.batch_number
+              ? `Erä ${item.Batch.batch_number}`
+              : null;
+            const weightKg =
+              (item.sold_weight / GRAMS_PER_KG).toLocaleString('fi-FI', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 3,
+              }) + ' kg';
+            const pricePerKg = item.price_per_kg
+              ? `${item.price_per_kg.toLocaleString('fi-FI')} €/kg`
+              : item.price_per_gram
+                ? `${(item.price_per_gram * GRAMS_PER_KG).toLocaleString('fi-FI')} €/kg`
+                : null;
+
+            return (
+              <View style={modalStyles.batchItem}>
+                <View style={{ flex: 1 }}>
+                  <Text style={modalStyles.batchItemTitle}>{productName}</Text>
+                  {batchNumber ? (
+                    <Text numberOfLines={1} style={modalStyles.batchItemSubtitle}>
+                      {batchNumber}
+                    </Text>
+                  ) : null}
+                  <Text style={modalStyles.batchItemMeta}>
+                    {weightKg}
+                    {pricePerKg ? `  ·  ${pricePerKg}` : ''}
+                  </Text>
+                </View>
+              </View>
+            );
+          }}
+        />
+      </GlassCard>
+    </View>
+  );
+};
 
 const BatchEventsModalContent = ({
   activeTab,
@@ -1043,3 +1275,78 @@ const BatchEventsModalContent = ({
   );
 };
 
+const OrderBatchesModalContent = ({
+  orderGroup,
+  onClose,
+  onSelectBatch,
+}: {
+  orderGroup: OrderGroup;
+  onClose: () => void;
+  onSelectBatch: (batch: BatchGroup) => void;
+}) => (
+  <View style={modalStyles.overlay}>
+    <Pressable onPress={onClose} style={modalStyles.backdrop} />
+    <GlassCard blurRadius={24} style={modalStyles.card}>
+      <View style={modalStyles.header}>
+        <Ionicons color={colors.white} name="document-outline" size={26} />
+        <View style={modalStyles.headerTextWrap}>
+          <Text numberOfLines={1} style={modalStyles.title}>
+            {orderGroup.orderLabel}
+          </Text>
+          <Text numberOfLines={1} style={modalStyles.subtitle}>
+            {orderGroup.batchCount} erä{orderGroup.batchCount !== 1 ? 'a' : ''}
+          </Text>
+        </View>
+        <Pressable hitSlop={12} onPress={onClose}>
+          <Ionicons color={colors.white} name="close" size={26} />
+        </Pressable>
+      </View>
+
+      <View style={modalStyles.divider} />
+
+      <FlatList
+        contentContainerStyle={modalStyles.listContent}
+        data={orderGroup.relatedBatchGroups}
+        keyExtractor={(item) => item.batchKey}
+        showsVerticalScrollIndicator={false}
+        style={modalStyles.list}
+        ListEmptyComponent={
+          <Text style={modalStyles.emptyText}>Ei eriä.</Text>
+        }
+        renderItem={({ item }) => {
+          const badgeText =
+            item.eventCount > 1
+              ? `${item.eventCount} tapahtumaa`
+              : item.eventCount === 1
+                ? '1 tapahtuma'
+                : item.isDeleted
+                  ? 'Poistettu erä'
+                  : 'Ei tapahtumia';
+
+          return (
+            <Pressable
+              onPress={() => onSelectBatch(item)}
+              style={({ pressed }) => [
+                modalStyles.batchItem,
+                item.isDeleted && modalStyles.batchItemDeleted,
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={modalStyles.batchItemTitle}>{item.batchLabel}</Text>
+                <Text numberOfLines={1} style={modalStyles.batchItemSubtitle}>
+                  {[item.productName, item.lastEventLabel].filter(Boolean).join(' / ')}
+                </Text>
+                <Text style={modalStyles.batchItemMeta}>
+                  {badgeText}
+                  {item.lastEventDate ? `  ·  ${formatDate(item.lastEventDate) ?? ''}` : ''}
+                </Text>
+              </View>
+              <Ionicons color="rgba(255,255,255,0.45)" name="chevron-forward" size={18} />
+            </Pressable>
+          );
+        }}
+      />
+    </GlassCard>
+  </View>
+);

@@ -182,15 +182,7 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
     ? { value: productQuery, onChangeText: setProductQuery, placeholder: 'Hae tuotetta...' }
     : undefined;
 
-  const rightActions: AppHeaderAction[] = productId
-    ? [
-        {
-          icon: collapsed ? 'chevron-down' : 'chevron-up',
-          onPress: () => setCollapsed((c) => !c),
-          accessibilityLabel: collapsed ? 'Avaa lista' : 'Piilota lista',
-        },
-      ]
-    : [];
+
 
   const adjustBatch = adjusting
     ? (batches ?? []).find((b) => b.id === adjusting.batchId) ?? null
@@ -199,8 +191,8 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
   return (
     <ScreenLayout
       headerSearch={headerSearch}
-      leftAction="back"
-      rightActions={rightActions}
+      //leftAction="back"
+   
       title={headerTitle}
     >
       {!productId ? (
@@ -227,8 +219,8 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
         </View>
       ) : (
         <View style={{ flex: 1 }}>
-          {!collapsed ? (
-            <>
+         
+            
               <Text style={batchStyles.blColHeader}>Erä</Text>
               <FlatList
                 data={filteredBatches}
@@ -285,53 +277,10 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
                 }}
                 style={components.flex1}
               />
-            </>
-          ) : (
-            <View style={[{ flex: 1 }, screen.centered]}>
-              <Text style={screen.muted}>Lista piilotettu.</Text>
-            </View>
-          )}
+            
+         
 
-          {archivedBatches.length > 0 ? (
-            <View>
-              <TouchableOpacity
-                onPress={() => setShowArchive((v) => !v)}
-                style={batchStyles.blArchiveHeader}
-              >
-                <Text style={batchStyles.blArchiveHeaderText}>
-                  Arkisto ({archivedBatches.length})
-                </Text>
-                <Ionicons
-                  color="rgba(255,255,255,0.5)"
-                  name={showArchive ? 'chevron-up' : 'chevron-down'}
-                  size={18}
-                />
-              </TouchableOpacity>
-
-              {showArchive ? archivedBatches.map((batch) => {
-                const dateLabel = toFinnishDate(batch.production_date) ?? batch.batch_number;
-                const deletedLabel = toFinnishDate(batch.deleted_at);
-                return (
-                  <TouchableOpacity
-                    key={batch.id}
-                    onPress={() => router.push(routes.inventoryBatch(batch.id, batch.batch_number))}
-                    style={batchStyles.blArchiveRow}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={batchStyles.blArchiveLabel}>{dateLabel}</Text>
-                      {deletedLabel ? (
-                        <Text style={batchStyles.blArchiveSub}>Poistettu {deletedLabel}</Text>
-                      ) : null}
-                    </View>
-                    <Text style={batchStyles.blArchiveWeight}>
-                      {formatKg(batch.initial_weight)} kg
-                    </Text>
-                    <Ionicons color="rgba(255,255,255,0.35)" name="chevron-forward" size={16} />
-                  </TouchableOpacity>
-                );
-              }) : null}
-            </View>
-          ) : null}
+     
 
           <View style={batchStyles.blFooter}>
             <TouchableOpacity
@@ -414,7 +363,11 @@ const adjStyles = {
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center' as const,
     alignItems: 'center' as const,},
+    
   card: {
+    maxWidth: 400,
+    minWidth: 400,
+    maxHeight: '90%' as `${number}%`,
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,

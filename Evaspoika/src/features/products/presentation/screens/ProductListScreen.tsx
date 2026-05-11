@@ -1,18 +1,48 @@
-import React, { useMemo, useState } from 'react';
-import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useRef, useMemo, useState, useCallback } from 'react';
+import {
+  Alert,
+  Modal,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import {
+  FlatList,
+  GestureDetector,
+  Gesture,
+  ScrollView,
+} from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
 import { Batch } from '@/src/features/batches/domain/types';
 import { fetchBatchEvents } from '@/src/features/batchEvents/infrastructure/batchEventsApi';
+import { parseBoxEan } from '@/src/features/boxes/infrastructure/boxesApi';
+import { submitWeighing } from '@/src/features/weighing/infrastructure/weighingApi';
 import { routes } from '@/src/shared/navigation/routes';
+import { colors } from '@/src/shared/constants/colors';
 import { components } from '@/src/shared/styles/components';
+import { orderStyles } from '@/src/shared/styles/orders';
 import { screen } from '@/src/shared/styles/screen';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { formatKg } from '@/src/shared/utils/weight';
 import { Product } from '../../domain/types';
 import { useProducts } from '../hooks/useProducts';
+import {
+  useProductConfig,
+  FIXED_CATEGORIES,
+  CategoryId,
+  ProductConfig,
+} from '../hooks/useProductConfig';
+
+const ITEM_HEIGHT = 66;
+const ALL_PRODUCTS_ORDER_KEY = '__all__';
 
 type ProductRow = {
   product: Product;
@@ -20,6 +50,57 @@ type ProductRow = {
   totalWeight: number;
   boxCount: number;
 };
+
+type PendingBox = {
+  id: string;
+  ean: string;
+  productId: number | null;
+  productName: string;
+  weightKg: number;
+};
+
+// ─── Drag handle ─────────────────────────────────────────────────────────────
+
+type DragHandleProps = {
+  index: number;
+  active: boolean;
+  onDragStart: (index: number) => void;
+  onDragUpdate: (translationY: number) => void;
+  onDragEnd: () => void;
+};
+
+const DragHandle = React.memo(function DragHandle({
+  index, active, onDragStart, onDragUpdate, onDragEnd,
+}: DragHandleProps) {
+  const gesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .activateAfterLongPress(250)
+        .onBegin(() => { runOnJS(onDragStart)(index); })
+        .onUpdate((e) => { runOnJS(onDragUpdate)(e.translationY); })
+        .onFinalize(() => { runOnJS(onDragEnd)(); }),
+    [index, onDragStart, onDragUpdate, onDragEnd],
+  );
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <View style={dragStyles.handle}>
+        <Ionicons
+          color={active ? colors.danger : colors.white}
+          name="reorder-three"
+          size={30}
+        />
+      </View>
+    </GestureDetector>
+  );
+});
+
+const dragStyles = StyleSheet.create({
+  handle: { paddingHorizontal: 6, paddingVertical: 4, justifyContent: 'center' },
+  dropLine: { height: 4, borderRadius: 1, backgroundColor: colors.danger, marginVertical: 1 },
+});
+
+// ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function ProductListScreen() {
   const router = useRouter();
@@ -29,8 +110,29 @@ export default function ProductListScreen() {
     queryKey: ['batchEvents', 'inventory'],
     queryFn: () => fetchBatchEvents({ types: 'WEIGHING,CREATE', limit: 9999 }),
   });
+  const {
+    config,
+    MAX_FAVORITES,
+    toggleFavorite,
+    assignCategory,
+    reorderFavorites,
+    setProductCategoryOrder,
+  } = useProductConfig();
+
   const [query, setQuery] = useState('');
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [favExpandedId, setFavExpandedId] = useState<number | null>(null);
+  const [catExpandedId, setCatExpandedId] = useState<number | null>(null);
+  const [showAddBoxesModal, setShowAddBoxesModal] = useState(false);
+  const [configTargetId, setConfigTargetId] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<CategoryId | null>(null);
+
+  // Favorites drag state
+  const [favDragFrom, setFavDragFrom] = useState<number | null>(null);
+  const [favDragTo, setFavDragTo] = useState<number | null>(null);
+
+  // Category list drag state
+  const [catDragFrom, setCatDragFrom] = useState<number | null>(null);
+  const [catDragTo, setCatDragTo] = useState<number | null>(null);
 
   const boxesByBatchId = useMemo(() => {
     const map = new Map<number, number>();
@@ -60,10 +162,7 @@ export default function ProductListScreen() {
     const normalizedQuery = query.trim().toLowerCase();
 
     return (products ?? [])
-      .filter(
-        (product) =>
-          !normalizedQuery || product.name.toLowerCase().includes(normalizedQuery),
-      )
+      .filter((product) => !normalizedQuery || product.name.toLowerCase().includes(normalizedQuery))
       .map((product) => ({
         product,
         batchCount: weightMap.get(product.id)?.count ?? 0,
@@ -74,7 +173,6 @@ export default function ProductListScreen() {
 
   const batchesByProduct = useMemo(() => {
     const map = new Map<number, Batch[]>();
-
     (batches ?? [])
       .filter((b) => !b.deleted_at && b.ProductId)
       .forEach((b) => {
@@ -82,157 +180,764 @@ export default function ProductListScreen() {
         list.push(b);
         map.set(b.ProductId!, list);
       });
-
     return map;
   }, [batches]);
 
-  return (
-    <ScreenLayout
-      headerSearch={{
-        value: query,
-        onChangeText: setQuery,
-        placeholder: 'Hae tuotetta...',
-      }}
-      title="VARASTO"
-    >
-      <View style={screen.innerSm}>
-        <View style={screen.columnHeaderRow}>
-          <Text style={screen.columnHeaderText}>Paino / Laatikoita</Text>
-        </View>
+  // Maintain favorites in config.favorites order
+  const favoriteRows = useMemo(
+    () =>
+      config.favorites
+        .map((id) => rows.find((r) => r.product.id === id))
+        .filter((r): r is ProductRow => r !== undefined),
+    [rows, config.favorites],
+  );
 
-        {productsError ? (
-          <Text style={screen.muted}>Virhe: {String(productsError)}</Text>
-        ) : batchesError ? (
-          <Text style={screen.muted}>Virhe: {String(batchesError)}</Text>
-        ) : isLoading ? (
-          <Text style={screen.muted}>Ladataan...</Text>
-        ) : (
-          <FlatList
-            contentContainerStyle={{ paddingBottom: 8 }}
-            data={rows}
-            ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-            keyExtractor={(row) => String(row.product.id)}
-            ListEmptyComponent={<Text style={screen.muted}>Ei tuotteita.</Text>}
-            renderItem={({ item }) => {
-              const isExpanded = expandedId === item.product.id;
-              const productBatches = batchesByProduct.get(item.product.id) ?? [];
+  // Category list ordered by stored productOrder
+  const displayRows = useMemo<ProductRow[]>(() => {
+    if (query.trim()) return rows;
+    if (selectedCategory) {
+      const catRows = rows.filter(
+        (r) => config.assignments[String(r.product.id)] === selectedCategory,
+      );
+      const order = config.productOrder?.[selectedCategory] ?? [];
+      if (!order.length) return catRows;
+      return [...catRows].sort((a, b) => {
+        const ai = order.indexOf(a.product.id);
+        const bi = order.indexOf(b.product.id);
+        return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
+      });
+    }
+    const order = config.productOrder?.[ALL_PRODUCTS_ORDER_KEY] ?? [];
+    if (!order.length) return rows;
+    return [...rows].sort((a, b) => {
+      const ai = order.indexOf(a.product.id);
+      const bi = order.indexOf(b.product.id);
+      return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
+    });
+  }, [rows, config, query, selectedCategory]);
 
-              return (
-                <View style={components.invPillRow}>
-                  <View style={{ flex: 1 }}>
-                    <Pressable
-                      onPress={() =>
-                        setExpandedId((prev) =>
-                          prev === item.product.id ? null : item.product.id,
-                        )
-                      }
-                      style={({ pressed }) => [
-                        components.invPillLeft,
-                        isExpanded && components.invPillLeftExpanded,
-                        pressed && screen.pressed,
-                      ]}
-                    >
-                      <Text numberOfLines={1} style={[components.invPillLeftText, { flex: 1 }]}>
-                        {item.product.name}
-                      </Text>
-                      {!item.product.netvisor_key ? (
-                        <Ionicons
-                          color="rgba(255,165,0,0.85)"
-                          name="cloud-offline-outline"
-                          size={16}
-                          style={{ marginRight: 4 }}
-                        />
-                      ) : null}
-                      <Ionicons
-                        color="rgba(0,0,0,0.45)"
-                        name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                        size={20}
-                      />
-                    </Pressable>
+  const configTarget = useMemo(
+    () => rows.find((r) => r.product.id === configTargetId) ?? null,
+    [rows, configTargetId],
+  );
 
-                    {isExpanded ? (
-                      <View style={components.invDropdown}>
-                        {productBatches.length === 0 ? (
-                          <Text style={components.invDropdownLabel}>Ei eriä.</Text>
-                        ) : (
-                          <ScrollView
-                            nestedScrollEnabled
-                            showsVerticalScrollIndicator={false}
-                            style={{ maxHeight: 200 }}
-                          >
-                            {productBatches.map((batch) => {
-                              const batchBoxCount = boxesByBatchId.get(batch.id) ?? 0;
-                              return (
-                                <View key={batch.id}>
-                                  <View style={components.invDropdownRow}>
-                                    <Text style={[components.invDropdownLabel, { flex: 1 }]}>
-                                      {batch.batch_number}
-                                    </Text>
-                                    <Text style={[components.invDropdownLabel, { minWidth: 48, textAlign: 'right' }]}>
-                                      {batchBoxCount} laatikkoa
-                                    </Text>
-                                    <Text style={[components.invDropdownWeight, { minWidth: 80, textAlign: 'right' }]}>
-                                      {formatKg(batch.current_weight)} kg
-                                    </Text>
-                                  </View>
-                                </View>
-                              );
-                            })}
-                          </ScrollView>
-                        )}
-                        <View style={components.invDropdownDivider} />
-                        <View style={[components.invDropdownRow, { gap: 6 }]}>
-                          <Text style={[components.invDropdownLabelYhteensa, { flex: 1 }]}>Yhteensä</Text>
-                                <Text style={[components.invDropdownLabel, { minWidth: 48, textAlign: 'right', fontSize: 20 }]}>
-                            {item.batchCount} erää
+  const activeCatLabel = useMemo(() => {
+    if (query.trim()) return null;
+    if (selectedCategory) return FIXED_CATEGORIES.find((c) => c.id === selectedCategory)?.name ?? null;
+    return null;
+  }, [selectedCategory, query]);
+
+  // ── Favorites drag callbacks ────────────────────────────────────────────────
+
+  const onFavDragStart = useCallback((index: number) => {
+    setFavDragFrom(index);
+    setFavDragTo(index);
+  }, []);
+
+  const onFavDragUpdate = useCallback((translationY: number) => {
+    setFavDragFrom((from) => {
+      if (from === null) return from;
+      const steps = Math.round(translationY / ITEM_HEIGHT);
+      setFavDragTo(Math.max(0, Math.min(favoriteRows.length - 1, from + steps)));
+      return from;
+    });
+  }, [favoriteRows.length]);
+
+  const onFavDragEnd = useCallback(() => {
+    setFavDragFrom((from) => {
+      setFavDragTo((to) => {
+        if (from !== null && to !== null && from !== to) {
+          const ids = favoriteRows.map((r) => r.product.id);
+          const [removed] = ids.splice(from, 1);
+          ids.splice(to, 0, removed);
+          reorderFavorites(ids);
+        }
+        return null;
+      });
+      return null;
+    });
+  }, [favoriteRows, reorderFavorites]);
+
+  // ── Category drag callbacks ─────────────────────────────────────────────────
+
+  const onCatDragStart = useCallback((index: number) => {
+    setCatDragFrom(index);
+    setCatDragTo(index);
+  }, []);
+
+  const onCatDragUpdate = useCallback((translationY: number) => {
+    setCatDragFrom((from) => {
+      if (from === null) return from;
+      const steps = Math.round(translationY / (ITEM_HEIGHT + 12));
+      setCatDragTo(Math.max(0, Math.min(displayRows.length - 1, from + steps)));
+      return from;
+    });
+  }, [displayRows.length]);
+
+  const onCatDragEnd = useCallback(() => {
+    setCatDragFrom((from) => {
+      setCatDragTo((to) => {
+        if (from !== null && to !== null && from !== to) {
+          const ids = displayRows.map((r) => r.product.id);
+          const [removed] = ids.splice(from, 1);
+          ids.splice(to, 0, removed);
+          setProductCategoryOrder(selectedCategory ?? ALL_PRODUCTS_ORDER_KEY, ids);
+        }
+        return null;
+      });
+      return null;
+    });
+  }, [displayRows, selectedCategory, setProductCategoryOrder]);
+
+  // ── Row renderer ────────────────────────────────────────────────────────────
+
+  const renderProductRow = (
+    item: ProductRow,
+    expandedId: number | null,
+    setExpandedId: React.Dispatch<React.SetStateAction<number | null>>,
+    dragHandle?: React.ReactNode,
+  ) => {
+    const isExpanded = expandedId === item.product.id;
+    const productBatches = batchesByProduct.get(item.product.id) ?? [];
+    const isFav = config.favorites.includes(item.product.id);
+
+    return (
+      <View style={components.invPillRow}>
+        {dragHandle}
+        <View style={{ flex: 1, }}>
+          <Pressable
+            onLongPress={() => setConfigTargetId(item.product.id)}
+            onPress={() =>
+              setExpandedId((prev) => (prev === item.product.id ? null : item.product.id))
+            }
+            style={({ pressed }) => [
+              components.invPillLeft,
+              isExpanded && components.invPillLeftExpanded,
+              pressed && screen.pressed,
+            ]}
+          >
+            <Text numberOfLines={1} style={[components.invPillLeftText, { flex: 1 }]}>
+              {item.product.name}
+            </Text>
+            {isFav ? (
+              <Ionicons color="#f5a623" name="star" size={13} style={{ marginRight: 4 }} />
+            ) : null}
+            {!item.product.netvisor_key ? (
+              <Ionicons
+                color="rgba(255,165,0,0.85)"
+                name="cloud-offline-outline"
+                size={16}
+                style={{ marginRight: 4 }}
+              />
+            ) : null}
+            <Ionicons
+              color="rgba(0,0,0,0.45)"
+              name={isExpanded ? 'chevron-up' : 'chevron-down'}
+              size={20}
+            />
+          </Pressable>
+
+          {isExpanded ? (
+            <View style={components.invDropdown}>
+              {productBatches.length === 0 ? (
+                <Text style={components.invDropdownLabel}>Ei eriä.</Text>
+              ) : (
+                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: 200 }}>
+                  {productBatches.map((batch) => {
+                    const batchBoxCount = boxesByBatchId.get(batch.id) ?? 0;
+                    const daysLeft = batch.days_until_expiry ?? null;
+                    const isExpiring = daysLeft !== null && daysLeft <= 100;
+                    const isOld = !isExpiring && daysLeft !== null && daysLeft <= 200;
+                    return (
+                      <View key={batch.id}>
+                        <View style={components.invDropdownRow}>
+                          <Text style={[components.invDropdownLabel, { flex: 1 }]}>
+                            {batch.batch_number}
                           </Text>
-                          <Text style={[components.invDropdownLabel, { minWidth: 48, textAlign: 'right', fontSize: 20 }]}>
-                            {item.boxCount} laatikkoa
+                          {isExpiring ? (
+                            <Ionicons
+                              color={colors.danger}
+                              name="alert-circle"
+                              size={14}
+                              style={{ marginRight: 2 }}
+                            />
+                          ) : isOld ? (
+                            <Ionicons
+                              color={colors.warning}
+                              name="time-outline"
+                              size={14}
+                              style={{ marginRight: 2 }}
+                            />
+                          ) : null}
+                          <Text style={[components.invDropdownLabel, { minWidth: 48, textAlign: 'right' }]}>
+                            {batchBoxCount} laatikkoa
                           </Text>
-                          <Text style={[components.invDropdownWeight, { minWidth: 80, textAlign: 'right', fontSize: 20 }]}>
-                            {formatKg(item.totalWeight)} kg
+                          <Text style={[components.invDropdownWeight, { minWidth: 80, textAlign: 'right' }]}>
+                            {formatKg(batch.current_weight)} kg
                           </Text>
                         </View>
-
-                        <Pressable
-                          onPress={() => router.push(routes.inventoryProduct(item.product.id))}
-                          style={({ pressed }) => [
-                            components.invDropdownBtn,
-                            pressed && screen.pressed,
-                          ]}
-                        >
-                          <Text style={components.invDropdownBtnText}>MUOKKAA ERIÄ</Text>
-                        </Pressable>
-                        {!item.product.netvisor_key ? (
-                          <Text style={{
-                            textAlign: 'center',
-                            fontSize: 11,
-                            color: 'rgba(200,120,0,0.9)',
-                            marginTop: 6,
-                            fontFamily: 'Montserrat_400Regular',
-                          }}>
-                            Ei vahvistettu Netvisorissa
-                          </Text>
-                        ) : null}
                       </View>
-                    ) : null}
-                  </View>
+                    );
+                  })}
+                </ScrollView>
+              )}
+              <View style={components.invDropdownDivider} />
+              <View style={[components.invDropdownRow, { gap: 6 }]}>
+                <Text style={[components.invDropdownLabelYhteensa, { flex: 1 }]}>Yhteensä</Text>
+                <Text style={[components.invDropdownLabel, { minWidth: 48, textAlign: 'right', fontSize: 20 }]}>
+                  {item.batchCount} erää
+                </Text>
+                <Text style={[components.invDropdownLabel, { minWidth: 48, textAlign: 'right', fontSize: 20 }]}>
+                  {item.boxCount} laatikkoa
+                </Text>
+                <Text style={[components.invDropdownWeight, { minWidth: 80, textAlign: 'right', fontSize: 20 }]}>
+                  {formatKg(item.totalWeight)} kg
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => router.push(routes.inventoryProduct(item.product.id))}
+                style={({ pressed }) => [components.invDropdownBtn, pressed && screen.pressed]}
+              >
+                <Text style={components.invDropdownBtnText}>MUOKKAA ERIÄ</Text>
+              </Pressable>
+              {!item.product.netvisor_key ? (
+                <Text style={{
+                  textAlign: 'center', fontSize: 11,
+                  color: 'rgba(200,120,0,0.9)', marginTop: 6,
+                  fontFamily: 'Montserrat_400Regular',
+                }}>
+                  Ei vahvistettu Netvisorissa
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
 
-                  <View style={components.invPillRight}>
-                    <Text style={components.invPillWeight}>
-                      {formatKg(item.totalWeight)} kg
-                    </Text>
-                    <View style={components.invPillDivider} />
-                    <Text style={components.invPillCount}>{item.boxCount}</Text>
-                  </View>
-                </View>
-              );
-            }}
-            showsVerticalScrollIndicator={false}
-            style={{ flex: 1 }}
-          />
-        )}
+        <View style={components.invPillRight}>
+          <Text style={components.invPillWeight}>{formatKg(item.totalWeight)} kg</Text>
+          <View style={components.invPillDivider} />
+          <Text style={components.invPillCount}>{item.boxCount}</Text>
+        </View>
       </View>
-    </ScreenLayout>
+    );
+  };
+
+  const sectionLabel = (title: string) => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, flex: 1 }}>
+      <Text style={{ fontSize: 16, fontFamily: 'Montserrat_700Bold', color: 'rgba(240, 228, 228, 0.82)', letterSpacing: 1.2 }}>
+        {title}
+      </Text>
+      <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.08)', marginLeft: 8 }} />
+    </View>
+  );
+
+  const listHeader = (
+    <View>
+      {/* Favorites — above category cards */}
+      {!query.trim() && favoriteRows.length > 0 ? (
+        <View style={{ marginBottom: 10 }}>
+          {sectionLabel('★  SUOSIKIT')}
+          {favoriteRows.map((row, index) => {
+            const isDragging = favDragFrom === index;
+            const dropAbove = favDragTo === index && favDragFrom !== null && favDragTo < favDragFrom;
+            const dropBelow = favDragTo === index && favDragFrom !== null && favDragTo > favDragFrom;
+            return (
+              <View key={`fav-${row.product.id}`} style={{ opacity: isDragging ? 0.4 : 1 }}>
+                {dropAbove && <View style={dragStyles.dropLine} />}
+                {renderProductRow(row, favExpandedId, setFavExpandedId, (
+                  <DragHandle
+                    active={isDragging}
+                    index={index}
+                    onDragEnd={onFavDragEnd}
+                    onDragStart={onFavDragStart}
+                    onDragUpdate={onFavDragUpdate}
+                  />
+                ))}
+                {dropBelow && <View style={dragStyles.dropLine} />}
+                {index < favoriteRows.length - 1 ? <View style={{ height: 12 }} /> : null}
+              </View>
+            );
+          })}
+        </View>
+      ) : null}
+
+      {/* Category cards */}
+      <View style={{ flexDirection: 'row', gap: 20, marginTop: 50, marginBottom: 24, flex: 1, justifyContent: 'center' }}>
+        {FIXED_CATEGORIES.map((cat) => {
+          const isSelected = selectedCategory === cat.id;
+          return (
+            <Pressable
+              key={cat.id}
+              onPress={() => setSelectedCategory(isSelected ? null : cat.id)}
+              style={({ pressed }) => [{
+                alignContent: 'center',
+                height: 68,
+                width: 68,
+                backgroundColor: isSelected ? 'rgba(0,0,0,0.11)' : 'rgba(255,255,255,0.78)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: isSelected ? 1.5 : 1,
+                borderColor: isSelected ? 'rgba(0,0,0,0.22)' : 'rgba(0,0,0,0.09)',
+                borderRadius: 68,
+                marginLeft: 40,
+                marginRight: 40,
+              }, pressed && screen.pressed]}
+            >
+              <View style={{ width: 28, height: 28, borderRadius: 6, backgroundColor: 'rgba(0,0,0,0.07)', marginBottom: 5 }} />
+              <Text style={{ fontFamily: 'Montserrat_600SemiBold', fontSize: 10, color: isSelected ? 'rgba(0,0,0,0.82)' : 'rgba(0,0,0,0.5)', letterSpacing: 0.6 }}>
+                {cat.name.toUpperCase()}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Section label for selected category */}
+      {!query.trim() && activeCatLabel ? sectionLabel(activeCatLabel.toUpperCase()) : null}
+    </View>
+  );
+
+  const emptyText = useMemo(() => {
+    if (query.trim()) return 'Ei tuotteita.';
+    if (selectedCategory) return 'Ei tuotteita tässä kategoriassa. Lisää pitkällä painalluksella.';
+    return null;
+  }, [query, selectedCategory]);
+
+  const showCatDragHandles = !query.trim();
+
+  return (
+    <>
+      <ScreenLayout
+        headerSearch={{ value: query, onChangeText: setQuery, placeholder: 'Hae tuotetta...' }}
+        title="VARASTO"
+      >
+        <View style={screen.innerSm}>
+          <View style={screen.columnHeaderRow}>
+            <Text style={screen.columnHeaderText}>Paino / Laatikoita</Text>
+            <Pressable
+              onPress={() => setShowAddBoxesModal(true)}
+              style={({ pressed }) => [components.invAddBoxBtn, pressed && screen.pressed]}
+            >
+              <Ionicons color="rgba(0,0,0,0.7)" name="add" size={16} />
+              <Text style={components.invAddBoxBtnText}>Lisää laatikoita</Text>
+            </Pressable>
+          </View>
+
+          {productsError ? (
+            <Text style={screen.muted}>Virhe: {String(productsError)}</Text>
+          ) : batchesError ? (
+            <Text style={screen.muted}>Virhe: {String(batchesError)}</Text>
+          ) : isLoading ? (
+            <Text style={screen.muted}>Ladataan...</Text>
+          ) : (
+            <FlatList
+              contentContainerStyle={{ paddingBottom: 8 }}
+              data={displayRows}
+              ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+              keyExtractor={(row) => String(row.product.id)}
+              ListEmptyComponent={emptyText ? <Text style={screen.muted}>{emptyText}</Text> : null}
+              ListHeaderComponent={listHeader}
+              renderItem={({ item, index }) => {
+                const isDragging = catDragFrom === index;
+                const dropAbove = catDragTo === index && catDragFrom !== null && catDragTo < catDragFrom;
+                const dropBelow = catDragTo === index && catDragFrom !== null && catDragTo > catDragFrom;
+                return (
+                  <View style={{ opacity: isDragging ? 0.4 : 1 }}>
+                    {dropAbove && <View style={dragStyles.dropLine} />}
+                    {renderProductRow(item, catExpandedId, setCatExpandedId, showCatDragHandles ? (
+                      <DragHandle
+                        active={isDragging}
+                        index={index}
+                        onDragEnd={onCatDragEnd}
+                        onDragStart={onCatDragStart}
+                        onDragUpdate={onCatDragUpdate}
+                      />
+                    ) : undefined)}
+                    {dropBelow && <View style={dragStyles.dropLine} />}
+                  </View>
+                );
+              }}
+              showsVerticalScrollIndicator={false}
+              style={{ flex: 1 }}
+            />
+          )}
+        </View>
+      </ScreenLayout>
+
+      <Modal animationType="fade" onRequestClose={() => {}} transparent visible={showAddBoxesModal}>
+        <AddBoxesModal onClose={() => setShowAddBoxesModal(false)} products={products ?? []} />
+      </Modal>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setConfigTargetId(null)}
+        transparent
+        visible={configTarget !== null}
+      >
+        {configTarget ? (
+          <ProductConfigModal
+            config={config}
+            maxFavorites={MAX_FAVORITES}
+            onAssignCategory={(catId) => assignCategory(configTarget.product.id, catId)}
+            onClose={() => setConfigTargetId(null)}
+            onToggleFavorite={() => toggleFavorite(configTarget.product.id)}
+            row={configTarget}
+          />
+        ) : null}
+      </Modal>
+    </>
   );
 }
+
+// ─── Product config modal ────────────────────────────────────────────────────
+
+const ProductConfigModal = ({
+  row,
+  config,
+  maxFavorites,
+  onToggleFavorite,
+  onAssignCategory,
+  onClose,
+}: {
+  row: ProductRow;
+  config: ProductConfig;
+  maxFavorites: number;
+  onToggleFavorite: () => void;
+  onAssignCategory: (categoryId: CategoryId | null) => void;
+  onClose: () => void;
+}) => {
+  const isFav = config.favorites.includes(row.product.id);
+  const currentCatId = (config.assignments[String(row.product.id)] ?? null) as CategoryId | null;
+
+  return (
+    <View style={components.modalOverlay}>
+      <View style={components.modalCard}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+          <Text numberOfLines={1} style={[components.modalTitle, { flex: 1, marginBottom: 0 }]}>
+            {row.product.name}
+          </Text>
+          <Pressable hitSlop={10} onPress={onClose}>
+            <Ionicons color="rgba(0,0,0,0.4)" name="close" size={24} />
+          </Pressable>
+        </View>
+
+        <TouchableOpacity
+          onPress={() => {
+            if (!isFav && config.favorites.length >= maxFavorites) {
+              Alert.alert('Suosikkeja täynnä', `Suosikkeja voi olla enintään ${maxFavorites}.`);
+              return;
+            }
+            onToggleFavorite();
+          }}
+          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}
+        >
+          <Ionicons
+            color={isFav ? '#f5a623' : 'rgba(0,0,0,0.35)'}
+            name={isFav ? 'star' : 'star-outline'}
+            size={22}
+          />
+          <Text style={{
+            marginLeft: 10, fontSize: 15,
+            fontFamily: 'Montserrat_600SemiBold',
+            color: isFav ? '#f5a623' : 'rgba(0,0,0,0.65)',
+          }}>
+            {isFav ? 'Poista suosikeista' : 'Lisää suosikkeihin'}
+          </Text>
+        </TouchableOpacity>
+
+        <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.08)', marginVertical: 10 }} />
+
+        <Text style={{
+          fontSize: 11, fontFamily: 'Montserrat_700Bold',
+          color: 'rgba(0,0,0,0.35)', letterSpacing: 1.2, marginBottom: 6,
+        }}>
+          KATEGORIA
+        </Text>
+
+        <TouchableOpacity
+          onPress={() => onAssignCategory(null)}
+          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingBottom: 8, }}
+        >
+          <Ionicons
+            
+            color={currentCatId === null ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.25)'}
+            name={currentCatId === null ? 'radio-button-on' : 'radio-button-off'}
+            size={20}          />
+          <Text style={{
+            marginLeft: 10, fontSize: 14,
+            fontFamily: 'Montserrat_400Regular', color: 'rgba(0,0,0,0.55)',
+          }}>
+            Ei kategoriaa
+          </Text>
+        </TouchableOpacity>
+
+        {FIXED_CATEGORIES.map((cat) => (
+          <TouchableOpacity
+            key={cat.id}
+            onPress={() => onAssignCategory(cat.id)}
+            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingBottom: 8 }}
+          >
+            <Ionicons
+              color={currentCatId === cat.id ? 'rgba(226, 13, 13, 0.75)' : 'rgba(0,0,0,0.25)'}
+              name={currentCatId === cat.id ? 'radio-button-on' : 'radio-button-off'}
+              size={20}
+            />
+            <Text style={{
+              marginLeft: 10, fontSize: 14,
+              fontFamily: 'Montserrat_500Medium', color: 'rgba(0,0,0,0.8)',
+            }}>
+              {cat.name}
+            </Text>
+          </TouchableOpacity>
+        ))}
+
+        <TouchableOpacity onPress={onClose} style={[components.buttonModalCancel, { marginTop: 14 }]}>
+          <Text style={components.buttonTextModalCancel}>Valmis</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+// ─── Add boxes modal ─────────────────────────────────────────────────────────
+
+const AddBoxesModal = ({
+  onClose,
+  products,
+}: {
+  onClose: () => void;
+  products: Product[];
+}) => {
+  const queryClient = useQueryClient();
+  const [eanInput, setEanInput] = useState('');
+  const [dateInput, setDateInput] = useState('');
+  const [pendingBoxes, setPendingBoxes] = useState<PendingBox[]>([]);
+  const [productPickerFor, setProductPickerFor] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const eanRef = useRef<TextInput>(null);
+  const nextId = useRef(1);
+
+  const handleScan = async (ean: string) => {
+    const normalized = ean.replace(/\s+/g, '').trim();
+    if (!normalized || scanning) return;
+    setEanInput('');
+    setScanning(true);
+    try {
+      const parsed = await parseBoxEan(normalized);
+      setPendingBoxes((prev) => [
+        ...prev,
+        {
+          id: String(nextId.current++),
+          ean: normalized,
+          productId: parsed.productId,
+          productName: parsed.productName ?? '',
+          weightKg: parsed.weight_kg,
+        },
+      ]);
+    } catch {
+      Alert.alert(
+        'Tunnistus epäonnistui',
+        `EAN ${normalized} ei ole painotettu viivakoodimuoto tai tapahtui verkkovirhe.`,
+      );
+    } finally {
+      setScanning(false);
+      setTimeout(() => eanRef.current?.focus(), 50);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!dateInput.trim()) {
+      Alert.alert('Päivämäärä puuttuu', 'Kirjoita boksin päivämäärä ennen tallentamista.');
+      return;
+    }
+    if (pendingBoxes.length === 0) {
+      Alert.alert('Tyhjä', 'Ei laatikoita tallennettavaksi.');
+      return;
+    }
+    for (const box of pendingBoxes) {
+      if (!box.productName.trim()) {
+        Alert.alert('Tuote puuttuu', `Valitse tuote laatikolle ${box.ean}.`);
+        return;
+      }
+    }
+    setSaving(true);
+    try {
+      await Promise.all(
+        pendingBoxes.map((box) =>
+          submitWeighing({
+            ean: box.ean,
+            name: box.productName,
+            weightKg: box.weightKg,
+            productionDate: dateInput.trim(),
+          }),
+        ),
+      );
+      await queryClient.invalidateQueries({ queryKey: ['batches'] });
+      await queryClient.invalidateQueries({ queryKey: ['batchEvents', 'inventory'] });
+      const count = pendingBoxes.length;
+      setPendingBoxes([]);
+      setEanInput('');
+      onClose();
+      Alert.alert('Tallennettu', `${count} laatikkoa lisätty järjestelmään.`);
+    } catch (err) {
+      Alert.alert('Virhe', err instanceof Error ? err.message : 'Tallennus epäonnistui.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const totalWeightGrams = pendingBoxes.reduce((sum, b) => sum + Math.round(b.weightKg * 1000), 0);
+
+  return (
+    <SafeAreaView style={orderStyles.smOverlay}>
+      <View style={orderStyles.smShell}>
+        <View style={orderStyles.smTopRow}>
+          <View style={orderStyles.smCustomerPill}>
+            <Text style={orderStyles.smCustomerPillText}>LISÄÄ LAATIKOITA</Text>
+          </View>
+          <Pressable accessibilityLabel="Sulje" hitSlop={12} onPress={onClose}>
+            <Ionicons color={colors.textOnDark} name="close" size={28} />
+          </Pressable>
+        </View>
+
+        <View style={orderStyles.smPanel}>
+          <View style={orderStyles.smScanFieldRow}>
+            <TextInput
+              keyboardType="numbers-and-punctuation"
+              onChangeText={setDateInput}
+              placeholder="PÄIVÄMÄÄRÄ (pp.kk.vvvv)"
+              placeholderTextColor="rgba(0,0,0,0.32)"
+              returnKeyType="next"
+              style={orderStyles.smScanFieldInput}
+              value={dateInput}
+            />
+            <Ionicons color="rgba(0,0,0,0.42)" name="calendar-outline" size={24} />
+          </View>
+
+          <View style={orderStyles.smScanFieldRow}>
+            <TextInput
+              autoFocus
+              editable={!scanning}
+              keyboardType="numeric"
+              onChangeText={(v) => setEanInput(v.replace(/\s+/g, ''))}
+              onSubmitEditing={() => handleScan(eanInput)}
+              placeholder={scanning ? 'Tunnistetaan...' : 'SKANNAA EAN-KOODI...'}
+              placeholderTextColor="rgba(0,0,0,0.32)"
+              ref={eanRef}
+              returnKeyType="done"
+              style={orderStyles.smScanFieldInput}
+              value={eanInput}
+            />
+            <Ionicons color="rgba(0,0,0,0.42)" name="barcode-outline" size={28} />
+          </View>
+
+          <View style={orderStyles.smTableHeader}>
+            <View style={orderStyles.smDeleteCell} />
+            <Text style={[orderStyles.smTableHeaderText, orderStyles.smProductCell]}>TUOTE</Text>
+            <Text style={[orderStyles.smTableHeaderText, orderStyles.smWeightCell]}>PAINO</Text>
+          </View>
+
+          <FlatList
+            data={pendingBoxes}
+            ItemSeparatorComponent={() => <View style={orderStyles.smTableDivider} />}
+            keyboardShouldPersistTaps="handled"
+            keyExtractor={(item) => item.id}
+            ListEmptyComponent={
+              <Text style={orderStyles.smScanEmpty}>
+                Skannaa laatikoiden EAN-koodit. Paino ja tuote tunnistetaan automaattisesti.
+              </Text>
+            }
+            renderItem={({ item }) => (
+              <View style={orderStyles.smTableRow}>
+                <TouchableOpacity
+                  disabled={saving}
+                  onPress={() => setPendingBoxes((prev) => prev.filter((b) => b.id !== item.id))}
+                  style={orderStyles.smDeleteCell}
+                >
+                  <Ionicons color="rgba(0,0,0,0.54)" name="close" size={22} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setProductPickerFor(item.id)}
+                  style={[orderStyles.smProductCell, orderStyles.smBatchSelectBtn]}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      orderStyles.smBatchSelectText,
+                      !item.productName && orderStyles.smBatchSelectPlaceholder,
+                    ]}
+                  >
+                    {item.productName || 'VALITSE TUOTE'}
+                  </Text>
+                  <Ionicons color="rgba(0,0,0,0.7)" name="chevron-down" size={14} />
+                </TouchableOpacity>
+                <Text style={[orderStyles.smTableRowText, orderStyles.smWeightCell]}>
+                  {item.weightKg.toFixed(3)} kg
+                </Text>
+              </View>
+            )}
+            showsVerticalScrollIndicator={false}
+            style={orderStyles.smTableList}
+          />
+
+          <View style={orderStyles.smFooterRow}>
+            <Text style={orderStyles.smScanTotal}>
+              {pendingBoxes.length} kpl · {formatKg(totalWeightGrams)} kg
+            </Text>
+            <TouchableOpacity
+              disabled={saving || pendingBoxes.length === 0}
+              onPress={handleSave}
+              style={[
+                orderStyles.smSavePill,
+                (saving || pendingBoxes.length === 0) && orderStyles.smSaveBtnDisabled,
+              ]}
+            >
+              <Text style={orderStyles.smSavePillText}>
+                {saving ? 'Tallennetaan...' : 'TALLENNA'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setProductPickerFor(null)}
+        transparent
+        visible={productPickerFor != null}
+      >
+        <View style={components.modalOverlay}>
+          <View style={components.modalCard}>
+            <Text style={components.modalTitle}>Valitse tuote</Text>
+            <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+              {products.map((product) => (
+                <TouchableOpacity
+                  key={product.id}
+                  onPress={() => {
+                    const rowId = productPickerFor;
+                    setPendingBoxes((prev) =>
+                      prev.map((b) =>
+                        b.id === rowId ? { ...b, productId: product.id, productName: product.name } : b,
+                      ),
+                    );
+                    setProductPickerFor(null);
+                  }}
+                  style={components.modalRow}
+                >
+                  <Text style={components.modalRowText}>{product.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              onPress={() => setProductPickerFor(null)}
+              style={components.buttonModalCancel}
+            >
+              <Text style={components.buttonTextModalCancel}>Peruuta</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+};

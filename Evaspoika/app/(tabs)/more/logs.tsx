@@ -1,5 +1,9 @@
+import { useLocalSearchParams } from 'expo-router';
 import LogScreen from '@/src/features/logs/presentation/screens/LogScreen';
 
 export default function MoreLogsRoute() {
-  return <LogScreen leftAction="back" />;
+  const { customerId } = useLocalSearchParams();
+  const parsedCustomerId = customerId ? Number(customerId) : undefined;
+  
+  return <LogScreen leftAction="back" customerId={parsedCustomerId} />;
 }

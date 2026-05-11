@@ -8,6 +8,9 @@ export type Batch = {
   deleted_at?: string | null;
   deleted_by_user_id?: number | null;
   ProductId?: number | null;
+  days_until_expiry?: number | null;
+  date_alert?: 'expired' | 'expiring_soon' | null;
+  expiry_date?: string | null;
 };
 
 export type CreateBatchInput = {

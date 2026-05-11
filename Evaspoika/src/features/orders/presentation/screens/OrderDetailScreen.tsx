@@ -579,22 +579,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
         </Pressable>
       </ScrollView>
 
-      <View style={orderStyles.odFooter}>
-        <View style={orderStyles.odFooterButtons}>
-          <Pressable
-            disabled={deletingOrder}
-            onPress={handleDeleteOrder}
-            style={({ pressed }) => [
-              orderStyles.odDeleteBtn,
-              (pressed || deletingOrder) && screen.pressed,
-            ]}
-          >
-            <Text style={orderStyles.odDeleteBtnText}>
-              {deletingOrder ? 'POISTETAAN...' : 'POISTA TILAUS'}
-            </Text>
-          </Pressable>
-        </View>
-      </View>
+
 
       <Modal
         animationType="fade"
@@ -746,23 +731,25 @@ export default function OrderDetailScreen({ orderId }: Props) {
               {batchPickerOptions.length === 0 ? (
                 <Text style={components.modalEmpty}>Ei vapaita laatikoita tälle tuotteelle.</Text>
               ) : (
-                batchPickerOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.batchId}
-                    onPress={() => handleSelectBatch(option)}
-                    style={components.modalRow}
-                  >
-                    {batchPickerRow?.productId === null ? (
-                      <Text style={components.modalRowText}>{option.batchNumber} \u2014 {option.productName}</Text>
-                    ) : (
-                      <Text style={components.modalRowText}>{option.batchNumber}</Text>
-                    )}
-                    <Text style={components.modalRowSubText}>
-                      {(toFinnishDate(option.productionDate) ?? 'Ei p\u00E4iv\u00E4yst\u00E4') +
-                        ` / ${formatKg(option.currentWeight)} kg`}
-                    </Text>
-                  </TouchableOpacity>
-                ))
+                <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+                  {batchPickerOptions.map((option) => (
+                    <TouchableOpacity
+                      key={option.batchId}
+                      onPress={() => handleSelectBatch(option)}
+                      style={components.modalRow}
+                    >
+                      {batchPickerRow?.productId === null ? (
+                        <Text style={components.modalRowText}>{option.batchNumber} \u2014 {option.productName}</Text>
+                      ) : (
+                        <Text style={components.modalRowText}>{option.batchNumber}</Text>
+                      )}
+                      <Text style={components.modalRowSubText}>
+                        {(toFinnishDate(option.productionDate) ?? 'Ei p\u00E4iv\u00E4yst\u00E4') +
+                          ` / ${formatKg(option.currentWeight)} kg`}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               )}
 
               <TouchableOpacity

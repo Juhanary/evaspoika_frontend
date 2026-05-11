@@ -13,7 +13,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
 import { useBatchEvents } from '@/src/features/batchEvents/presentation/hooks/useBatchEvents';
-import { spacing } from '@/src/shared/constants/spacing';
 import { goBackOrHome } from '@/src/shared/navigation/goBackOrHome';
 import { routes } from '@/src/shared/navigation/routes';
 import { dark } from '@/src/shared/styles/dark';
@@ -25,6 +24,7 @@ import {
 } from '@/src/shared/ui/AppHeader/AppHeader';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import { InventorySummaryModal } from '@/src/shared/ui/InventorySummaryModal/InventorySummaryModal';
+import { NotificationsModal } from '@/src/shared/ui/NotificationsModal/NotificationsModal';
 import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
 import { buildInventorySummary } from '@/src/shared/utils/inventory';
 
@@ -42,6 +42,7 @@ type Props = {
   children: React.ReactNode;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const BG = require('@/src/assets/images/home_bg-50c5c1.png');
 
 export function ScreenLayout({
@@ -56,6 +57,7 @@ export function ScreenLayout({
   children,
 }: Props) {
   const [showInventory, setShowInventory] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const insets = useSafeAreaInsets();
   const { data: products } = useProducts();
   const { data: batches } = useBatches();
@@ -65,6 +67,12 @@ export function ScreenLayout({
     () => buildInventorySummary(products, batches, batchEvents),
     [products, batches, batchEvents],
   );
+
+  const hasExpiryWarnings = useMemo(
+    () => (batches ?? []).some((b) => !b.deleted_at && (b.date_alert === 'expiring_soon' || b.date_alert === 'expired')),
+    [batches],
+  );
+
   const inlineSearch = wrapInCard ? headerSearch : undefined;
 
   const headerLeftAction: AppHeaderAction | null =
@@ -79,6 +87,11 @@ export function ScreenLayout({
   const headerRightActions: AppHeaderAction[] = showInventoryAction
     ? [
         ...rightActions,
+        {
+          icon: hasExpiryWarnings ? 'notifications' : 'notifications-outline',
+          onPress: () => setShowNotifications(true),
+          accessibilityLabel: 'Ilmoitukset',
+        },
         {
           icon: 'server-outline',
           onPress: () => setShowInventory(true),
@@ -147,6 +160,12 @@ export function ScreenLayout({
         items={inventoryItems}
         onClose={() => setShowInventory(false)}
         visible={showInventory}
+      />
+      <NotificationsModal
+        batches={batches ?? []}
+        onClose={() => setShowNotifications(false)}
+        products={products ?? []}
+        visible={showNotifications}
       />
     </ImageBackground>
   );

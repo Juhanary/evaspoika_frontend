@@ -6,6 +6,10 @@ export function fetchOrders() {
   return apiRequest<Order[]>(endpoints.orders);
 }
 
+export function fetchClosedOrders() {
+  return apiRequest<Order[]>(`${endpoints.orders}?closed=true`);
+}
+
 export function fetchOrder(id: number) {
   return apiRequest<Order>(`${endpoints.orders}/${id}`);
 }
