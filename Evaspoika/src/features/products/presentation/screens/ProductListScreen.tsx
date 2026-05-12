@@ -4,7 +4,6 @@ import {
   Modal,
   Pressable,
   SafeAreaView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -29,6 +28,7 @@ import { routes } from '@/src/shared/navigation/routes';
 import { colors } from '@/src/shared/constants/colors';
 import { components } from '@/src/shared/styles/components';
 import { orderStyles } from '@/src/shared/styles/orders';
+import { productStyles } from '@/src/shared/styles/products';
 import { screen } from '@/src/shared/styles/screen';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { formatKg } from '@/src/shared/utils/weight';
@@ -84,7 +84,7 @@ const DragHandle = React.memo(function DragHandle({
 
   return (
     <GestureDetector gesture={gesture}>
-      <View style={dragStyles.handle}>
+      <View style={productStyles.dragHandle}>
         <Ionicons
           color={active ? colors.danger : colors.white}
           name="reorder-three"
@@ -95,10 +95,6 @@ const DragHandle = React.memo(function DragHandle({
   );
 });
 
-const dragStyles = StyleSheet.create({
-  handle: { paddingHorizontal: 6, paddingVertical: 4, justifyContent: 'center' },
-  dropLine: { height: 4, borderRadius: 1, backgroundColor: colors.danger, marginVertical: 1 },
-});
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -304,7 +300,7 @@ export default function ProductListScreen() {
     return (
       <View style={components.invPillRow}>
         {dragHandle}
-        <View style={{ flex: 1, }}>
+        <View style={components.flex1}>
           <Pressable
             onLongPress={() => setConfigTargetId(item.product.id)}
             onPress={() =>
@@ -316,18 +312,18 @@ export default function ProductListScreen() {
               pressed && screen.pressed,
             ]}
           >
-            <Text numberOfLines={1} style={[components.invPillLeftText, { flex: 1 }]}>
+            <Text numberOfLines={1} style={[components.invPillLeftText, productStyles.invPillNameTextFlex]}>
               {item.product.name}
             </Text>
             {isFav ? (
-              <Ionicons color="#f5a623" name="star" size={13} style={{ marginRight: 4 }} />
+              <Ionicons color="#f5a623" name="star" size={13} style={productStyles.invIconTrailingGap} />
             ) : null}
             {!item.product.netvisor_key ? (
               <Ionicons
                 color="rgba(255,165,0,0.85)"
                 name="cloud-offline-outline"
                 size={16}
-                style={{ marginRight: 4 }}
+                style={productStyles.invIconTrailingGap}
               />
             ) : null}
             <Ionicons
@@ -342,37 +338,29 @@ export default function ProductListScreen() {
               {productBatches.length === 0 ? (
                 <Text style={components.invDropdownLabel}>Ei eriä.</Text>
               ) : (
-                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ maxHeight: 200 }}>
+                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={productStyles.invBatchScrollView}>
                   {productBatches.map((batch) => {
                     const batchBoxCount = boxesByBatchId.get(batch.id) ?? 0;
                     const daysLeft = batch.days_until_expiry ?? null;
-                    const isExpiring = daysLeft !== null && daysLeft <= 100;
-                    const isOld = !isExpiring && daysLeft !== null && daysLeft <= 200;
+                    const expiring = daysLeft !== null && daysLeft <= 100;
                     return (
                       <View key={batch.id}>
                         <View style={components.invDropdownRow}>
-                          <Text style={[components.invDropdownLabel, { flex: 1 }]}>
+                          <Text style={[components.invDropdownLabel, productStyles.invDropdownBatchNumFlex]}>
                             {batch.batch_number}
                           </Text>
-                          {isExpiring ? (
+                          {expiring ? (
                             <Ionicons
-                              color={colors.danger}
-                              name="alert-circle"
-                              size={14}
-                              style={{ marginRight: 2 }}
-                            />
-                          ) : isOld ? (
-                            <Ionicons
-                              color={colors.warning}
-                              name="time-outline"
-                              size={14}
-                              style={{ marginRight: 2 }}
+                              color={daysLeft <= 50 ? colors.danger50pvonWhite : colors.danger100pvonWhite}
+                              name="warning-outline"
+                              size={20}
+                              style={productStyles.invWarnIconGap}
                             />
                           ) : null}
-                          <Text style={[components.invDropdownLabel, { minWidth: 48, textAlign: 'right' }]}>
+                          <Text style={[components.invDropdownLabel, productStyles.invDropdownBoxCountText]}>
                             {batchBoxCount} laatikkoa
                           </Text>
-                          <Text style={[components.invDropdownWeight, { minWidth: 80, textAlign: 'right' }]}>
+                          <Text style={[components.invDropdownWeight, productStyles.invDropdownBatchWeightText]}>
                             {formatKg(batch.current_weight)} kg
                           </Text>
                         </View>
@@ -401,11 +389,7 @@ export default function ProductListScreen() {
                 <Text style={components.invDropdownBtnText}>MUOKKAA ERIÄ</Text>
               </Pressable>
               {!item.product.netvisor_key ? (
-                <Text style={{
-                  textAlign: 'center', fontSize: 11,
-                  color: 'rgba(200,120,0,0.9)', marginTop: 6,
-                  fontFamily: 'Montserrat_400Regular',
-                }}>
+                <Text style={productStyles.netvisorWarningText}>
                   Ei vahvistettu Netvisorissa
                 </Text>
               ) : null}
@@ -423,11 +407,9 @@ export default function ProductListScreen() {
   };
 
   const sectionLabel = (title: string) => (
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, flex: 1 }}>
-      <Text style={{ fontSize: 16, fontFamily: 'Montserrat_700Bold', color: 'rgba(240, 228, 228, 0.82)', letterSpacing: 1.2 }}>
-        {title}
-      </Text>
-      <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(0,0,0,0.08)', marginLeft: 8 }} />
+    <View style={productStyles.sectionLabelRow}>
+      <Text style={productStyles.sectionLabelText}>{title}</Text>
+      <View style={productStyles.sectionLabelRule} />
     </View>
   );
 
@@ -435,7 +417,7 @@ export default function ProductListScreen() {
     <View>
       {/* Favorites — above category cards */}
       {!query.trim() && favoriteRows.length > 0 ? (
-        <View style={{ marginBottom: 10 }}>
+        <View style={productStyles.favSectionWrap}>
           {sectionLabel('★  SUOSIKIT')}
           {favoriteRows.map((row, index) => {
             const isDragging = favDragFrom === index;
@@ -443,7 +425,7 @@ export default function ProductListScreen() {
             const dropBelow = favDragTo === index && favDragFrom !== null && favDragTo > favDragFrom;
             return (
               <View key={`fav-${row.product.id}`} style={{ opacity: isDragging ? 0.4 : 1 }}>
-                {dropAbove && <View style={dragStyles.dropLine} />}
+                {dropAbove && <View style={productStyles.dragDropLine} />}
                 {renderProductRow(row, favExpandedId, setFavExpandedId, (
                   <DragHandle
                     active={isDragging}
@@ -453,8 +435,8 @@ export default function ProductListScreen() {
                     onDragUpdate={onFavDragUpdate}
                   />
                 ))}
-                {dropBelow && <View style={dragStyles.dropLine} />}
-                {index < favoriteRows.length - 1 ? <View style={{ height: 12 }} /> : null}
+                {dropBelow && <View style={productStyles.dragDropLine} />}
+                {index < favoriteRows.length - 1 ? <View style={productStyles.favItemSeparator} /> : null}
               </View>
             );
           })}
@@ -462,29 +444,21 @@ export default function ProductListScreen() {
       ) : null}
 
       {/* Category cards */}
-      <View style={{ flexDirection: 'row', gap: 20, marginTop: 50, marginBottom: 24, flex: 1, justifyContent: 'center' }}>
+      <View style={productStyles.catCardRow}>
         {FIXED_CATEGORIES.map((cat) => {
           const isSelected = selectedCategory === cat.id;
           return (
             <Pressable
               key={cat.id}
               onPress={() => setSelectedCategory(isSelected ? null : cat.id)}
-              style={({ pressed }) => [{
-                alignContent: 'center',
-                height: 68,
-                width: 68,
-                backgroundColor: isSelected ? 'rgba(0,0,0,0.11)' : 'rgba(255,255,255,0.78)',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: isSelected ? 1.5 : 1,
-                borderColor: isSelected ? 'rgba(0,0,0,0.22)' : 'rgba(0,0,0,0.09)',
-                borderRadius: 68,
-                marginLeft: 40,
-                marginRight: 40,
-              }, pressed && screen.pressed]}
+              style={({ pressed }) => [
+                productStyles.catCard,
+                isSelected && productStyles.catCardSelected,
+                pressed && screen.pressed,
+              ]}
             >
-              <View style={{ width: 28, height: 28, borderRadius: 6, backgroundColor: 'rgba(0,0,0,0.07)', marginBottom: 5 }} />
-              <Text style={{ fontFamily: 'Montserrat_600SemiBold', fontSize: 10, color: isSelected ? 'rgba(0,0,0,0.82)' : 'rgba(0,0,0,0.5)', letterSpacing: 0.6 }}>
+              <View style={productStyles.catCardIcon} />
+              <Text style={isSelected ? productStyles.catCardLabelSelected : productStyles.catCardLabel}>
                 {cat.name.toUpperCase()}
               </Text>
             </Pressable>
@@ -531,9 +505,9 @@ export default function ProductListScreen() {
             <Text style={screen.muted}>Ladataan...</Text>
           ) : (
             <FlatList
-              contentContainerStyle={{ paddingBottom: 8 }}
+              contentContainerStyle={productStyles.invListContent}
               data={displayRows}
-              ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+              ItemSeparatorComponent={() => <View style={productStyles.favItemSeparator} />}
               keyExtractor={(row) => String(row.product.id)}
               ListEmptyComponent={emptyText ? <Text style={screen.muted}>{emptyText}</Text> : null}
               ListHeaderComponent={listHeader}
@@ -543,7 +517,7 @@ export default function ProductListScreen() {
                 const dropBelow = catDragTo === index && catDragFrom !== null && catDragTo > catDragFrom;
                 return (
                   <View style={{ opacity: isDragging ? 0.4 : 1 }}>
-                    {dropAbove && <View style={dragStyles.dropLine} />}
+                    {dropAbove && <View style={productStyles.dragDropLine} />}
                     {renderProductRow(item, catExpandedId, setCatExpandedId, showCatDragHandles ? (
                       <DragHandle
                         active={isDragging}
@@ -553,12 +527,12 @@ export default function ProductListScreen() {
                         onDragUpdate={onCatDragUpdate}
                       />
                     ) : undefined)}
-                    {dropBelow && <View style={dragStyles.dropLine} />}
+                    {dropBelow && <View style={productStyles.dragDropLine} />}
                   </View>
                 );
               }}
               showsVerticalScrollIndicator={false}
-              style={{ flex: 1 }}
+              style={components.flex1}
             />
           )}
         </View>
@@ -612,8 +586,8 @@ const ProductConfigModal = ({
   return (
     <View style={components.modalOverlay}>
       <View style={components.modalCard}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
-          <Text numberOfLines={1} style={[components.modalTitle, { flex: 1, marginBottom: 0 }]}>
+        <View style={productStyles.configModalHeaderRow}>
+          <Text numberOfLines={1} style={[components.modalTitle, productStyles.configModalTitleOverride]}>
             {row.product.name}
           </Text>
           <Pressable hitSlop={10} onPress={onClose}>
@@ -629,44 +603,34 @@ const ProductConfigModal = ({
             }
             onToggleFavorite();
           }}
-          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}
+          style={productStyles.configModalFavRow}
         >
           <Ionicons
             color={isFav ? '#f5a623' : 'rgba(0,0,0,0.35)'}
             name={isFav ? 'star' : 'star-outline'}
             size={22}
           />
-          <Text style={{
-            marginLeft: 10, fontSize: 15,
-            fontFamily: 'Montserrat_600SemiBold',
-            color: isFav ? '#f5a623' : 'rgba(0,0,0,0.65)',
-          }}>
+          <Text style={isFav ? productStyles.configModalFavTextActive : productStyles.configModalFavText}>
             {isFav ? 'Poista suosikeista' : 'Lisää suosikkeihin'}
           </Text>
         </TouchableOpacity>
 
-        <View style={{ height: 1, backgroundColor: 'rgba(0,0,0,0.08)', marginVertical: 10 }} />
+        <View style={productStyles.configModalDivider} />
 
-        <Text style={{
-          fontSize: 11, fontFamily: 'Montserrat_700Bold',
-          color: 'rgba(0,0,0,0.35)', letterSpacing: 1.2, marginBottom: 6,
-        }}>
+        <Text style={productStyles.configModalCatSectionLabel}>
           KATEGORIA
         </Text>
 
         <TouchableOpacity
           onPress={() => onAssignCategory(null)}
-          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingBottom: 8, }}
+          style={productStyles.configModalCatRow}
         >
           <Ionicons
-            
             color={currentCatId === null ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.25)'}
             name={currentCatId === null ? 'radio-button-on' : 'radio-button-off'}
-            size={20}          />
-          <Text style={{
-            marginLeft: 10, fontSize: 14,
-            fontFamily: 'Montserrat_400Regular', color: 'rgba(0,0,0,0.55)',
-          }}>
+            size={20}
+          />
+          <Text style={productStyles.configModalCatNoneText}>
             Ei kategoriaa
           </Text>
         </TouchableOpacity>
@@ -675,23 +639,20 @@ const ProductConfigModal = ({
           <TouchableOpacity
             key={cat.id}
             onPress={() => onAssignCategory(cat.id)}
-            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingBottom: 8 }}
+            style={productStyles.configModalCatRow}
           >
             <Ionicons
               color={currentCatId === cat.id ? 'rgba(226, 13, 13, 0.75)' : 'rgba(0,0,0,0.25)'}
               name={currentCatId === cat.id ? 'radio-button-on' : 'radio-button-off'}
               size={20}
             />
-            <Text style={{
-              marginLeft: 10, fontSize: 14,
-              fontFamily: 'Montserrat_500Medium', color: 'rgba(0,0,0,0.8)',
-            }}>
+            <Text style={productStyles.configModalCatName}>
               {cat.name}
             </Text>
           </TouchableOpacity>
         ))}
 
-        <TouchableOpacity onPress={onClose} style={[components.buttonModalCancel, { marginTop: 14 }]}>
+        <TouchableOpacity onPress={onClose} style={[components.buttonModalCancel, productStyles.configModalCloseBtnMargin]}>
           <Text style={components.buttonTextModalCancel}>Valmis</Text>
         </TouchableOpacity>
       </View>
@@ -910,7 +871,7 @@ const AddBoxesModal = ({
         <View style={components.modalOverlay}>
           <View style={components.modalCard}>
             <Text style={components.modalTitle}>Valitse tuote</Text>
-            <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+            <ScrollView style={productStyles.addBoxPickerScroll} showsVerticalScrollIndicator={false}>
               {products.map((product) => (
                 <TouchableOpacity
                   key={product.id}

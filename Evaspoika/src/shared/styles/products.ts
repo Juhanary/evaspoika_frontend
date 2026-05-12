@@ -281,6 +281,9 @@ export const productStyles = StyleSheet.create({
     color: 'rgba(0,0,0,0.74)',
   },
   invDropdownDivider: { height: 2, backgroundColor: 'rgba(0,0,0,0.74)' },
+  // --- ProductListScreen drag-handle ---
+  dragHandle: { paddingHorizontal: 6, paddingVertical: 4, justifyContent: 'center' as const },
+  dragDropLine: { height: 4, borderRadius: 1, backgroundColor: colors.danger, marginVertical: 1 },
   invDropdownBtn: {
     marginVertical: 12,
     borderRadius: 50,
@@ -295,4 +298,153 @@ export const productStyles = StyleSheet.create({
     fontSize: 18,
     color: colors.textSecondary,
   },
+
+  // --- ProductListScreen section label ---
+  sectionLabelRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    marginBottom: 8,
+    flex: 1,
+  },
+  sectionLabelText: {
+    fontFamily: 'Montserrat_700Bold',
+    fontSize: typography.sizes.xl,
+    color: 'rgba(240, 228, 228, 0.82)',
+    letterSpacing: 1.2,
+  },
+  sectionLabelRule: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+    marginLeft: spacing.sm,
+  },
+
+  // --- ProductListScreen Netvisor warning ---
+  netvisorWarningText: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: typography.sizes.xs,
+    color: colors.warning,
+    textAlign: 'center' as const,
+    marginTop: spacing.xs + 2,
+  },
+
+  // --- ProductListScreen pill row overrides ---
+  invPillNameTextFlex: { flex: 1 },
+  invIconTrailingGap: { marginRight: 4 },
+  invWarnIconGap: { marginRight: 2 },
+  invBatchScrollView: { maxHeight: 200 },
+  invDropdownBatchNumFlex: { flex: 1 },
+  invDropdownBoxCountText: { minWidth: 48, textAlign: 'right' as const },
+  invDropdownBatchWeightText: { minWidth: 80, textAlign: 'right' as const },
+
+  // --- ProductListScreen list layout ---
+  invListContent: { paddingBottom: 8 },
+  addBoxPickerScroll: { maxHeight: 300 },
+
+  // --- ProductListScreen favorites section ---
+  favSectionWrap: { marginBottom: 10 },
+  favItemSeparator: { height: 12 },
+
+  // --- ProductListScreen category cards ---
+  catCardRow: {
+    flexDirection: 'row' as const,
+    gap: 20,
+    marginTop: 50,
+    marginBottom: 24,
+    flex: 1,
+    justifyContent: 'center' as const,
+  },
+  catCard: {
+    alignContent: 'center' as const,
+    height: 68,
+    width: 68,
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.09)',
+    borderRadius: 68,
+    marginLeft: 40,
+    marginRight: 40,
+  },
+  catCardSelected: {
+    backgroundColor: 'rgba(0,0,0,0.11)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,0,0,0.22)',
+  },
+  catCardIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0,0,0,0.07)',
+    marginBottom: 5,
+  },
+  catCardLabel: {
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 10,
+    color: 'rgba(0,0,0,0.5)' as const,
+    letterSpacing: 0.6,
+  },
+  catCardLabelSelected: {
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 10,
+    color: 'rgba(0,0,0,0.82)' as const,
+    letterSpacing: 0.6,
+  },
+
+  // --- ProductConfigModal ---
+  configModalHeaderRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    marginBottom: 14,
+  },
+  configModalTitleOverride: { flex: 1, marginBottom: 0 },
+  configModalFavRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingVertical: 10,
+  },
+  configModalFavText: {
+    marginLeft: 10,
+    fontSize: 15,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: 'rgba(0,0,0,0.65)' as const,
+  },
+  configModalFavTextActive: {
+    marginLeft: 10,
+    fontSize: 15,
+    fontFamily: 'Montserrat_600SemiBold',
+    color: '#f5a623' as const,
+  },
+  configModalDivider: {
+    height: 1,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+    marginVertical: 10,
+  },
+  configModalCatSectionLabel: {
+    fontSize: 11,
+    fontFamily: 'Montserrat_700Bold',
+    color: 'rgba(0,0,0,0.35)' as const,
+    letterSpacing: 1.2,
+    marginBottom: 6,
+  },
+  configModalCatRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingVertical: 8,
+    paddingBottom: 8,
+  },
+  configModalCatNoneText: {
+    marginLeft: 10,
+    fontSize: 14,
+    fontFamily: 'Montserrat_400Regular',
+    color: 'rgba(0,0,0,0.55)' as const,
+  },
+  configModalCatName: {
+    marginLeft: 10,
+    fontSize: 14,
+    fontFamily: 'Montserrat_500Medium',
+    color: 'rgba(0,0,0,0.8)' as const,
+  },
+  configModalCloseBtnMargin: { marginTop: 14 },
 });

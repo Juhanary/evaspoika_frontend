@@ -33,9 +33,20 @@ export const colors = {
   successBorderLight: '#86EFAC',
 
   // Danger (red)
-  danger: '#DC2626',
+  danger: '#dc262662',
   dangerDark: '#B91C1C',
   dangerMid: '#EF4444',
+  danger100pv: '#f0a4024f',
+  danger50pv: 'rgba(230, 92, 13, 0.36)',
+
+  // Danger (red)
+  dangeronWhite: '#dc2626b2',
+  dangerDarkonWhite: '#B91C1C',
+  dangerMidonWhite: '#EF4444',
+  danger100pvonWhite: '#f0a5029f',
+  danger50pvonWhite: 'rgba(230, 93, 13, 0.69)',
+
+
 
   // Warning (amber)
   warning: '#D97706',

@@ -4,6 +4,7 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { fetchOrderLines } from '@/src/features/orderLines/infrastructure/orderLinesApi';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
+import { components } from '@/src/shared/styles/components';
 import { screen } from '@/src/shared/styles/screen';
 import { orderStyles } from '@/src/shared/styles/orders';
 import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
@@ -166,7 +167,7 @@ export default function OrderScreen() {
             data={rows}
             keyExtractor={(row) => String(row.order.id)}
             showsVerticalScrollIndicator={false}
-            style={{ flex: 1 }}
+            style={components.flex1}
             ListEmptyComponent={
               <Text style={screen.muted}>Ei avoimia tilauksia.</Text>
             }
@@ -195,7 +196,7 @@ export default function OrderScreen() {
                     const s = (item.order.status ?? item.order.netvisor_status ?? '').toLowerCase();
                     if (s === 'delivered') {
                       return (
-                        <Text style={{ fontSize: 11, color: 'rgba(255,165,0,0.9)', fontFamily: 'Montserrat_400Regular', marginTop: 2 }}>
+                        <Text style={orderStyles.statusWarningText}>
                           Odottaa laskutusta
                         </Text>
                       );
@@ -203,12 +204,7 @@ export default function OrderScreen() {
                     return null;
                   })()}
                   {!item.order.netvisor_invoice_id ? (
-                    <Text style={{
-                      fontSize: 11,
-                      color: 'rgba(255,165,0,0.9)',
-                      fontFamily: 'Montserrat_400Regular',
-                      marginTop: 2,
-                    }}>
+                    <Text style={orderStyles.statusWarningText}>
                       Ei Netvisorissa koska ei vielä tilausrivejä
                     </Text>
                   ) : null}

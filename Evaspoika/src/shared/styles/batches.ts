@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
 import { colors } from '@/src/shared/constants/colors';
+import { spacing } from '@/src/shared/constants/spacing';
 import { glassActionSurface } from './components';
 
 export const batchStyles = StyleSheet.create({
@@ -127,5 +128,76 @@ export const batchStyles = StyleSheet.create({
     fontFamily: 'Montserrat_400Regular',
     fontSize: 18,
     color: 'rgba(255,255,255,0.4)',
+  },
+
+  // --- Weight adjustment modal ---
+  blAdjOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  blAdjCard: {
+    maxWidth: 400,
+    minWidth: 400,
+    maxHeight: '90%' as `${number}%`,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  blAdjTitle: {
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 22,
+    color: 'rgba(0,0,0,0.82)',
+    marginBottom: 4,
+  },
+  blAdjCurrentWeight: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 15,
+    color: 'rgba(0,0,0,0.5)',
+  },
+  blAdjInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.15)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 18,
+    color: 'rgba(0,0,0,0.82)',
+    backgroundColor: '#F5F5F5',
+  },
+  blAdjBtnRow: {
+    flexDirection: 'row' as const,
+    gap: spacing.md,
+    marginTop: 4,
+  },
+  blAdjCancelBtn: {
+    flex: 1,
+    borderRadius: 50,
+    paddingVertical: 13,
+    alignItems: 'center' as const,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.18)',
+  },
+  blAdjCancelBtnText: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 17,
+    color: 'rgba(0,0,0,0.6)',
+  },
+  blAdjSaveBtn: {
+    flex: 1,
+    borderRadius: 50,
+    paddingVertical: 13,
+    alignItems: 'center' as const,
+    backgroundColor: '#39F56A',
+    boxShadow: '0px 2px 4px rgba(0,0,0,0.15)',
+  },
+  blAdjSaveBtnText: {
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 17,
+    color: 'rgba(0,0,0,0.82)',
   },
 });

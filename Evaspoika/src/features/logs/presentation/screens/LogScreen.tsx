@@ -22,6 +22,7 @@ import { useClosedOrders, useOrders } from '@/src/features/orders/presentation/h
 import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
 import { fetchOrderLines } from '@/src/features/orderLines/infrastructure/orderLinesApi';
 import { colors } from '@/src/shared/constants/colors';
+import { components } from '@/src/shared/styles/components';
 import { screen } from '@/src/shared/styles/screen';
 import { logModalStyles as modalStyles, logStyles as styles } from '@/src/shared/styles/logs';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
@@ -30,6 +31,7 @@ import {
   ScreenLayout,
 } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { GRAMS_PER_KG } from '@/src/shared/utils/weight';
+import { formatDateFi, formatTimeFi } from '@/src/shared/utils/date';
 import { useQuery } from '@tanstack/react-query';
 import { Order } from '@/src/features/orders/domain/types';
 
@@ -94,7 +96,7 @@ const EVENT_META: Record<
   CREATE:    { label: 'Uusi erä luotu',      topic: 'BATCH' },
   WEIGHING:  { label: 'Punnitus',             topic: 'WEIGHING' },
   SALE:      { label: 'Myynti',               topic: 'SALE' },
-  RETURN:    { label: '',             topic: 'SALE' },
+  RETURN:    { label: 'Palautus',      topic: 'SALE' },
   INVENTORY: { label: 'Manuaalinen korjaus',  topic: 'INVENTORY' },
   EMPTY:     { label: 'Erä tyhjentyi',        topic: 'BATCH' },
   DELETE:    { label: 'Erä poistettu',        topic: 'BATCH' },
@@ -132,41 +134,6 @@ const SALE_CODES = new Set(['SALE', 'RETURN']);
 
 const getEventMeta = (eventCode: string) =>
   EVENT_META[eventCode] ?? { label: eventCode, topic: 'OTHER' as const };
-
-const formatDate = (value?: string | null) => {
-  if (!value) {
-    return null;
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date.toLocaleDateString('fi-FI', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-};
-
-const formatTime = (value?: string | null) => {
-  if (!value) {
-    return null;
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date.toLocaleTimeString('fi-FI', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
 
 const formatWeightChange = (grams: number) => {
   if (!Number.isFinite(grams)) {
@@ -254,7 +221,7 @@ const getBatchLabel = (event: BatchLog) => {
     return `Erä ${batchNumber}`;
   }
 
-  const productionDate = formatDate(event.Batch?.production_date);
+  const productionDate = formatDateFi(event.Batch?.production_date);
 
   if (productionDate) {
     return `Erä ${productionDate}`;
@@ -270,7 +237,7 @@ const getBatchLabelFromBatch = (batch: Pick<Batch, 'batch_number' | 'production_
     return `Erä ${batchNumber}`;
   }
 
-  const productionDate = formatDate(batch.production_date);
+  const productionDate = formatDateFi(batch.production_date);
 
   if (productionDate) {
     return `Erä ${productionDate}`;
@@ -279,8 +246,6 @@ const getBatchLabelFromBatch = (batch: Pick<Batch, 'batch_number' | 'production_
   return 'Erä';
 };
 
-const getOrderLabel = (event: BatchLog) =>
-  event.OrderLine?.OrderId ? `Tilaus ${event.OrderLine.OrderId}` : '';
 
 const mergeEvents = (primary: BatchLog[], secondary: BatchLog[]) => {
   const merged = new Map<number, BatchLog>();
@@ -375,6 +340,12 @@ export default function LogScreen({ leftAction = 'home', customerId }: LogScreen
     return map;
   }, [orders, customerById]);
 
+  const orderDateMap = useMemo(() => {
+    const map = new Map<number, string | null>();
+    (orders ?? []).forEach((o) => map.set(o.id, o.order_date ?? null));
+    return map;
+  }, [orders]);
+
   const allKnownBatches = useMemo(() => {
     const byId = new Map<number, Batch>();
 
@@ -406,6 +377,14 @@ export default function LogScreen({ leftAction = 'home', customerId }: LogScreen
   }, [allKnownBatches]);
 
   const batchGroups = useMemo(() => {
+    const getOrderInfoLabel = (event: BatchLog): string => {
+      const orderId = event.OrderLine?.OrderId;
+      if (!orderId) return '';
+      const date = formatDateFi(orderDateMap.get(orderId) ?? null);
+      const customer = orderCustomerMap.get(orderId)?.name;
+      return [date, customer].filter(Boolean).join(' · ');
+    };
+
     const groups = new Map<string, BatchGroup>();
 
     (events ?? []).forEach((event) => {
@@ -415,7 +394,7 @@ export default function LogScreen({ leftAction = 'home', customerId }: LogScreen
       const eventImpliesDeleted = getEventImpliesDeleted(event);
       const batchLabel = getBatchLabel(event);
       const productName = getProductName(event);
-      const orderLabel = getOrderLabel(event);
+      const orderLabel = getOrderInfoLabel(event);
       const summary = groups.get(batchKey);
 
       if (!summary) {
@@ -516,7 +495,7 @@ export default function LogScreen({ leftAction = 'home', customerId }: LogScreen
       const rightTime = right.lastEventDate ? Date.parse(right.lastEventDate) : 0;
       return rightTime - leftTime || left.batchLabel.localeCompare(right.batchLabel, 'fi');
     });
-  }, [allKnownBatches, deferredQuery, deletedBatchMap, events, productNameById]);
+  }, [allKnownBatches, deferredQuery, deletedBatchMap, events, productNameById, orderCustomerMap, orderDateMap]);
 
   const customerGroups = useMemo(() => {
     const groups = new Map<string, CustomerGroup>();
@@ -749,7 +728,7 @@ export default function LogScreen({ leftAction = 'home', customerId }: LogScreen
                         {item.orderLabel}
                       </Text>
                       <Text numberOfLines={1} style={styles.logItemSummary}>
-                        {item.status && formatDate(item.orderDate)}
+                        {item.status && formatDateFi(item.orderDate)}
                         {item.status ? `  ·  ${item.status}` : ''}
                       </Text>
                       <View style={styles.logItemFooter}>
@@ -936,6 +915,8 @@ export default function LogScreen({ leftAction = 'home', customerId }: LogScreen
             isLoading={Boolean(selectedBatch.batchId) && isSelectedBatchLoading}
             onClose={() => setSelectedBatch(null)}
             onTabChange={setModalTab}
+            orderCustomerMap={orderCustomerMap}
+            orderDateMap={orderDateMap}
             productName={selectedBatchProductName}
             tabCounts={modalTabCounts}
           />
@@ -1011,9 +992,9 @@ const CustomerOrdersModalContent = ({
               pressed && { opacity: 0.7 },
             ]}
           >
-            <View style={{ flex: 1 }}>
+            <View style={components.flex1}>
               <Text style={modalStyles.batchItemTitle}>
-                {formatDate(item.order_date) ?? 'Ei päivämäärää'}
+                {formatDateFi(item.order_date) ?? 'Ei päivämäärää'}
               </Text>
               {(item.status ?? item.netvisor_status) ? (
                 <Text numberOfLines={1} style={modalStyles.batchItemSubtitle}>
@@ -1049,7 +1030,7 @@ const OrderLinesModalContent = ({
           <Ionicons color={colors.white} name="document-outline" size={26} />
           <View style={modalStyles.headerTextWrap}>
             <Text numberOfLines={1} style={modalStyles.title}>
-              {formatDate(order.order_date) ?? 'Tilaus'}
+              {formatDateFi(order.order_date) ?? 'Tilaus'}
             </Text>
             {(order.status ?? order.netvisor_status) ? (
               <Text numberOfLines={1} style={modalStyles.subtitle}>
@@ -1095,7 +1076,7 @@ const OrderLinesModalContent = ({
 
             return (
               <View style={modalStyles.batchItem}>
-                <View style={{ flex: 1 }}>
+                <View style={components.flex1}>
                   <Text style={modalStyles.batchItemTitle}>{productName}</Text>
                   {batchNumber ? (
                     <Text numberOfLines={1} style={modalStyles.batchItemSubtitle}>
@@ -1125,6 +1106,8 @@ const BatchEventsModalContent = ({
   isLoading,
   onClose,
   onTabChange,
+  orderCustomerMap,
+  orderDateMap,
   productName,
   tabCounts,
 }: {
@@ -1136,14 +1119,19 @@ const BatchEventsModalContent = ({
   isLoading: boolean;
   onClose: () => void;
   onTabChange: (tab: ModalTab) => void;
+  orderCustomerMap: Map<number, { id: number; name: string }>;
+  orderDateMap: Map<number, string | null>;
   productName: string;
   tabCounts: Record<ModalTab, number>;
 }) => {
   const renderEventItem = ({ item }: { item: BatchLog }) => {
     const label = EVENT_LABELS[item.event_code] ?? item.event_code;
-    const dateLabel = formatDate(item.event_date) ?? '-';
-    const timeLabel = formatTime(item.event_date);
-    const orderLabel = getOrderLabel(item);
+    const dateLabel = formatDateFi(item.event_date) ?? '-';
+    const timeLabel = formatTimeFi(item.event_date);
+    const orderId = item.OrderLine?.OrderId;
+    const orderDate = orderId ? formatDateFi(orderDateMap.get(orderId) ?? null) : null;
+    const orderCustomer = orderId ? orderCustomerMap.get(orderId)?.name : null;
+    const orderLabel = [orderDate, orderCustomer].filter(Boolean).join(' · ');
     const weightLabel = formatWeightChange(item.weight_change) ?? '0 kg';
     const highlight = EVENT_HIGHLIGHT[item.event_code];
     const totalWeightKg =
@@ -1206,7 +1194,7 @@ const BatchEventsModalContent = ({
             {isDeleted ? (
               <View style={modalStyles.deletedHeaderBadge}>
                 <Text style={modalStyles.deletedHeaderBadgeText}>
-                  Poistettu {formatDate(deletedAt) ?? ''}
+                  Poistettu {formatDateFi(deletedAt) ?? ''}
                 </Text>
               </View>
             ) : null}
@@ -1332,14 +1320,14 @@ const OrderBatchesModalContent = ({
                 pressed && { opacity: 0.7 },
               ]}
             >
-              <View style={{ flex: 1 }}>
+              <View style={components.flex1}>
                 <Text style={modalStyles.batchItemTitle}>{item.batchLabel}</Text>
                 <Text numberOfLines={1} style={modalStyles.batchItemSubtitle}>
                   {[item.productName, item.lastEventLabel].filter(Boolean).join(' / ')}
                 </Text>
                 <Text style={modalStyles.batchItemMeta}>
                   {badgeText}
-                  {item.lastEventDate ? `  ·  ${formatDate(item.lastEventDate) ?? ''}` : ''}
+                  {item.lastEventDate ? `  ·  ${formatDateFi(item.lastEventDate) ?? ''}` : ''}
                 </Text>
               </View>
               <Ionicons color="rgba(255,255,255,0.45)" name="chevron-forward" size={18} />

@@ -49,6 +49,20 @@ export const addOneYear = (date: Date) => {
   return next;
 };
 
+export const formatDateFi = (value?: string | null): string | null => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('fi-FI', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+export const formatTimeFi = (value?: string | null): string | null => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' });
+};
+
 export const formatDateDisplayFromIso = (value?: string | null) => {
   if (!value) {
     return '';
