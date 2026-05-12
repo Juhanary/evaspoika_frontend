@@ -2,7 +2,6 @@ import React from 'react';
 import { AppState } from 'react-native';
 import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// Kerro TanStack Querylle että "focus" = app tulee etualalle
 focusManager.setEventListener((handleFocus) => {
   const sub = AppState.addEventListener('change', (state) => {
     handleFocus(state === 'active');
@@ -13,9 +12,10 @@ focusManager.setEventListener((handleFocus) => {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: 3,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 15_000),
       staleTime: 10_000,
-      refetchOnWindowFocus: true, // toimii AppState-handlerin ansiosta
+      refetchOnWindowFocus: true,
     },
   },
 });

@@ -282,6 +282,14 @@ export const orderStyles = StyleSheet.create({
     color: 'rgba(0,0,0,0.82)',
   },
 
+  // --- Order list status labels ---
+  statusWarningText: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: typography.sizes.xs,
+    color: colors.warning,
+    marginTop: spacing.xs / 2,
+  },
+
   // --- Scan modal (sm*) ---
   smOverlay: {
     flex: 1,
@@ -527,4 +535,5 @@ export const orderStyles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
   },
+  batchPickerScroll: { maxHeight: 300 },
 });

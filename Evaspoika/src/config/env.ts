@@ -11,8 +11,8 @@ const getExtraString = (key: string) => {
 };
 
 export const API_BASE_URL =
-  resolveString(process.env.EXPO_PUBLIC_API_BASE_URL, getExtraString('apiBaseUrl')) ??
-  'http://localhost:3000/api';
+  resolveString(process.env.EXPO_PUBLIC_API_BASE_URL) ??
+  (() => { throw new Error('EXPO_PUBLIC_API_BASE_URL is not set'); })();
 
 export const API_TOKEN = resolveString(
   process.env.EXPO_PUBLIC_API_TOKEN,

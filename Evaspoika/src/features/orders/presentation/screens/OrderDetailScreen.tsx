@@ -24,7 +24,8 @@ import { useCustomers } from '@/src/features/customers/presentation/hooks/useCus
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
 import { colors } from '@/src/shared/constants/colors';
-import { formatKg } from '@/src/shared/utils/weight';
+import { formatKg, parseWeightToGrams } from '@/src/shared/utils/weight';
+import { formatDateFi } from '@/src/shared/utils/date';
 import { ApiError } from '@/src/infrastructure/api/error';
 import { components } from '@/src/shared/styles/components';
 import { orderStyles } from '@/src/shared/styles/orders';
@@ -69,23 +70,6 @@ type ProductLineGroup = {
 };
 
 
-const kgStrToGrams = (value: string) =>
-  Math.round(parseFloat(value.replace(',', '.')) * 1000);
-
-
-const toFinnishDate = (value?: string | null) => {
-  if (!value) return null;
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return null;
-
-  return date.toLocaleDateString('fi-FI', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-};
 
 export default function OrderDetailScreen({ orderId }: Props) {
   const queryClient = useQueryClient();
@@ -224,7 +208,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
   const scanTotalWeight = useMemo(
     () =>
       scannedBoxes.reduce((sum, box) => {
-        const weightGrams = kgStrToGrams(box.weightKg);
+        const weightGrams = parseWeightToGrams(box.weightKg);
         return sum + (Number.isFinite(weightGrams) ? weightGrams : 0);
       }, 0),
     [scannedBoxes],
@@ -306,7 +290,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
         return;
       }
 
-      const soldWeight = kgStrToGrams(box.weightKg);
+      const soldWeight = parseWeightToGrams(box.weightKg);
 
       if (!Number.isFinite(soldWeight) || soldWeight <= 0) {
         Alert.alert('Virheellinen paino', `Tarkista paino: ${box.productName}`);
@@ -323,7 +307,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
           createOrderLine({
             orderId: orderId!,
             batchId: box.selectedBatchId!,
-            sold_weight: kgStrToGrams(box.weightKg),
+            sold_weight: parseWeightToGrams(box.weightKg),
             price_per_gram: Math.round(box.pricePerKg),
           }),
         ),
@@ -438,7 +422,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
       return;
     }
 
-    const weightGrams = kgStrToGrams(virtualWeight);
+    const weightGrams = parseWeightToGrams(virtualWeight);
     if (!Number.isFinite(weightGrams) || weightGrams <= 0) {
       Alert.alert('Virheellinen paino', 'Tarkista paino.');
       return;
@@ -501,7 +485,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
     );
   }
 
-  const dateLabel = toFinnishDate(order?.order_date);
+  const dateLabel = formatDateFi(order?.order_date);
 
   return (
     <ScreenLayout leftAction="back" title="TILAUS">
@@ -731,7 +715,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
               {batchPickerOptions.length === 0 ? (
                 <Text style={components.modalEmpty}>Ei vapaita laatikoita tälle tuotteelle.</Text>
               ) : (
-                <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+                <ScrollView style={orderStyles.batchPickerScroll} showsVerticalScrollIndicator={false}>
                   {batchPickerOptions.map((option) => (
                     <TouchableOpacity
                       key={option.batchId}
@@ -744,7 +728,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
                         <Text style={components.modalRowText}>{option.batchNumber}</Text>
                       )}
                       <Text style={components.modalRowSubText}>
-                        {(toFinnishDate(option.productionDate) ?? 'Ei p\u00E4iv\u00E4yst\u00E4') +
+                        {(formatDateFi(option.productionDate) ?? 'Ei p\u00E4iv\u00E4yst\u00E4') +
                           ` / ${formatKg(option.currentWeight)} kg`}
                       </Text>
                     </TouchableOpacity>

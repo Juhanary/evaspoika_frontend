@@ -193,7 +193,7 @@ export default function WeighingScreen() {
       <View style={mode.type === 'existing' ? components.cardSuccess : components.weighingCard}>
         <View style={components.cardHeader}>
           {mode.type === 'existing' ? (
-            <View style={{ flex: 1 }}>
+            <View style={components.flex1}>
               <Text style={components.selectedName}>{activeProduct!.name}</Text>
               {currentBatch ? (
                 <Text style={components.batchStatus}>
@@ -204,7 +204,7 @@ export default function WeighingScreen() {
               )}
             </View>
           ) : (
-            <View style={{ flex: 1 }}>
+            <View style={components.flex1}>
               <TextInput
                 ref={nameRef}
                 style={components.nameInput}

@@ -17,7 +17,7 @@ export default function MoreScreen() {
             label="ASIAKKAAT"
             onPress={() => router.push(routes.moreCustomers)}
             variant="glassNav"
-          />
+                      />
           <Button
             label="TAPAHTUMAT"
             onPress={() => router.push(routes.moreLogs)}

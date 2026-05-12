@@ -1,11 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/shared/constants/colors';
-import { spacing } from '@/src/shared/constants/spacing';
+import { inventorySummaryModalStyles as styles } from '@/src/shared/styles/inventorySummaryModal';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import {
   getInventoryBarColor,
@@ -99,18 +99,21 @@ const Row = React.memo(function Row({
 
 export function InventorySummaryModal({ visible, onClose, items }: Props) {
   const [order, setOrder] = useState<number[]>([]);
+  const [orderLoaded, setOrderLoaded] = useState(false);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragTo, setDragTo] = useState<number | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem(ORDER_KEY).then((raw) => {
-      if (!raw) return;
-      try { setOrder(JSON.parse(raw)); } catch {}
+      if (raw) {
+        try { setOrder(JSON.parse(raw)); } catch {}
+      }
+      setOrderLoaded(true);
     });
   }, []);
 
   useEffect(() => {
-    if (items.length === 0) return;
+    if (!orderLoaded || items.length === 0) return;
     const incomingIds = items.map((i) => i.id);
     setOrder((prev) => {
       const kept = prev.filter((id) => incomingIds.includes(id));
@@ -119,7 +122,7 @@ export function InventorySummaryModal({ visible, onClose, items }: Props) {
       AsyncStorage.setItem(ORDER_KEY, JSON.stringify(next));
       return next;
     });
-  }, [items]);
+  }, [items, orderLoaded]);
 
   const sortedItems = useMemo(() => {
     if (order.length === 0) return items;
@@ -220,131 +223,3 @@ export function InventorySummaryModal({ visible, onClose, items }: Props) {
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-  },
-  card: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    top: '2%',
-    bottom: spacing.lg,
-    padding: 0,
-    borderRadius: 20,
-    overflow: 'hidden',
-    opacity: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.xl,
-    paddingTop: 20,
-    paddingBottom: spacing.md,
-  },
-  title: {
-    flex: 1,
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 32,
-    color: colors.white,
-    ...Platform.select({
-      web: { textShadow: '0px 1px 4px rgba(0,0,0,0.38)' } as object,
-      default: { textShadowColor: 'rgba(0,0,0,0.38)', textShadowRadius: 1 },
-    }),
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.white,
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.xs,
-  },
-  columnHeader: {
-    alignItems: 'flex-end',
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xs,
-  },
-  columnHeaderText: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 20,
-    color: '#E4E4E4',
-  },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: spacing.xl,
-  },
-  emptyText: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.5)',
-    textAlign: 'center',
-    marginTop: spacing.xl,
-  },
-  row: {
-    gap: 6,
-    paddingVertical: 10,
-  },
-  rowDragging: {
-    opacity: 0.4,
-  },
-  rowTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  rowName: {
-    fontFamily: 'Montserrat_500Medium',
-    fontSize: 20,
-    color: '#E4E4E4',
-  },
-  dragHandle: {
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-  },
-  rowBottom: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  barWrap: {
-    flex: 1,
-    height: 50,
-    borderRadius: 23,
-    overflow: 'hidden',
-  },
-  barBg: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(91,91,91,0.64)',
-    borderRadius: 23,
-  },
-  barFill: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    borderRadius: 23,
-  },
-  tick: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    width: 1,
-    backgroundColor: '#868686',
-  },
-  tickLow: {
-    left: '33%',
-  },
-  tickMid: {
-    left: '66%',
-  },
-  dropLine: {
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: "red",
-    marginHorizontal: spacing.sm,
-  },
-});

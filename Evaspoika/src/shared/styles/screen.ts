@@ -6,6 +6,7 @@ export const screen = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 8,
+    
   },
   innerSm: {
     flex: 1,
@@ -15,7 +16,7 @@ export const screen = StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: 'Montserrat_400Regular',
-    fontSize: 32,
+    fontSize: 35,
     color: '#EDEDED',
     marginBottom: 12,
     ...Platform.select({

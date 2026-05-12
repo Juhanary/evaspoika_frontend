@@ -17,7 +17,6 @@ import { Batch } from '../../domain/types';
 import { useBatches, useDeletedBatches } from '../hooks/useBatches';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
 import { colors } from '@/src/shared/constants/colors';
-import { spacing } from '@/src/shared/constants/spacing';
 import { routes } from '@/src/shared/navigation/routes';
 import { components } from '@/src/shared/styles/components';
 import { batchStyles } from '@/src/shared/styles/batches';
@@ -44,14 +43,6 @@ const toFinnishDate = (value?: string | null) => {
   });
 };
 
-const isOld = (value?: string | null) => {
-  if (!value) return false;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return false;
-  const nineMonthsAgo = new Date();
-  nineMonthsAgo.setMonth(nineMonthsAgo.getMonth() - 9);
-  return date < nineMonthsAgo;
-};
 
 export default function BatchListScreen({ productId }: BatchListScreenProps) {
   const router = useRouter();
@@ -218,7 +209,7 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
           </Text>
         </View>
       ) : (
-        <View style={{ flex: 1 }}>
+        <View style={components.flex1}>
          
             
               <Text style={batchStyles.blColHeader}>Erä</Text>
@@ -236,16 +227,17 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
                 }
                 renderItem={({ item }) => {
                   const dateLabel = toFinnishDate(item.production_date) ?? item.batch_number;
-                  const old = isOld(item.production_date);
+                  const daysLeft = item.days_until_expiry ?? null;
+                  const expiring = daysLeft !== null && daysLeft <= 100;
 
                   return (
                     <View style={batchStyles.blRow}>
                       <Text style={batchStyles.blDateText}>{dateLabel}</Text>
-                      {old ? (
+                      {expiring ? (
                         <Ionicons
-                          color="#E57C00"
+                          color={daysLeft <= 50 ? colors.danger50pvonWhite : colors.danger100pvonWhite}
                           name="warning-outline"
-                          size={16}
+                          size={50}
                           style={batchStyles.blWarnIcon}
                         />
                       ) : null}
@@ -300,14 +292,14 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
         transparent
         visible={adjusting !== null}
       >
-        <View style={adjStyles.overlay}>
-          <View style={adjStyles.card}>
-            <Text style={adjStyles.title}>
+        <View style={batchStyles.blAdjOverlay}>
+          <View style={batchStyles.blAdjCard}>
+            <Text style={batchStyles.blAdjTitle}>
               {adjusting?.mode === 'add' ? 'Lisää painoa' : 'Vähennä painoa'}
             </Text>
 
             {adjustBatch ? (
-              <Text style={adjStyles.currentWeight}>
+              <Text style={batchStyles.blAdjCurrentWeight}>
                 Nykyinen paino: {formatKg(adjustBatch.current_weight)} kg
               </Text>
             ) : null}
@@ -318,7 +310,7 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
               placeholder="Paino kg (esim. 1.500)"
               placeholderTextColor="rgba(0,0,0,0.35)"
               ref={adjKgRef}
-              style={adjStyles.input}
+              style={batchStyles.blAdjInput}
               value={adjKg}
             />
 
@@ -326,26 +318,26 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
               onChangeText={setAdjReason}
               placeholder="Syy muutokselle (pakollinen)"
               placeholderTextColor="rgba(0,0,0,0.35)"
-              style={adjStyles.input}
+              style={batchStyles.blAdjInput}
               value={adjReason}
             />
 
-            <View style={adjStyles.btnRow}>
+            <View style={batchStyles.blAdjBtnRow}>
               <Pressable
                 onPress={closeAdjust}
-                style={({ pressed }) => [adjStyles.cancelBtn, pressed && screen.pressed]}
+                style={({ pressed }) => [batchStyles.blAdjCancelBtn, pressed && screen.pressed]}
               >
-                <Text style={adjStyles.cancelBtnText}>Peruuta</Text>
+                <Text style={batchStyles.blAdjCancelBtnText}>Peruuta</Text>
               </Pressable>
               <Pressable
                 disabled={adjSaving}
                 onPress={handleAdjustSave}
                 style={({ pressed }) => [
-                  adjStyles.saveBtn,
+                  batchStyles.blAdjSaveBtn,
                   (pressed || adjSaving) && screen.pressed,
                 ]}
               >
-                <Text style={adjStyles.saveBtnText}>
+                <Text style={batchStyles.blAdjSaveBtnText}>
                   {adjusting?.mode === 'add' ? 'Lisää' : 'Vähennä'}
                 </Text>
               </Pressable>
@@ -356,75 +348,3 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
     </ScreenLayout>
   );
 }
-
-const adjStyles = {
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,},
-    
-  card: {
-    maxWidth: 400,
-    minWidth: 400,
-    maxHeight: '90%' as `${number}%`,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    padding: spacing.xl,
-    gap: spacing.md,
-  },
-  title: {
-    fontFamily: 'Montserrat_600SemiBold',
-    fontSize: 22,
-    color: 'rgba(0,0,0,0.82)',
-    marginBottom: 4,
-  },
-  currentWeight: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 15,
-    color: 'rgba(0,0,0,0.5)',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.15)',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 18,
-    color: 'rgba(0,0,0,0.82)',
-    backgroundColor: '#F5F5F5',
-  },
-  btnRow: {
-    flexDirection: 'row' as const,
-    gap: spacing.md,
-    marginTop: 4,
-  },
-  cancelBtn: {
-    flex: 1,
-    borderRadius: 50,
-    paddingVertical: 13,
-    alignItems: 'center' as const,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.18)',
-  },
-  cancelBtnText: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 17,
-    color: 'rgba(0,0,0,0.6)',
-  },
-  saveBtn: {
-    flex: 1,
-    borderRadius: 50,
-    paddingVertical: 13,
-    alignItems: 'center' as const,
-    backgroundColor: '#39F56A',
-    boxShadow: '0px 2px 4px rgba(0,0,0,0.15)',
-  },
-  saveBtnText: {
-    fontFamily: 'Montserrat_600SemiBold',
-    fontSize: 17,
-    color: 'rgba(0,0,0,0.82)',
-  },
-};

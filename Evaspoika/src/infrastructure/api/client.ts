@@ -20,6 +20,7 @@ export type ApiAuthScope = 'apiRead' | 'apiWrite' | 'netvisorRead' | 'netvisorWr
 export type ApiRequestOptions = RequestInit & {
   query?: QueryParams;
   auth?: ApiAuthScope | false | { token: string };
+  signal?: AbortSignal;
 };
 
 const resolveDefaultAuthScope = (method?: string): ApiAuthScope => {
@@ -95,9 +96,19 @@ const parseResponseBody = (text: string) => {
   }
 };
 
+const REQUEST_TIMEOUT_MS = 30_000;
+
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-  const { query, auth, ...requestOptions } = options;
+  const { query, auth, signal: callerSignal, ...requestOptions } = options;
   const url = appendQueryParams(path, query);
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  if (callerSignal) {
+    callerSignal.addEventListener('abort', () => controller.abort());
+  }
+  const { signal } = controller;
+
   const headers = new Headers(requestOptions.headers);
 
   if (!headers.has('Accept')) {
@@ -113,18 +124,22 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(url, { ...requestOptions, headers });
+  try {
+    const response = await fetch(url, { ...requestOptions, headers, signal });
 
-  if (response.status === 204) {
-    return undefined as T;
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    const text = await response.text();
+    const data = parseResponseBody(text);
+
+    if (!response.ok) {
+      throw new ApiError(response.status, data ?? text);
+    }
+
+    return data as T;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  const text = await response.text();
-  const data = parseResponseBody(text);
-
-  if (!response.ok) {
-    throw new ApiError(response.status, data ?? text);
-  }
-
-  return data as T;
 }

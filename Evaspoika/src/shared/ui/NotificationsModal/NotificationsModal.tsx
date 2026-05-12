@@ -1,21 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { Batch } from '@/src/features/batches/domain/types';
 import { Product } from '@/src/features/products/domain/types';
 import { colors } from '@/src/shared/constants/colors';
-import { spacing } from '@/src/shared/constants/spacing';
+import { components } from '@/src/shared/styles/components';
+import { notificationsModalStyles as styles } from '@/src/shared/styles/notificationsModal';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 
 const THRESHOLDS_KEY = '@evaspoika_stock_thresholds_v1';
@@ -157,13 +149,13 @@ export function NotificationsModal({ visible, onClose, batches, products }: Prop
               {/* Left: Expiry warnings */}
               <View style={styles.splitPane}>
                 <Text style={styles.sectionLabel}>ERÄPÄIVÄT</Text>
-                <ScrollView contentContainerStyle={styles.paneContent} showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+                <ScrollView contentContainerStyle={styles.paneContent} showsVerticalScrollIndicator={false} style={components.flex1}>
                   {expiryWarnings.length === 0 ? (
                     <Text style={styles.emptyText}>Ei hälytyksiä.</Text>
                   ) : (
                     expiryWarnings.map((w) => (
                       <View key={w.key} style={styles.warnRow}>
-                        <View style={{ flex: 1 }}>
+                        <View style={components.flex1}>
                           <Text style={styles.warnProduct} numberOfLines={1}>{w.productName}</Text>
                           <Text style={styles.warnDetail}>
                             {`Erä ${w.batchNumber}`}
@@ -175,10 +167,10 @@ export function NotificationsModal({ visible, onClose, batches, products }: Prop
                             {
                               backgroundColor:
                                 w.daysLeft <= 0
-                                  ? 'rgba(220,38,38,0.22)'
-                                  : w.daysLeft <= 14
-                                  ? 'rgba(220,38,38,0.22)'
-                                  : 'rgba(217,119,6,0.22)',
+                                  ? colors.danger
+                                  : w.daysLeft <= 60
+                                  ? colors.danger50pv
+                                  : colors.danger100pv,
                             },
                           ]}
                         >
@@ -186,8 +178,9 @@ export function NotificationsModal({ visible, onClose, batches, products }: Prop
                             style={[
                               styles.daysBadgeText,
                               {
+                                
                                 color:
-                                  w.daysLeft <= 14 ? colors.dangerMid : colors.warning,
+                                  w.daysLeft <= 1 ? colors.white : colors.warning,
                               },
                             ]}
                           >
@@ -208,13 +201,13 @@ export function NotificationsModal({ visible, onClose, batches, products }: Prop
               {/* Right: Stock warnings */}
               <View style={styles.splitPane}>
                 <Text style={styles.sectionLabel}>VARASTOSALDO</Text>
-                <ScrollView contentContainerStyle={styles.paneContent} showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+                <ScrollView contentContainerStyle={styles.paneContent} showsVerticalScrollIndicator={false} style={components.flex1}>
                   {stockWarnings.length === 0 ? (
                     <Text style={styles.emptyText}>Ei hälytyksiä.</Text>
                   ) : (
                     stockWarnings.map((w) => (
                       <View key={w.productId} style={styles.warnRow}>
-                        <View style={{ flex: 1 }}>
+                        <View style={components.flex1}>
                           <Text style={styles.warnProduct} numberOfLines={1}>{w.productName}</Text>
                           <Text style={styles.warnDetail}>
                             {`${w.currentKg.toFixed(1)} / ${w.thresholdKg} kg`}
@@ -271,180 +264,3 @@ export function NotificationsModal({ visible, onClose, batches, products }: Prop
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-  },
-  card: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    top: '2%',
-    bottom: spacing.lg,
-    padding: 0,
-    borderRadius: 20,
-    overflow: 'hidden',
-    opacity: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.xl,
-    paddingTop: 20,
-    paddingBottom: spacing.md,
-  },
-  title: {
-    flex: 1,
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 32,
-    color: colors.white,
-    ...Platform.select({
-      web: { textShadow: '0px 1px 4px rgba(0,0,0,0.38)' } as object,
-      default: { textShadowColor: 'rgba(0,0,0,0.38)', textShadowRadius: 1 },
-    }),
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.white,
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.xs,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.sm,
-    borderRadius: 10,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    padding: 3,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 7,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  tabActive: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
-  },
-  tabText: {
-    fontFamily: 'Montserrat_500Medium',
-    fontSize: 20,
-    color: 'rgba(255,255,255,0.5)',
-  },
-  tabTextActive: {
-    color: colors.white,
-  },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xl,
-  },
-  emptyText: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.5)',
-    textAlign: 'center',
-  },
-  sectionLabel: {
-    fontFamily: 'Montserrat_700Bold',
-    fontSize: 20,
-    color: 'rgba(255, 255, 255, 0.7)',
-    letterSpacing: 1.3,
-    marginBottom: spacing.md,
-  },
-  warnRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
-  warnProduct: {
-    fontFamily: 'Montserrat_600SemiBold',
-    fontSize: 15,
-    color: '#E4E4E4',
-  },
-  warnDetail: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
-    marginTop: 2,
-  },
-  daysBadge: {
-    minWidth: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 6,
-  },
-  daysBadgeText: {
-    fontFamily: 'Montserrat_700Bold',
-    fontSize: 14,
-  },
-  hintText: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
-    marginBottom: spacing.md,
-  },
-  threshRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: 9,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.07)',
-  },
-  threshName: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 14,
-    color: '#E4E4E4',
-  },
-  threshInput: {
-    fontFamily: 'Montserrat_500Medium',
-    fontSize: 15,
-    color: colors.white,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 8,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 5,
-    minWidth: 64,
-    textAlign: 'right',
-  },
-  threshUnit: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
-    width: 20,
-  },
-  splitContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    paddingBottom: spacing.xl,
-  },
-  splitPane: {
-    flex: 1,
-    paddingHorizontal: spacing.md,
-  },
-  splitDivider: {
-    width: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    marginVertical: spacing.xs,
-  },
-  daysBadgeSub: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.5)',
-    marginTop: -2,
-  },
-  paneContent: {
-    paddingBottom: spacing.md,
-  },
-});
