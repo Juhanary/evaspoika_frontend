@@ -1,11 +1,4 @@
-import {
-  API_BASE_URL,
-  API_READ_TOKEN,
-  API_TOKEN,
-  API_WRITE_TOKEN,
-  NETVISOR_READ_TOKEN,
-  NETVISOR_WRITE_TOKEN,
-} from '@/src/config/env';
+import { getSettings } from '@/src/config/settingsStore';
 import { ApiError } from './error';
 
 export type QueryParamPrimitive = string | number | boolean;
@@ -40,24 +33,27 @@ const resolveAuthToken = (auth: ApiRequestOptions['auth'], method?: string) => {
   }
 
   const scope = auth ?? resolveDefaultAuthScope(method);
+  const s = getSettings();
 
   switch (scope) {
     case 'apiRead':
-      return API_READ_TOKEN ?? API_WRITE_TOKEN ?? API_TOKEN;
+      return s.apiReadToken || s.apiWriteToken || undefined;
     case 'apiWrite':
-      return API_WRITE_TOKEN ?? API_TOKEN;
+      return s.apiWriteToken || undefined;
     case 'netvisorRead':
-      return NETVISOR_READ_TOKEN ?? NETVISOR_WRITE_TOKEN ?? API_TOKEN;
+      return s.netvisorReadToken || s.netvisorWriteToken || undefined;
     case 'netvisorWrite':
-      return NETVISOR_WRITE_TOKEN ?? API_TOKEN;
+      return s.netvisorWriteToken || undefined;
     default:
-      return API_TOKEN;
+      return undefined;
   }
 };
 
 const appendQueryParams = (path: string, query?: QueryParams) => {
+  const baseUrl = getSettings().apiBaseUrl;
+
   if (!query) {
-    return `${API_BASE_URL}${path}`;
+    return `${baseUrl}${path}`;
   }
 
   const params = new URLSearchParams();
@@ -81,7 +77,7 @@ const appendQueryParams = (path: string, query?: QueryParams) => {
   }
 
   const queryString = params.toString();
-  return queryString ? `${API_BASE_URL}${path}?${queryString}` : `${API_BASE_URL}${path}`;
+  return queryString ? `${baseUrl}${path}?${queryString}` : `${baseUrl}${path}`;
 };
 
 const parseResponseBody = (text: string) => {

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -13,6 +13,7 @@ import {
   Montserrat_700Bold,
 } from '@expo-google-fonts/montserrat';
 import * as SplashScreen from 'expo-splash-screen';
+import { loadSettings } from '@/src/config/settingsStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -24,14 +25,19 @@ export default function Layout() {
     Montserrat_600SemiBold,
     Montserrat_700Bold,
   });
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    loadSettings().finally(() => setSettingsLoaded(true));
+  }, []);
+
+  useEffect(() => {
+    if ((fontsLoaded || fontError) && settingsLoaded) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError, settingsLoaded]);
 
-  if (!fontsLoaded && !fontError) return null;
+  if ((!fontsLoaded && !fontError) || !settingsLoaded) return null;
 
   return (
     <GestureHandlerRootView style={styles.root}>
