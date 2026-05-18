@@ -14,6 +14,7 @@ export const routes = {
   more: '/more' as Href,
   moreCustomers: '/more/customers' as Href,
   moreLogs: '/more/logs' as Href,
+  moreSettings: '/more/settings' as Href,
   orderDetail(orderId: RouteParam) {
     return {
       pathname: '/orders/[orderId]',

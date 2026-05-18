@@ -23,6 +23,11 @@ export default function MoreScreen() {
             onPress={() => router.push(routes.moreLogs)}
             variant="glassNav"
           />
+          <Button
+            label="ASETUKSET"
+            onPress={() => router.push(routes.moreSettings)}
+            variant="glassNav"
+          />
         </View>
       </View>
     </ScreenLayout>
