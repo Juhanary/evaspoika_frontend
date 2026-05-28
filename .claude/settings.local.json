@@ -6,7 +6,11 @@
       "mcp__figma__get_figma_data",
       "Bash(node -e \":*)",
       "Bash(grep -E \"\\\\.\\(js|ts\\)$\")",
-      "Bash(grep -l \"components\\\\.\" /c/Users/s2203672/Evaspoika/evaspoika_frontend/Evaspoika/src/features/*/presentation/screens/*Screen.tsx)"
+      "Bash(grep -l \"components\\\\.\" /c/Users/s2203672/Evaspoika/evaspoika_frontend/Evaspoika/src/features/*/presentation/screens/*Screen.tsx)",
+      "Bash(rm \"c:/Users/s2203672/Evaspoika/evaspoika_frontend/Evaspoika/src/config/settingsStore.ts\")",
+      "Bash(rm \"c:/Users/s2203672/Evaspoika/evaspoika_frontend/Evaspoika/src/shared/utils/logger.ts\")",
+      "Bash(rm \"c:/Users/s2203672/Evaspoika/evaspoika_frontend/Evaspoika/src/features/settings/presentation/screens/SettingsScreen.tsx\")",
+      "Bash(rm \"c:/Users/s2203672/Evaspoika/evaspoika_frontend/Evaspoika/app/\\(tabs\\)/more/settings.tsx\")"
     ]
   }
 }

@@ -1,0 +1,35 @@
+{
+  "cli": {
+    "version": ">= 18.13.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "http://10.214.33.15:3000/api",
+        "EXPO_PUBLIC_API_READ_TOKEN": "1ffa43b46081d82b21a4ed6ac253bf9ead510235739514e9",
+        "EXPO_PUBLIC_API_WRITE_TOKEN": "bef152db8ff07d7a6f3174cddace92627d3882e15d21056b",
+        "EXPO_PUBLIC_NETVISOR_READ_TOKEN": "3dbff000ca74db6f76cc25dc3bf820c61df7a2c598791987",
+        "EXPO_PUBLIC_NETVISOR_WRITE_TOKEN": "7b6c7bfa32720e9dfd4560a5e2ab6257545ce13eddd85c3a"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "http://10.214.33.15:3000/api",
+        "EXPO_PUBLIC_API_READ_TOKEN": "1ffa43b46081d82b21a4ed6ac253bf9ead510235739514e9",
+        "EXPO_PUBLIC_API_WRITE_TOKEN": "bef152db8ff07d7a6f3174cddace92627d3882e15d21056b",
+        "EXPO_PUBLIC_NETVISOR_READ_TOKEN": "3dbff000ca74db6f76cc25dc3bf820c61df7a2c598791987",
+        "EXPO_PUBLIC_NETVISOR_WRITE_TOKEN": "7b6c7bfa32720e9dfd4560a5e2ab6257545ce13eddd85c3a"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

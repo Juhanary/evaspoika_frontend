@@ -1,7 +1,9 @@
-import React, { useRef, useMemo, useState, useCallback } from 'react';
+import React, { useRef, useMemo, useState, useCallback, useEffect } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   Text,
@@ -31,7 +33,9 @@ import { orderStyles } from '@/src/shared/styles/orders';
 import { productStyles } from '@/src/shared/styles/products';
 import { screen } from '@/src/shared/styles/screen';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
+import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
 import { formatKg } from '@/src/shared/utils/weight';
+import { patchProductPlu } from '../../infrastructure/productsApi';
 import { Product } from '../../domain/types';
 import { useProducts } from '../hooks/useProducts';
 import {
@@ -119,6 +123,9 @@ export default function ProductListScreen() {
   const [favExpandedId, setFavExpandedId] = useState<number | null>(null);
   const [catExpandedId, setCatExpandedId] = useState<number | null>(null);
   const [showAddBoxesModal, setShowAddBoxesModal] = useState(false);
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [dropdownY, setDropdownY] = useState(200);
+  const filterBtnRef = useRef<View>(null);
   const [configTargetId, setConfigTargetId] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | null>(null);
 
@@ -285,6 +292,13 @@ export default function ProductListScreen() {
     });
   }, [displayRows, selectedCategory, setProductCategoryOrder]);
 
+  const openDropdown = useCallback(() => {
+    filterBtnRef.current?.measureInWindow((_x, y, _w, h) => {
+      setDropdownY(y + h + 6);
+      setShowFilterDropdown(true);
+    });
+  }, []);
+
   // ── Row renderer ────────────────────────────────────────────────────────────
 
   const renderProductRow = (
@@ -317,6 +331,14 @@ export default function ProductListScreen() {
             </Text>
             {isFav ? (
               <Ionicons color="#f5a623" name="star" size={13} style={productStyles.invIconTrailingGap} />
+            ) : null}
+            {!item.product.plu ? (
+              <Ionicons
+                color="rgba(220,60,0,0.85)"
+                name="keypad-outline"
+                size={16}
+                style={productStyles.invIconTrailingGap}
+              />
             ) : null}
             {!item.product.netvisor_key ? (
               <Ionicons
@@ -388,6 +410,11 @@ export default function ProductListScreen() {
               >
                 <Text style={components.invDropdownBtnText}>MUOKKAA ERIÄ</Text>
               </Pressable>
+              {!item.product.plu ? (
+                <Text style={productStyles.pluWarningText}>
+                  PLU puuttuu — vaaka ei tunnista tuotetta. Paina pitkään asettaaksesi.
+                </Text>
+              ) : null}
               {!item.product.netvisor_key ? (
                 <Text style={productStyles.netvisorWarningText}>
                   Ei vahvistettu Netvisorissa
@@ -443,29 +470,6 @@ export default function ProductListScreen() {
         </View>
       ) : null}
 
-      {/* Category cards */}
-      <View style={productStyles.catCardRow}>
-        {FIXED_CATEGORIES.map((cat) => {
-          const isSelected = selectedCategory === cat.id;
-          return (
-            <Pressable
-              key={cat.id}
-              onPress={() => setSelectedCategory(isSelected ? null : cat.id)}
-              style={({ pressed }) => [
-                productStyles.catCard,
-                isSelected && productStyles.catCardSelected,
-                pressed && screen.pressed,
-              ]}
-            >
-              <View style={productStyles.catCardIcon} />
-              <Text style={isSelected ? productStyles.catCardLabelSelected : productStyles.catCardLabel}>
-                {cat.name.toUpperCase()}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
       {/* Section label for selected category */}
       {!query.trim() && activeCatLabel ? sectionLabel(activeCatLabel.toUpperCase()) : null}
     </View>
@@ -481,20 +485,35 @@ export default function ProductListScreen() {
 
   return (
     <>
-      <ScreenLayout
-        headerSearch={{ value: query, onChangeText: setQuery, placeholder: 'Hae tuotetta...' }}
-        title="VARASTO"
-      >
+      <ScreenLayout title="VARASTO">
         <View style={screen.innerSm}>
+          <View style={productStyles.searchFilterRow}>
+            <SearchInput
+              onChangeText={setQuery}
+              placeholder="Hae tuotetta..."
+              style={productStyles.searchFilterInput}
+              value={query}
+              variant="dark"
+            />
+            <View ref={filterBtnRef}>
+              <Pressable
+                onPress={openDropdown}
+                style={({ pressed }) => [
+                  productStyles.filterBtn,
+                  selectedCategory !== null && productStyles.filterBtnActive,
+                  pressed && screen.pressed,
+                ]}
+              >
+                <Ionicons
+                  color={selectedCategory !== null ? colors.white : 'rgba(0,0,0,0.65)'}
+                  name="options-outline"
+                  size={22}
+                />
+              </Pressable>
+            </View>
+          </View>
           <View style={screen.columnHeaderRow}>
             <Text style={screen.columnHeaderText}>Paino / Laatikoita</Text>
-            <Pressable
-              onPress={() => setShowAddBoxesModal(true)}
-              style={({ pressed }) => [components.invAddBoxBtn, pressed && screen.pressed]}
-            >
-              <Ionicons color="rgba(0,0,0,0.7)" name="add" size={16} />
-              <Text style={components.invAddBoxBtnText}>Lisää laatikoita</Text>
-            </Pressable>
           </View>
 
           {productsError ? (
@@ -538,6 +557,50 @@ export default function ProductListScreen() {
         </View>
       </ScreenLayout>
 
+      <Modal animationType="none" onRequestClose={() => setShowFilterDropdown(false)} transparent visible={showFilterDropdown}>
+        <Pressable style={{ flex: 1 }} onPress={() => setShowFilterDropdown(false)}>
+          <Pressable onPress={() => {}} style={[productStyles.filterDropdownCard, { top: dropdownY }]}>
+            <Pressable
+              onPress={() => { setSelectedCategory(null); setShowFilterDropdown(false); }}
+              style={productStyles.filterDropdownItem}
+            >
+              <Ionicons
+                color={selectedCategory === null ? colors.primary : 'rgba(0,0,0,0.3)'}
+                name={selectedCategory === null ? 'radio-button-on' : 'radio-button-off'}
+                size={18}
+              />
+              <Text style={[productStyles.filterDropdownItemText, selectedCategory === null && productStyles.filterDropdownItemSelected]}>
+                Kaikki tuotteet
+              </Text>
+            </Pressable>
+            {FIXED_CATEGORIES.map((cat) => (
+              <Pressable
+                key={cat.id}
+                onPress={() => { setSelectedCategory(cat.id); setShowFilterDropdown(false); }}
+                style={productStyles.filterDropdownItem}
+              >
+                <Ionicons
+                  color={selectedCategory === cat.id ? colors.primary : 'rgba(0,0,0,0.3)'}
+                  name={selectedCategory === cat.id ? 'radio-button-on' : 'radio-button-off'}
+                  size={18}
+                />
+                <Text style={[productStyles.filterDropdownItemText, selectedCategory === cat.id && productStyles.filterDropdownItemSelected]}>
+                  {cat.name}
+                </Text>
+              </Pressable>
+            ))}
+            <View style={productStyles.filterDropdownDivider} />
+            <Pressable
+              onPress={() => { setShowAddBoxesModal(true); setShowFilterDropdown(false); }}
+              style={productStyles.filterDropdownItem}
+            >
+              <Ionicons color="rgba(0,0,0,0.65)" name="add-circle-outline" size={18} />
+              <Text style={productStyles.filterDropdownItemText}>Lisää laatikoita</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <Modal animationType="fade" onRequestClose={() => {}} transparent visible={showAddBoxesModal}>
         <AddBoxesModal onClose={() => setShowAddBoxesModal(false)} products={products ?? []} />
       </Modal>
@@ -580,11 +643,34 @@ const ProductConfigModal = ({
   onAssignCategory: (categoryId: CategoryId | null) => void;
   onClose: () => void;
 }) => {
+  const queryClient = useQueryClient();
   const isFav = config.favorites.includes(row.product.id);
   const currentCatId = (config.assignments[String(row.product.id)] ?? null) as CategoryId | null;
+  const [pluInput, setPluInput] = useState(row.product.plu ? String(row.product.plu) : '');
+  const [pluSaving, setPluSaving] = useState(false);
+
+  const handleSavePlu = async () => {
+    const parsed = pluInput.trim() === '' ? null : parseInt(pluInput.trim(), 10);
+    if (pluInput.trim() !== '' && (isNaN(parsed!) || parsed! <= 0)) {
+      Alert.alert('Virheellinen PLU', 'PLU-numeron täytyy olla positiivinen kokonaisluku.');
+      return;
+    }
+    setPluSaving(true);
+    try {
+      await patchProductPlu(row.product.id, parsed);
+      await queryClient.invalidateQueries({ queryKey: ['products'] });
+    } catch {
+      Alert.alert('Virhe', 'PLU-numeron tallennus epäonnistui.');
+    } finally {
+      setPluSaving(false);
+    }
+  };
 
   return (
-    <View style={components.modalOverlay}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={components.modalOverlay}
+    >
       <View style={components.modalCard}>
         <View style={productStyles.configModalHeaderRow}>
           <Text numberOfLines={1} style={[components.modalTitle, productStyles.configModalTitleOverride]}>
@@ -595,68 +681,96 @@ const ProductConfigModal = ({
           </Pressable>
         </View>
 
-        <TouchableOpacity
-          onPress={() => {
-            if (!isFav && config.favorites.length >= maxFavorites) {
-              Alert.alert('Suosikkeja täynnä', `Suosikkeja voi olla enintään ${maxFavorites}.`);
-              return;
-            }
-            onToggleFavorite();
-          }}
-          style={productStyles.configModalFavRow}
-        >
-          <Ionicons
-            color={isFav ? '#f5a623' : 'rgba(0,0,0,0.35)'}
-            name={isFav ? 'star' : 'star-outline'}
-            size={22}
-          />
-          <Text style={isFav ? productStyles.configModalFavTextActive : productStyles.configModalFavText}>
-            {isFav ? 'Poista suosikeista' : 'Lisää suosikkeihin'}
-          </Text>
-        </TouchableOpacity>
-
-        <View style={productStyles.configModalDivider} />
-
-        <Text style={productStyles.configModalCatSectionLabel}>
-          KATEGORIA
-        </Text>
-
-        <TouchableOpacity
-          onPress={() => onAssignCategory(null)}
-          style={productStyles.configModalCatRow}
-        >
-          <Ionicons
-            color={currentCatId === null ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.25)'}
-            name={currentCatId === null ? 'radio-button-on' : 'radio-button-off'}
-            size={20}
-          />
-          <Text style={productStyles.configModalCatNoneText}>
-            Ei kategoriaa
-          </Text>
-        </TouchableOpacity>
-
-        {FIXED_CATEGORIES.map((cat) => (
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <TouchableOpacity
-            key={cat.id}
-            onPress={() => onAssignCategory(cat.id)}
+            onPress={() => {
+              if (!isFav && config.favorites.length >= maxFavorites) {
+                Alert.alert('Suosikkeja täynnä', `Suosikkeja voi olla enintään ${maxFavorites}.`);
+                return;
+              }
+              onToggleFavorite();
+            }}
+            style={productStyles.configModalFavRow}
+          >
+            <Ionicons
+              color={isFav ? '#f5a623' : 'rgba(0,0,0,0.35)'}
+              name={isFav ? 'star' : 'star-outline'}
+              size={22}
+            />
+            <Text style={isFav ? productStyles.configModalFavTextActive : productStyles.configModalFavText}>
+              {isFav ? 'Poista suosikeista' : 'Lisää suosikkeihin'}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={productStyles.configModalDivider} />
+
+          <Text style={productStyles.configModalCatSectionLabel}>
+            KATEGORIA
+          </Text>
+
+          <TouchableOpacity
+            onPress={() => onAssignCategory(null)}
             style={productStyles.configModalCatRow}
           >
             <Ionicons
-              color={currentCatId === cat.id ? 'rgba(226, 13, 13, 0.75)' : 'rgba(0,0,0,0.25)'}
-              name={currentCatId === cat.id ? 'radio-button-on' : 'radio-button-off'}
+              color={currentCatId === null ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.25)'}
+              name={currentCatId === null ? 'radio-button-on' : 'radio-button-off'}
               size={20}
             />
-            <Text style={productStyles.configModalCatName}>
-              {cat.name}
+            <Text style={productStyles.configModalCatNoneText}>
+              Ei kategoriaa
             </Text>
           </TouchableOpacity>
-        ))}
 
-        <TouchableOpacity onPress={onClose} style={[components.buttonModalCancel, productStyles.configModalCloseBtnMargin]}>
-          <Text style={components.buttonTextModalCancel}>Valmis</Text>
-        </TouchableOpacity>
+          {FIXED_CATEGORIES.map((cat) => (
+            <TouchableOpacity
+              key={cat.id}
+              onPress={() => onAssignCategory(cat.id)}
+              style={productStyles.configModalCatRow}
+            >
+              <Ionicons
+                color={currentCatId === cat.id ? 'rgba(226, 13, 13, 0.75)' : 'rgba(0,0,0,0.25)'}
+                name={currentCatId === cat.id ? 'radio-button-on' : 'radio-button-off'}
+                size={20}
+              />
+              <Text style={productStyles.configModalCatName}>
+                {cat.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+
+          <View style={productStyles.configModalDivider} />
+
+          <Text style={productStyles.configModalPluSectionLabel}>PLU (VAAKA)</Text>
+          <Text style={productStyles.configModalPluCurrent}>
+            {row.product.plu ? `Nykyinen: ${row.product.plu}` : 'Ei asetettu — vaaka ei tunnista tuotetta'}
+          </Text>
+          <View style={productStyles.configModalPluRow}>
+            <TextInput
+              keyboardType="number-pad"
+              onChangeText={setPluInput}
+              placeholder="PLU-numero"
+              placeholderTextColor="rgba(0,0,0,0.3)"
+              style={productStyles.configModalPluInput}
+              value={pluInput}
+            />
+            <TouchableOpacity
+              disabled={pluSaving}
+              onPress={handleSavePlu}
+              style={productStyles.configModalPluSaveBtn}
+            >
+              <Text style={productStyles.configModalPluSaveBtnText}>
+                {pluSaving ? '...' : 'Tallenna'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity onPress={onClose} style={[components.buttonModalCancel, productStyles.configModalCloseBtnMargin]}>
+            <Text style={components.buttonTextModalCancel}>Valmis</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -678,6 +792,14 @@ const AddBoxesModal = ({
   const [scanning, setScanning] = useState(false);
   const eanRef = useRef<TextInput>(null);
   const nextId = useRef(1);
+
+  // Refocus EAN input after product picker closes or saving finishes
+  useEffect(() => {
+    if (productPickerFor === null && !saving) {
+      const t = setTimeout(() => eanRef.current?.focus(), 100);
+      return () => clearTimeout(t);
+    }
+  }, [productPickerFor, saving]);
 
   const handleScan = async (ean: string) => {
     const normalized = ean.replace(/\s+/g, '').trim();
@@ -779,7 +901,7 @@ const AddBoxesModal = ({
           <View style={orderStyles.smScanFieldRow}>
             <TextInput
               autoFocus
-              editable={!scanning}
+              editable={!scanning && !saving && productPickerFor === null}
               keyboardType="numeric"
               onChangeText={(v) => setEanInput(v.replace(/\s+/g, ''))}
               onSubmitEditing={() => handleScan(eanInput)}

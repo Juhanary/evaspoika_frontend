@@ -52,6 +52,13 @@ export function updateProduct(id: number, input: Partial<CreateProductInput>) {
   });
 }
 
+export function patchProductPlu(id: number, plu: number | null) {
+  return apiRequest<{ id: number; plu: number | null }>(`${endpoints.products}/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ plu }),
+  });
+}
+
 export function deleteProduct(id: number) {
   return apiRequest<unknown>(`${endpoints.products}/${id}`, {
     method: 'DELETE',

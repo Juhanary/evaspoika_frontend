@@ -319,6 +319,15 @@ export const productStyles = StyleSheet.create({
     marginLeft: spacing.sm,
   },
 
+  // --- ProductListScreen PLU warning ---
+  pluWarningText: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: typography.sizes.xs,
+    color: 'rgba(220,60,0,0.9)' as const,
+    textAlign: 'center' as const,
+    marginTop: spacing.xs + 2,
+  },
+
   // --- ProductListScreen Netvisor warning ---
   netvisorWarningText: {
     fontFamily: 'Montserrat_400Regular',
@@ -326,6 +335,51 @@ export const productStyles = StyleSheet.create({
     color: colors.warning,
     textAlign: 'center' as const,
     marginTop: spacing.xs + 2,
+  },
+
+  // --- ProductConfigModal PLU section ---
+  configModalPluSectionLabel: {
+    fontSize: 11,
+    fontFamily: 'Montserrat_700Bold',
+    color: 'rgba(0,0,0,0.35)' as const,
+    letterSpacing: 1.2,
+    marginBottom: 6,
+    marginTop: 10,
+  },
+  configModalPluRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    marginBottom: 6,
+  },
+  configModalPluInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.15)' as const,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    fontSize: 15,
+    fontFamily: 'Montserrat_500Medium',
+    color: 'rgba(0,0,0,0.8)' as const,
+    backgroundColor: 'rgba(0,0,0,0.04)' as const,
+  },
+  configModalPluSaveBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(37,99,235,0.85)' as const,
+  },
+  configModalPluSaveBtnText: {
+    fontFamily: 'Montserrat_600SemiBold',
+    fontSize: 13,
+    color: '#fff' as const,
+  },
+  configModalPluCurrent: {
+    fontSize: 13,
+    fontFamily: 'Montserrat_400Regular',
+    color: 'rgba(0,0,0,0.45)' as const,
+    marginBottom: 4,
   },
 
   // --- ProductListScreen pill row overrides ---
@@ -447,4 +501,66 @@ export const productStyles = StyleSheet.create({
     color: 'rgba(0,0,0,0.8)' as const,
   },
   configModalCloseBtnMargin: { marginTop: 14 },
+
+  // --- Search + filter row (ProductListScreen) ---
+  searchFilterRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 10,
+    marginBottom: 8,
+  },
+  searchFilterInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  filterBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  filterBtnActive: {
+    backgroundColor: 'rgba(37,99,235,0.85)',
+    borderColor: 'rgba(37,99,235,0.9)',
+  },
+
+  // --- Filter dropdown (ProductListScreen) ---
+  filterDropdownCard: {
+    position: 'absolute' as const,
+    right: 16,
+    minWidth: 220,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
+    elevation: 10,
+    boxShadow: '0px 4px 16px rgba(0,0,0,0.18)',
+    paddingVertical: 6,
+  },
+  filterDropdownItem: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  filterDropdownItemText: {
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 15,
+    color: 'rgba(0,0,0,0.7)' as const,
+  },
+  filterDropdownItemSelected: {
+    fontFamily: 'Montserrat_700Bold',
+    color: 'rgba(0,0,0,0.9)' as const,
+  },
+  filterDropdownDivider: {
+    height: 1,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+    marginHorizontal: 12,
+    marginVertical: 4,
+  },
 });
