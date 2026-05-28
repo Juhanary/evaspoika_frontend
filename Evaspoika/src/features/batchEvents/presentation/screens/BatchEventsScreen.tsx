@@ -7,6 +7,7 @@ import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { formatDateDisplayFromIso } from '@/src/shared/utils/date';
 import { useBatchEvents } from '../hooks/useBatchEvents';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
+import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
 import { BatchLog } from '../../domain/types';
 import { formatKg } from '@/src/shared/utils/weight';
 
@@ -36,12 +37,18 @@ type Props = {
 export default function BatchEventsScreen({ batchId, batchNumber }: Props) {
   const { data: events, isLoading, error } = useBatchEvents();
   const { data: batches } = useBatches();
+  const { data: products } = useProducts();
   const [activeTab, setActiveTab] = useState<'ALL' | 'SALE' | 'WEIGHING' | 'INVENTORY'>('ALL');
 
   const batch = useMemo(
     () => (batches ?? []).find((item) => item.id === batchId) ?? null,
     [batches, batchId]
   );
+
+  const productName = useMemo(() => {
+    if (!batch?.ProductId) return 'Tuntematon';
+    return (products ?? []).find((p) => p.id === batch.ProductId)?.name ?? 'Tuntematon';
+  }, [batch, products]);
 
   const batchEvents = useMemo(() => {
     const all = events ?? [];
@@ -98,7 +105,7 @@ export default function BatchEventsScreen({ batchId, batchNumber }: Props) {
           {batch && (
             <View style={layout.section}>
               <Text style={components.metaLabel}>
-                Tuote: {batchEvents[0]?.Batch?.Product?.name ?? 'Tuntematon'}
+                Tuote: {productName}
               </Text>
               <View style={components.tabRow}>
                 {TABS.map((tab) => (

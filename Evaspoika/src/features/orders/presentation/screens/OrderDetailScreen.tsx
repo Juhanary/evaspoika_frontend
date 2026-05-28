@@ -4,8 +4,8 @@ import {
   FlatList,
   Modal,
   Pressable,
-  SafeAreaView,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -95,6 +95,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
   const [virtualBatchId, setVirtualBatchId] = useState<number | null>(null);
   const [virtualWeight, setVirtualWeight] = useState('');
   const eanRef = useRef<TextInput>(null);
+  const eanValueRef = useRef('');
   const nextScannedRowId = useRef(1);
 
   const customerName = useMemo(() => {
@@ -215,7 +216,9 @@ export default function OrderDetailScreen({ orderId }: Props) {
   );
 
   const handleEanChange = (value: string) => {
-    setEanInput(value.replace(/\s+/g, ''));
+    const clean = value.replace(/\s+/g, '');
+    eanValueRef.current = clean;
+    setEanInput(clean);
   };
 
   const handleScan = async (ean: string) => {
@@ -226,19 +229,40 @@ export default function OrderDetailScreen({ orderId }: Props) {
 
     try {
       const box = await fetchBoxByEan(normalizedEan);
-      const product = (products ?? []).find((p) => p.id === box.ProductId);
+
+      // Finnish GS1 weighted EAN-13: 2X PPPPP WWWWW C — PLU at positions 2–6
+      const pluFromEan =
+        normalizedEan.length === 13 && normalizedEan.charAt(0) === '2'
+          ? normalizedEan.substring(2, 7)
+          : null;
+
+      // If the stored box has a product that doesn't match the EAN's PLU,
+      // try to find the correct product using the PLU from the scanned barcode.
+      const productFromDb = (products ?? []).find((p) => p.id === box.ProductId);
+      const productByPlu = pluFromEan
+        ? (products ?? []).find((p) => p.plu != null && String(p.plu) === pluFromEan)
+        : null;
+
+      // Prefer PLU match when it differs from the stored product (covers "erikoistuote" case)
+      const useOverride = productByPlu != null && productByPlu.id !== box.ProductId;
+      const resolvedProductId   = useOverride ? productByPlu!.id   : box.ProductId;
+      const resolvedProductName = useOverride ? productByPlu!.name : box.productName;
+      const resolvedPricePerKg  = (useOverride ? productByPlu!.price_per_kg : productFromDb?.price_per_kg) ?? 0;
+
       setScannedBoxes((previous) => [
         ...previous,
         {
           id: String(nextScannedRowId.current++),
           ean: normalizedEan,
-          productId: box.ProductId,
-          productName: box.productName,
+          productId: resolvedProductId,
+          productName: resolvedProductName,
           weightKg: box.weight_kg.toFixed(3),
           weightEdited: false,
-          selectedBatchId: box.BatchId,
-          selectedBatchNumber: box.batch_number,
-          pricePerKg: product?.price_per_kg ?? 0,
+          // When the product was overridden the old batch belongs to the wrong product,
+          // so clear it and let the user pick a batch from the correct product.
+          selectedBatchId: useOverride ? null : box.BatchId,
+          selectedBatchNumber: useOverride ? null : box.batch_number,
+          pricePerKg: resolvedPricePerKg,
         },
       ]);
     } catch {
@@ -567,11 +591,13 @@ export default function OrderDetailScreen({ orderId }: Props) {
 
       <Modal
         animationType="fade"
-        onRequestClose={() => setShowScanModal(false)}
+        onRequestClose={() => {}}
         transparent
         visible={showScanModal}
       >
-        <SafeAreaView style={orderStyles.smOverlay}>
+        <View style={StyleSheet.absoluteFill}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => {}} />
+          <View style={orderStyles.smOverlay} pointerEvents="box-none">
           <View style={orderStyles.smShell}>
             <View style={orderStyles.smTopRow}>
               <View style={orderStyles.smCustomerPill}>
@@ -596,7 +622,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
                   autoFocus
                   keyboardType="numeric"
                   onChangeText={handleEanChange}
-                  onSubmitEditing={() => handleScan(eanInput)}
+                  onSubmitEditing={() => handleScan(eanValueRef.current)}
                   placeholder="ALOITA SKANNAAMINEN..."
                   placeholderTextColor="rgba(0,0,0,0.32)"
                   ref={eanRef}
@@ -700,7 +726,8 @@ export default function OrderDetailScreen({ orderId }: Props) {
               </View>
             </View>
           </View>
-        </SafeAreaView>
+          </View>
+        </View>
 
         <Modal
           animationType="slide"
@@ -749,11 +776,13 @@ export default function OrderDetailScreen({ orderId }: Props) {
 
       <Modal
         animationType="fade"
-        onRequestClose={() => setShowVirtualScanModal(false)}
+        onRequestClose={() => {}}
         transparent
         visible={showVirtualScanModal}
       >
-        <SafeAreaView style={orderStyles.smOverlay}>
+        <View style={StyleSheet.absoluteFill}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => {}} />
+          <View style={orderStyles.smOverlay} pointerEvents="box-none">
           <View style={orderStyles.smShell}>
             <View style={orderStyles.smTopRow}>
               <View style={orderStyles.smCustomerPill}>
@@ -862,7 +891,8 @@ export default function OrderDetailScreen({ orderId }: Props) {
               </View>
             </View>
           </View>
-        </SafeAreaView>
+          </View>
+        </View>
       </Modal>
     </ScreenLayout>
   );

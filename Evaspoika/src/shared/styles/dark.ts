@@ -17,17 +17,20 @@ export const dark = {
   row: [
     base.row,
     {
-      paddingVertical: spacing.sm + 2,
+      paddingVertical: spacing.md,
       borderBottomWidth: 1,
       borderBottomColor: 'rgba(255,255,255,0.07)',
     },
   ] as ViewStyle[],
 
-  rowTitle: text({ size: 'xl', weight: 'semibold', color: colors.textOnDark }),
-  
+  rowTitle: [
+    ...text({ size: 'xl', weight: 'semibold', color: colors.textOnDark }),
+    { fontSize: 18 },
+  ] as TextStyle[],
+
   rowSub: [
     ...text({ size: 'sm', color: colors.textOnDarkMuted }),
-    { marginTop: spacing.xs / 2 },
+    { fontSize: 14, marginTop: spacing.xs / 2 },
   ] as TextStyle[],
 
   muted: [

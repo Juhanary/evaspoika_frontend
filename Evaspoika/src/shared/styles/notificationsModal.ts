@@ -31,47 +31,61 @@ const specific = StyleSheet.create({
   },
   sectionLabel: {
     fontFamily: 'Montserrat_700Bold',
-    fontSize: 20,
-    color: 'rgba(255, 255, 255, 0.7)',
-    letterSpacing: 1.3,
-    marginBottom: spacing.xl,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 1.5,
+    marginBottom: spacing.sm,
   },
   warnRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 12,
+  },
+  warnRowNew: {
+    backgroundColor: 'rgba(217,119,6,0.10)',
+    borderBottomColor: 'rgba(217,119,6,0.18)',
+  },
+  newDot: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.warning,
+  },
+  warnIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(217,119,6,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  warnDate: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.45)',
+    marginBottom: 1,
   },
   warnProduct: {
     fontFamily: 'Montserrat_600SemiBold',
-    fontSize: 20,
-    color: '#E4E4E4',
+    fontSize: 22,
+    color: colors.offWhite,
   },
-  warnDetail: {
+  warnProductNew: {
+    color: colors.white,
+  },
+  warnType: {
     fontFamily: 'Montserrat_400Regular',
-    fontSize: 20,
-    color: 'rgba(255,255,255,0.5)',
-    marginTop: 2,
-  },
-  daysBadge: {
-    minWidth: 55,
-    height: 55,
-    borderRadius: 69,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 6,
-  },
-  daysBadgeText: {
-    fontFamily: 'Montserrat_700Bold',
-    fontSize: 16,
-  },
-  daysBadgeSub: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.5)',
-    marginTop: -2,
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.55)',
+    marginTop: 1,
   },
   hintText: {
     fontFamily: 'Montserrat_400Regular',
@@ -90,7 +104,7 @@ const specific = StyleSheet.create({
   threshName: {
     fontFamily: 'Montserrat_400Regular',
     fontSize: 24,
-    color: '#E4E4E4',
+    color: colors.lightGray,
   },
   threshInput: {
     fontFamily: 'Montserrat_500Medium',
@@ -108,23 +122,6 @@ const specific = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255,255,255,0.5)',
     width: 20,
-  },
-  splitContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    paddingBottom: spacing.xl,
-  },
-  splitPane: {
-    flex: 1,
-    paddingHorizontal: spacing.md,
-  },
-  splitDivider: {
-    width: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    marginVertical: spacing.xs,
-  },
-  paneContent: {
-    paddingBottom: spacing.md,
   },
 });
 

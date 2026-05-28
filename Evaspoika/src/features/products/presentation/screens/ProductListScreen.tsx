@@ -1,11 +1,12 @@
 import React, { useRef, useMemo, useState, useCallback, useEffect } from 'react';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import {
   Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -326,9 +327,14 @@ export default function ProductListScreen() {
               pressed && screen.pressed,
             ]}
           >
-            <Text numberOfLines={1} style={[components.invPillLeftText, productStyles.invPillNameTextFlex]}>
-              {item.product.name}
-            </Text>
+            <View style={{ flex: 1, justifyContent: 'center' }}>
+              <Text numberOfLines={1} style={components.invPillLeftText}>
+                {item.product.name}
+              </Text>
+              {item.product.plu ? (
+                <Text style={productStyles.invPillPlu}>{item.product.plu}</Text>
+              ) : null}
+            </View>
             {isFav ? (
               <Ionicons color="#f5a623" name="star" size={13} style={productStyles.invIconTrailingGap} />
             ) : null}
@@ -368,7 +374,7 @@ export default function ProductListScreen() {
                     return (
                       <View key={batch.id}>
                         <View style={components.invDropdownRow}>
-                          <Text style={[components.invDropdownLabel, productStyles.invDropdownBatchNumFlex]}>
+                          <Text style={[components.invDropdownLabel, { flex: 1 }]}>
                             {batch.batch_number}
                           </Text>
                           {expiring ? (
@@ -708,14 +714,14 @@ const ProductConfigModal = ({
               name={isFav ? 'star' : 'star-outline'}
               size={22}
             />
-            <Text style={isFav ? productStyles.configModalFavTextActive : productStyles.configModalFavText}>
+            <Text style={[productStyles.configModalFavText, isFav && { color: '#f5a623' }]}>
               {isFav ? 'Poista suosikeista' : 'Lisää suosikkeihin'}
             </Text>
           </TouchableOpacity>
 
           <View style={productStyles.configModalDivider} />
 
-          <Text style={productStyles.configModalCatSectionLabel}>
+          <Text style={productStyles.configModalSectionLabel}>
             KATEGORIA
           </Text>
 
@@ -756,7 +762,7 @@ const ProductConfigModal = ({
 
           <View style={productStyles.configModalDivider} />
 
-          <Text style={productStyles.configModalPluSectionLabel}>PLU (VAAKA)</Text>
+          <Text style={[productStyles.configModalSectionLabel, { marginTop: 10 }]}>PLU (VAAKA)</Text>
           <Text style={productStyles.configModalPluCurrent}>
             {row.product.plu ? `Nykyinen: ${row.product.plu}` : 'Ei asetettu — vaaka ei tunnista tuotetta'}
           </Text>
@@ -804,12 +810,42 @@ const AddBoxesModal = ({
   const queryClient = useQueryClient();
   const [eanInput, setEanInput] = useState('');
   const [dateInput, setDateInput] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickerDate, setPickerDate] = useState(new Date());
   const [pendingBoxes, setPendingBoxes] = useState<PendingBox[]>([]);
   const [productPickerFor, setProductPickerFor] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
   const eanRef = useRef<TextInput>(null);
+  const eanValueRef = useRef('');
   const nextId = useRef(1);
+
+  const formatDateFinnish = (date: Date) => {
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    return `${dd}.${mm}.${date.getFullYear()}`;
+  };
+
+  const openDatePicker = () => {
+    // Pre-populate picker with currently typed date if valid
+    const parts = dateInput.split('.');
+    if (parts.length === 3) {
+      const d = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const y = parseInt(parts[2], 10);
+      const parsed = new Date(y, m, d);
+      if (!isNaN(parsed.getTime())) setPickerDate(parsed);
+    }
+    setShowDatePicker(true);
+  };
+
+  const onDatePickerChange = (event: DateTimePickerEvent, date?: Date) => {
+    setShowDatePicker(false);
+    if (event.type === 'set' && date) {
+      setDateInput(formatDateFinnish(date));
+      setPickerDate(date);
+    }
+  };
 
   // Refocus EAN input after product picker closes or saving finishes
   useEffect(() => {
@@ -891,7 +927,10 @@ const AddBoxesModal = ({
   const totalWeightGrams = pendingBoxes.reduce((sum, b) => sum + Math.round(b.weightKg * 1000), 0);
 
   return (
-    <SafeAreaView style={orderStyles.smOverlay}>
+    <View style={StyleSheet.absoluteFill}>
+      {/* Backdrop: absorbs all stray touches — modal NEVER closes from outside */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={() => {}} />
+      <View style={orderStyles.smOverlay} pointerEvents="box-none">
       <View style={orderStyles.smShell}>
         <View style={orderStyles.smTopRow}>
           <View style={orderStyles.smCustomerPill}>
@@ -913,16 +952,28 @@ const AddBoxesModal = ({
               style={orderStyles.smScanFieldInput}
               value={dateInput}
             />
-            <Ionicons color="rgba(0,0,0,0.42)" name="calendar-outline" size={24} />
+            <Pressable hitSlop={10} onPress={openDatePicker}>
+              <Ionicons color="rgba(0,0,0,0.42)" name="calendar-outline" size={24} />
+            </Pressable>
           </View>
+
+          {showDatePicker && (
+            <DateTimePicker
+              display="default"
+              locale="fi"
+              mode="date"
+              onChange={onDatePickerChange}
+              value={pickerDate}
+            />
+          )}
 
           <View style={orderStyles.smScanFieldRow}>
             <TextInput
               autoFocus
               editable={!scanning && !saving && productPickerFor === null}
               keyboardType="numeric"
-              onChangeText={(v) => setEanInput(v.replace(/\s+/g, ''))}
-              onSubmitEditing={() => handleScan(eanInput)}
+              onChangeText={(v) => { const c = v.replace(/\s+/g, ''); eanValueRef.current = c; setEanInput(c); }}
+              onSubmitEditing={() => handleScan(eanValueRef.current)}
               placeholder={scanning ? 'Tunnistetaan...' : 'SKANNAA EAN-KOODI...'}
               placeholderTextColor="rgba(0,0,0,0.32)"
               ref={eanRef}
@@ -1039,6 +1090,7 @@ const AddBoxesModal = ({
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+      </View>
+    </View>
   );
 };

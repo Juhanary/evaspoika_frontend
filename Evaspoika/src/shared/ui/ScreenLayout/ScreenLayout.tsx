@@ -15,6 +15,7 @@ import { useProducts } from '@/src/features/products/presentation/hooks/useProdu
 import { useBatchEvents } from '@/src/features/batchEvents/presentation/hooks/useBatchEvents';
 import { goBackOrHome } from '@/src/shared/navigation/goBackOrHome';
 import { routes } from '@/src/shared/navigation/routes';
+import { colors } from '@/src/shared/constants/colors';
 import { dark } from '@/src/shared/styles/dark';
 import { components } from '@/src/shared/styles/components';
 import {
@@ -27,6 +28,7 @@ import { InventorySummaryModal } from '@/src/shared/ui/InventorySummaryModal/Inv
 import { NotificationsModal } from '@/src/shared/ui/NotificationsModal/NotificationsModal';
 import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
 import { buildInventorySummary } from '@/src/shared/utils/inventory';
+import { useNotificationWarnings } from '@/src/shared/hooks/useNotificationWarnings';
 
 export type ScreenLayoutLeftAction = 'home' | 'back' | 'none';
 
@@ -63,14 +65,11 @@ export function ScreenLayout({
   const { data: batches } = useBatches();
   const { data: batchEvents } = useBatchEvents({ types: 'WEIGHING,CREATE', limit: 9999 });
 
+  const notif = useNotificationWarnings(batches ?? [], products ?? []);
+
   const inventoryItems = useMemo(
     () => buildInventorySummary(products, batches, batchEvents),
     [products, batches, batchEvents],
-  );
-
-  const hasExpiryWarnings = useMemo(
-    () => (batches ?? []).some((b) => !b.deleted_at && (b.date_alert === 'expiring_soon' || b.date_alert === 'expired')),
-    [batches],
   );
 
   const inlineSearch = wrapInCard ? headerSearch : undefined;
@@ -88,7 +87,8 @@ export function ScreenLayout({
     ? [
         ...rightActions,
         {
-          icon: hasExpiryWarnings ? 'notifications' : 'notifications-outline',
+          icon: notif.hasUnread ? 'notifications' : 'notifications-outline',
+          iconColor: notif.hasUnread ? colors.warning : undefined,
           onPress: () => setShowNotifications(true),
           accessibilityLabel: 'Ilmoitukset',
         },
@@ -162,10 +162,15 @@ export function ScreenLayout({
         visible={showInventory}
       />
       <NotificationsModal
-        batches={batches ?? []}
+        inputValues={notif.inputValues}
+        markRead={notif.markRead}
         onClose={() => setShowNotifications(false)}
         products={products ?? []}
+        saveThreshold={notif.saveThreshold}
+        setInputValues={notif.setInputValues}
+        totalCount={notif.totalCount}
         visible={showNotifications}
+        warnings={notif.warnings}
       />
     </ImageBackground>
   );

@@ -14,6 +14,7 @@ export type AppHeaderAction = {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   onPress: () => void;
   accessibilityLabel: string;
+  iconColor?: string;
 };
 
 export type AppHeaderSearch = {
@@ -78,6 +79,7 @@ export function AppHeader({
             key={`${action.icon}-${index}`}
             accessibilityLabel={action.accessibilityLabel}
             icon={action.icon}
+            iconColor={action.iconColor}
             iconSize={26}
             onPress={action.onPress}
             variant="glassIcon"

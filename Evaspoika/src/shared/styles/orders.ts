@@ -52,7 +52,7 @@ export const orderStyles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
   selectedText: {
-    color: '#A7F3D0',
+    color: colors.successText,
   },
 
   // --- Order detail layout ---
@@ -127,7 +127,7 @@ export const orderStyles = StyleSheet.create({
   odCustomerPillText: {
     fontFamily: 'Montserrat_500Medium',
     fontSize: 28,
-    color: '#EDEDED',
+    color: colors.offWhite,
   },
   odDateText: {
     fontFamily: 'Montserrat_400Regular',
@@ -143,7 +143,7 @@ export const orderStyles = StyleSheet.create({
     paddingVertical: 16,
   },
   odProductCard: {
-    backgroundColor: '#E4E4E4',
+    backgroundColor: colors.lightGray,
     borderRadius: 33,
     paddingHorizontal: 20,
     paddingTop: 6,
@@ -254,13 +254,13 @@ export const orderStyles = StyleSheet.create({
     borderRadius: 81,
     paddingVertical: 14,
     alignItems: 'center' as const,
-    backgroundColor: '#FF4444',
+    backgroundColor: colors.deleteRed,
     boxShadow: '0px 2px 6px rgba(0,0,0,0.20)',
   },
   odDeleteBtnText: {
     fontFamily: 'Montserrat_600SemiBold',
     fontSize: 20,
-    color: '#FFFFFF',
+    color: colors.white,
   },
   odFooter: {
     paddingHorizontal: 20,
@@ -273,7 +273,7 @@ export const orderStyles = StyleSheet.create({
     borderRadius: 81,
     paddingVertical: 14,
     alignItems: 'center' as const,
-    backgroundColor: '#39F56A',
+    backgroundColor: colors.actionGreen,
     boxShadow: '0px 2px 6px rgba(0,0,0,0.20)',
   },
   odLahetaBtnText: {
@@ -347,7 +347,7 @@ export const orderStyles = StyleSheet.create({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     gap: spacing.sm,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 999,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
@@ -422,7 +422,7 @@ export const orderStyles = StyleSheet.create({
     width: 82,
     height: 40,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     fontFamily: 'Montserrat_400Regular',
     fontSize: 18,
     color: 'rgba(0,0,0,0.82)',
@@ -456,7 +456,7 @@ export const orderStyles = StyleSheet.create({
     color: 'rgba(0,0,0,0.62)',
   },
   smSavePill: {
-    backgroundColor: '#39F56A',
+    backgroundColor: colors.actionGreen,
     borderRadius: 999,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
@@ -497,7 +497,7 @@ export const orderStyles = StyleSheet.create({
     flexGrow: 0,
     maxHeight: 200,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.12)',
     overflow: 'hidden' as const,
@@ -511,7 +511,7 @@ export const orderStyles = StyleSheet.create({
   smVirtualPickerSelected: {
     backgroundColor: 'rgba(57, 245, 106, 0.1)',
     borderLeftWidth: 4,
-    borderLeftColor: '#39F56A',
+    borderLeftColor: colors.actionGreen,
   },
   smVirtualPickerText: {
     fontFamily: 'Montserrat_400Regular',
@@ -526,7 +526,7 @@ export const orderStyles = StyleSheet.create({
   },
   smVirtualWeightInput: {
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.12)',
     fontFamily: 'Montserrat_400Regular',
