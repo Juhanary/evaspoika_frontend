@@ -1,40 +1,17 @@
-import Constants from 'expo-constants';
+const normalizeApiBaseUrl = (value: string) => value.replace(/\/+$/, '');
 
-const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, unknown>;
-
-const resolveString = (...values: (string | undefined | null)[]) =>
-  values.find((value) => typeof value === 'string' && value.trim().length > 0)?.trim();
-
-const getExtraString = (key: string) => {
-  const value = extra[key];
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+const requireEnv = (value: string | undefined, key: string): string => {
+  const trimmed = value?.trim();
+  if (!trimmed) throw new Error(`${key} is not set`);
+  return trimmed;
 };
 
-export const API_BASE_URL =
-  resolveString(process.env.EXPO_PUBLIC_API_BASE_URL) ??
-  (() => { throw new Error('EXPO_PUBLIC_API_BASE_URL is not set'); })();
+const optionalEnv = (value: string | undefined): string => value?.trim() ?? '';
 
-export const API_TOKEN = resolveString(
-  process.env.EXPO_PUBLIC_API_TOKEN,
-  getExtraString('apiToken')
+export const API_BASE_URL = normalizeApiBaseUrl(
+  requireEnv(process.env.EXPO_PUBLIC_API_BASE_URL, 'EXPO_PUBLIC_API_BASE_URL')
 );
-
-export const API_READ_TOKEN = resolveString(
-  process.env.EXPO_PUBLIC_API_READ_TOKEN,
-  getExtraString('apiReadToken')
-);
-
-export const API_WRITE_TOKEN = resolveString(
-  process.env.EXPO_PUBLIC_API_WRITE_TOKEN,
-  getExtraString('apiWriteToken')
-);
-
-export const NETVISOR_READ_TOKEN = resolveString(
-  process.env.EXPO_PUBLIC_NETVISOR_READ_TOKEN,
-  getExtraString('netvisorReadToken')
-);
-
-export const NETVISOR_WRITE_TOKEN = resolveString(
-  process.env.EXPO_PUBLIC_NETVISOR_WRITE_TOKEN,
-  getExtraString('netvisorWriteToken')
-);
+export const API_READ_TOKEN = optionalEnv(process.env.EXPO_PUBLIC_API_READ_TOKEN);
+export const API_WRITE_TOKEN = optionalEnv(process.env.EXPO_PUBLIC_API_WRITE_TOKEN);
+export const NETVISOR_READ_TOKEN = optionalEnv(process.env.EXPO_PUBLIC_NETVISOR_READ_TOKEN);
+export const NETVISOR_WRITE_TOKEN = optionalEnv(process.env.EXPO_PUBLIC_NETVISOR_WRITE_TOKEN);

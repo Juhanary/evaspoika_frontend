@@ -1,6 +1,7 @@
 export type Product = {
   id: number;
   name: string;
+  plu?: number | null;
   price_per_kg: number;
   netvisor_key?: string | null;
   deleted_at?: string | null;

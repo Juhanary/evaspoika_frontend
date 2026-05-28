@@ -1,0 +1,35 @@
+{
+  "cli": {
+    "version": ">= 18.13.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "http://REMOVED-INTERNAL-ADDRESS:3000/api",
+        "EXPO_PUBLIC_API_READ_TOKEN": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12",
+        "EXPO_PUBLIC_API_WRITE_TOKEN": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12",
+        "EXPO_PUBLIC_NETVISOR_READ_TOKEN": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12",
+        "EXPO_PUBLIC_NETVISOR_WRITE_TOKEN": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "http://REMOVED-INTERNAL-ADDRESS:3000/api",
+        "EXPO_PUBLIC_API_READ_TOKEN": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12",
+        "EXPO_PUBLIC_API_WRITE_TOKEN": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12",
+        "EXPO_PUBLIC_NETVISOR_READ_TOKEN": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12",
+        "EXPO_PUBLIC_NETVISOR_WRITE_TOKEN": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

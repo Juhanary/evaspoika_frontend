@@ -24,7 +24,6 @@ export class ErrorBoundary extends React.Component<Props, State> {
         </View>
       );
     }
-
     return this.props.children;
   }
 }

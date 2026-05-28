@@ -7,7 +7,6 @@ export default function MoreLayout() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="customers" options={{ headerShown: false }} />
       <Stack.Screen name="logs" options={{ headerShown: false }} />
-      <Stack.Screen name="settings" options={{ headerShown: false }} />
     </Stack>
   );
 }
