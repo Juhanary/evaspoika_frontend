@@ -442,8 +442,8 @@ export default function ProductListScreen() {
 
   const listHeader = (
     <View>
-      {/* Favorites — above category cards */}
-      {!query.trim() && favoriteRows.length > 0 ? (
+      {/* Favorites — only in all-products view */}
+      {!query.trim() && selectedCategory === null && favoriteRows.length > 0 ? (
         <View style={productStyles.favSectionWrap}>
           {sectionLabel('★  SUOSIKIT')}
           {favoriteRows.map((row, index) => {
@@ -467,6 +467,7 @@ export default function ProductListScreen() {
               </View>
             );
           })}
+          <View style={productStyles.favSectionBottomDivider} />
         </View>
       ) : null}
 
@@ -648,6 +649,8 @@ const ProductConfigModal = ({
   const currentCatId = (config.assignments[String(row.product.id)] ?? null) as CategoryId | null;
   const [pluInput, setPluInput] = useState(row.product.plu ? String(row.product.plu) : '');
   const [pluSaving, setPluSaving] = useState(false);
+  const [pluSaved, setPluSaved] = useState(false);
+  const [catSaved, setCatSaved] = useState(false);
 
   const handleSavePlu = async () => {
     const parsed = pluInput.trim() === '' ? null : parseInt(pluInput.trim(), 10);
@@ -659,11 +662,19 @@ const ProductConfigModal = ({
     try {
       await patchProductPlu(row.product.id, parsed);
       await queryClient.invalidateQueries({ queryKey: ['products'] });
+      setPluSaved(true);
+      setTimeout(() => setPluSaved(false), 2000);
     } catch {
       Alert.alert('Virhe', 'PLU-numeron tallennus epäonnistui.');
     } finally {
       setPluSaving(false);
     }
+  };
+
+  const handleAssignCategory = (catId: CategoryId | null) => {
+    onAssignCategory(catId);
+    setCatSaved(true);
+    setTimeout(() => setCatSaved(false), 1500);
   };
 
   return (
@@ -709,7 +720,7 @@ const ProductConfigModal = ({
           </Text>
 
           <TouchableOpacity
-            onPress={() => onAssignCategory(null)}
+            onPress={() => handleAssignCategory(null)}
             style={productStyles.configModalCatRow}
           >
             <Ionicons
@@ -725,7 +736,7 @@ const ProductConfigModal = ({
           {FIXED_CATEGORIES.map((cat) => (
             <TouchableOpacity
               key={cat.id}
-              onPress={() => onAssignCategory(cat.id)}
+              onPress={() => handleAssignCategory(cat.id)}
               style={productStyles.configModalCatRow}
             >
               <Ionicons
@@ -738,6 +749,10 @@ const ProductConfigModal = ({
               </Text>
             </TouchableOpacity>
           ))}
+
+          {catSaved ? (
+            <Text style={productStyles.configModalSavedText}>Tallennettu ✓</Text>
+          ) : null}
 
           <View style={productStyles.configModalDivider} />
 
@@ -755,12 +770,15 @@ const ProductConfigModal = ({
               value={pluInput}
             />
             <TouchableOpacity
-              disabled={pluSaving}
+              disabled={pluSaving || pluSaved}
               onPress={handleSavePlu}
-              style={productStyles.configModalPluSaveBtn}
+              style={[
+                productStyles.configModalPluSaveBtn,
+                pluSaved && productStyles.configModalPluSaveBtnSuccess,
+              ]}
             >
               <Text style={productStyles.configModalPluSaveBtnText}>
-                {pluSaving ? '...' : 'Tallenna'}
+                {pluSaving ? '...' : pluSaved ? '✓' : 'Tallenna'}
               </Text>
             </TouchableOpacity>
           </View>
