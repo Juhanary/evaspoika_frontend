@@ -370,10 +370,20 @@ export const productStyles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: 'rgba(37,99,235,0.85)' as const,
   },
+  configModalPluSaveBtnSuccess: {
+    backgroundColor: 'rgba(22,163,74,0.85)' as const,
+  },
   configModalPluSaveBtnText: {
     fontFamily: 'Montserrat_600SemiBold',
     fontSize: 13,
     color: '#fff' as const,
+  },
+  configModalSavedText: {
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 12,
+    color: 'rgba(22,163,74,0.9)' as const,
+    marginTop: 6,
+    marginBottom: 2,
   },
   configModalPluCurrent: {
     fontSize: 13,
@@ -398,6 +408,12 @@ export const productStyles = StyleSheet.create({
   // --- ProductListScreen favorites section ---
   favSectionWrap: { marginBottom: 10 },
   favItemSeparator: { height: 12 },
+  favSectionBottomDivider: {
+    height: 1,
+    backgroundColor: 'rgba(0,0,0,0.1)' as const,
+    marginTop: 14,
+    marginHorizontal: 4,
+  },
 
   // --- ProductListScreen category cards ---
   catCardRow: {
