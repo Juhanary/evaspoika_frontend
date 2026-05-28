@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/shared/constants/colors';
-import { components } from '@/src/shared/styles/components';
+import { components, glassActionSurface } from '@/src/shared/styles/components';
 
 type ButtonVariant = 'primary' | 'glass' | 'glassIcon' | 'glassNav';
 
@@ -73,7 +73,7 @@ export function Button({
       case 'primary':
         return components.buttonPrimary;
       case 'glass':
-        return components.glassActionSurface;
+        return [glassActionSurface];
       case 'glassIcon':
         return [{ backgroundColor: colors.darkCard, borderRadius: size / 2, width: size, height: size }];
       case 'glassNav':

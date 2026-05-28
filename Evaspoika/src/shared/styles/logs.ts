@@ -49,7 +49,7 @@ export const logModalStyles = StyleSheet.create({
   subtitle: {
     fontFamily: 'Montserrat_400Regular',
     fontSize: 15,
-    color: '#E4E4E4',
+    color: colors.lightGray,
     marginTop: 2,
   },
   deletedHeaderBadge: {
@@ -65,7 +65,7 @@ export const logModalStyles = StyleSheet.create({
   deletedHeaderBadgeText: {
     fontFamily: 'Montserrat_500Medium',
     fontSize: 13,
-    color: '#FFD4D4',
+    color: colors.deletedText,
   },
   divider: {
     height: 1,
@@ -84,7 +84,7 @@ export const logModalStyles = StyleSheet.create({
   metaText: {
     fontFamily: 'Montserrat_400Regular',
     fontSize: 18,
-    color: '#E4E4E4',
+    color: colors.lightGray,
   },
   metaSubtle: {
     fontFamily: 'Montserrat_400Regular',
@@ -107,8 +107,8 @@ export const logModalStyles = StyleSheet.create({
     backgroundColor: 'rgba(217,217,217,0.14)',
   },
   tabButtonActive: {
-    backgroundColor: '#E4E4E4',
-    borderColor: '#E4E4E4',
+    backgroundColor: colors.lightGray,
+    borderColor: colors.lightGray,
   },
   tabButtonPressed: {
     opacity: 0.7,
@@ -116,7 +116,7 @@ export const logModalStyles = StyleSheet.create({
   tabButtonText: {
     fontFamily: 'Montserrat_400Regular',
     fontSize: 14,
-    color: '#F2F2F2',
+    color: colors.textOnDark,
   },
   tabButtonTextActive: {
     color: 'rgba(0,0,0,0.78)',
@@ -168,7 +168,7 @@ export const logModalStyles = StyleSheet.create({
   eventTitle: {
     fontFamily: 'Montserrat_500Medium',
     fontSize: 20,
-    color: '#EDEDED',
+    color: colors.offWhite,
     marginBottom: spacing.xs,
   },
   eventTotalWeight: {
@@ -210,7 +210,7 @@ export const logModalStyles = StyleSheet.create({
   batchItemTitle: {
     fontFamily: 'Montserrat_500Medium',
     fontSize: 18,
-    color: '#EDEDED',
+    color: colors.offWhite,
     marginBottom: 2,
   },
   batchItemSubtitle: {
@@ -243,13 +243,13 @@ export const logStyles = StyleSheet.create({
     backgroundColor: 'rgba(217,217,217,0.10)',
   },
   screenTabActive: {
-    backgroundColor: '#E4E4E4',
-    borderColor: '#E4E4E4',
+    backgroundColor: colors.lightGray,
+    borderColor: colors.lightGray,
   },
   screenTabText: {
     fontFamily: 'Montserrat_500Medium',
     fontSize: 14,
-    color: '#E4E4E4',
+    color: colors.lightGray,
   },
   screenTabTextActive: {
     color: 'rgba(0,0,0,0.78)',
@@ -340,6 +340,6 @@ export const logStyles = StyleSheet.create({
   deletedBadgeText: {
     fontFamily: 'Montserrat_500Medium',
     fontSize: 12,
-    color: '#FFD4D4',
+    color: colors.deletedText,
   },
 });

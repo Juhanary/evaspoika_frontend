@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = '@evaspoika_product_config_v2';
@@ -15,28 +15,33 @@ export type CategoryId = typeof FIXED_CATEGORIES[number]['id'];
 export type ProductConfig = {
   favorites: number[];
   assignments: Record<string, CategoryId>;
-  productOrder: Record<string, number[]>; // categoryId → ordered product IDs
+  productOrder: Record<string, number[]>;
 };
 
 const DEFAULT: ProductConfig = { favorites: [], assignments: {}, productOrder: {} };
 
-function persist(next: ProductConfig) {
-  AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  return next;
-}
-
 export function useProductConfig() {
   const [config, setConfig] = useState<ProductConfig>(DEFAULT);
+  // Prevents writing back the value we just loaded from storage
+  const readyToPersist = useRef(false);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
-      if (!raw) return;
-      try {
-        const parsed = JSON.parse(raw);
-        setConfig({ ...DEFAULT, ...parsed });
-      } catch {}
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          setConfig({ ...DEFAULT, ...parsed });
+        } catch {}
+      }
+      readyToPersist.current = true;
     });
   }, []);
+
+  // Single persist effect: writes whenever config changes after initial load
+  useEffect(() => {
+    if (!readyToPersist.current) return;
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  }, [config]);
 
   const toggleFavorite = useCallback((productId: number) => {
     setConfig((prev) => {
@@ -44,7 +49,7 @@ export function useProductConfig() {
       const favorites = isFav
         ? prev.favorites.filter((id) => id !== productId)
         : [...prev.favorites, productId].slice(0, MAX_FAVORITES);
-      return persist({ ...prev, favorites });
+      return { ...prev, favorites };
     });
   }, []);
 
@@ -53,18 +58,19 @@ export function useProductConfig() {
       const assignments = { ...prev.assignments };
       if (categoryId === null) delete assignments[String(productId)];
       else assignments[String(productId)] = categoryId;
-      return persist({ ...prev, assignments });
+      return { ...prev, assignments };
     });
   }, []);
 
   const reorderFavorites = useCallback((newOrder: number[]) => {
-    setConfig((prev) => persist({ ...prev, favorites: newOrder }));
+    setConfig((prev) => ({ ...prev, favorites: newOrder }));
   }, []);
 
   const setProductCategoryOrder = useCallback((categoryId: string, order: number[]) => {
-    setConfig((prev) =>
-      persist({ ...prev, productOrder: { ...prev.productOrder, [categoryId]: order } }),
-    );
+    setConfig((prev) => ({
+      ...prev,
+      productOrder: { ...prev.productOrder, [categoryId]: order },
+    }));
   }, []);
 
   return { config, MAX_FAVORITES, toggleFavorite, assignCategory, reorderFavorites, setProductCategoryOrder };

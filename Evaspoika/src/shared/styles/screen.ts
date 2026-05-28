@@ -1,4 +1,5 @@
 import { Platform, StyleSheet } from 'react-native';
+import { colors } from '../constants/colors';
 
 export const screen = StyleSheet.create({
   inner: {
@@ -17,7 +18,7 @@ export const screen = StyleSheet.create({
   sectionTitle: {
     fontFamily: 'Montserrat_400Regular',
     fontSize: 35,
-    color: '#EDEDED',
+    color: colors.offWhite,
     marginBottom: 12,
     ...Platform.select({
       web: { textShadow: '0px 1px 4px rgba(0,0,0,0.38)' } as object,
@@ -26,7 +27,7 @@ export const screen = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     marginBottom: 16,
   },
   listRow: {
@@ -43,7 +44,7 @@ export const screen = StyleSheet.create({
   listRowName: {
     fontFamily: 'Montserrat_300Light',
     fontSize: 28,
-    color: '#EDEDED',
+    color: colors.offWhite,
   },
   listRowSummary: {
     fontFamily: 'Montserrat_400Regular',
@@ -60,7 +61,7 @@ export const screen = StyleSheet.create({
   listRowMetaPrimary: {
     fontFamily: 'Montserrat_500Medium',
     fontSize: 13,
-    color: '#EDEDED',
+    color: colors.offWhite,
   },
   listRowMetaSecondary: {
     fontFamily: 'Montserrat_400Regular',
@@ -94,7 +95,7 @@ export const screen = StyleSheet.create({
   columnHeaderText: {
     fontFamily: 'Montserrat_500Medium',
     fontSize: 20,
-    color: '#EDEDED',
+    color: colors.offWhite,
   },
   logGroup: {
     paddingVertical: 12,
@@ -107,7 +108,7 @@ export const screen = StyleSheet.create({
   logDateHeader: {
     fontFamily: 'Montserrat_400Regular',
     fontSize: 24,
-    color: '#FFFFFF',
+    color: colors.white,
     marginBottom: 6,
   },
   logEntry: {
@@ -118,6 +119,6 @@ export const screen = StyleSheet.create({
   logEntryText: {
     fontFamily: 'Montserrat_400Regular',
     fontSize: 20,
-    color: '#FFFFFF',
+    color: colors.white,
   },
 });

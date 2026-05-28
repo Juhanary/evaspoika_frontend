@@ -60,6 +60,12 @@ export const colors = {
 
   // Misc
   purple: '#9333EA',
+  lightGray: '#E4E4E4',
+  offWhite: '#EDEDED',
+  actionGreen: '#39F56A',
+  deleteRed: '#FF4444',
+  deletedText: '#FFD4D4',
+  successText: '#A7F3D0',
 
   // Dark theme
   darkBg: '#111827',

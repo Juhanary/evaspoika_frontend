@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+import { colors } from '../constants/colors';
 import { spacing } from '../constants/spacing';
 
 export const homeStyles = StyleSheet.create({
@@ -31,7 +32,7 @@ export const homeStyles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '400',
     letterSpacing: 4,
-    color: '#F0F0F0',
+    color: colors.textOnDark,
    
   },
   topArea: {
@@ -52,11 +53,11 @@ export const homeStyles = StyleSheet.create({
     fontFamily: 'Montserrat_500Medium',
     fontSize: 20,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   ordersSectionDivider: {
     height: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     marginBottom: spacing.xl,
   },
   ordersRow: {
@@ -78,7 +79,7 @@ export const homeStyles = StyleSheet.create({
     fontFamily: 'Montserrat_500Medium',
     fontSize: 24,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   ordersRowSummary: {
     fontFamily: 'Montserrat_400Regular',
@@ -93,7 +94,7 @@ export const homeStyles = StyleSheet.create({
     fontFamily: 'Montserrat_500Medium',
     fontSize: 24,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.white,
   },
   searchResultsPadding: {
     paddingHorizontal: spacing.lg,

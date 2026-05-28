@@ -175,10 +175,46 @@ export default function HomeScreen() {
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) return null;
 
+    const matchingBatches = (batches ?? []).filter(
+      (b) =>
+        !b.deleted_at &&
+        (b.batch_number.toLowerCase().includes(normalizedQuery) ||
+          (b.production_date ?? '').includes(normalizedQuery)),
+    );
+
+    type BatchGroup = {
+      productId: number | null;
+      productName: string;
+      totalWeight: number;
+      batchCount: number;
+      firstBatchId: number;
+      firstBatchNumber: string;
+    };
+
+    const batchGroupMap = new Map<number | null, BatchGroup>();
+    for (const b of matchingBatches) {
+      const key = b.ProductId ?? null;
+      const existing = batchGroupMap.get(key);
+      if (existing) {
+        existing.totalWeight += b.current_weight;
+        existing.batchCount += 1;
+      } else {
+        const productName =
+          products?.find((p) => p.id === key)?.name ?? 'Tuntematon tuote';
+        batchGroupMap.set(key, {
+          productId: key,
+          productName,
+          totalWeight: b.current_weight,
+          batchCount: 1,
+          firstBatchId: b.id,
+          firstBatchNumber: b.batch_number,
+        });
+      }
+    }
+
     return {
-      products: (products ?? []).filter(
-        (p) =>
-          p.name.toLowerCase().includes(normalizedQuery),
+      products: (products ?? []).filter((p) =>
+        p.name.toLowerCase().includes(normalizedQuery),
       ),
       customers: (customers ?? []).filter(
         (c) =>
@@ -186,9 +222,7 @@ export default function HomeScreen() {
           (c.email ?? '').toLowerCase().includes(normalizedQuery) ||
           (c.netvisor_code ?? '').toLowerCase().includes(normalizedQuery),
       ),
-      batches: (batches ?? []).filter((b) =>
-        b.batch_number.toLowerCase().includes(normalizedQuery),
-      ),
+      batches: Array.from(batchGroupMap.values()),
       orders: (orders ?? []).filter(
         (o) =>
           !o.deleted_at &&
@@ -257,18 +291,24 @@ export default function HomeScreen() {
 
               <SearchSection
                 empty={searchResults.batches.length === 0}
-                label={`Erät (${searchResults.batches.length})`}
+                label={`Erät (${searchResults.batches.length} tuotetta)`}
               >
-                {searchResults.batches.map((b) => (
+                {searchResults.batches.map((g) => (
                   <Pressable
-                    key={b.id}
+                    key={`${g.productId}-${g.firstBatchId}`}
                     onPress={() =>
-                      handleNavigate(routes.inventoryBatch(b.id, b.batch_number))
+                      handleNavigate(
+                        g.productId
+                          ? routes.inventoryProduct(g.productId)
+                          : routes.inventoryBatch(g.firstBatchId, g.firstBatchNumber),
+                      )
                     }
                     style={({ pressed }) => [dark.row, pressed && dark.pressed]}
                   >
-                    <Text style={dark.rowTitle}>Erä: {b.batch_number}</Text>
-                    <Text style={dark.rowSub}>{formatKg(b.current_weight)} kg</Text>
+                    <Text style={dark.rowTitle}>{g.productName}</Text>
+                    <Text style={dark.rowSub}>
+                      {g.batchCount} {g.batchCount === 1 ? 'erä' : 'erää'} · {formatKg(g.totalWeight)} kg
+                    </Text>
                   </Pressable>
                 ))}
               </SearchSection>

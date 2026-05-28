@@ -42,7 +42,7 @@ const specific = StyleSheet.create({
   },
   barWrap: {
     flex: 1,
-    height: 50,
+    height: 40,
     borderRadius: 23,
     overflow: 'hidden',
   },

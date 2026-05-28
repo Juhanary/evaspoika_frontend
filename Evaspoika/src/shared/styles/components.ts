@@ -64,7 +64,6 @@ export const components = {
   chipTextActive: textFactory({ size: 'sm', weight: 'semibold', color: colors.white }),
 
   // Buttons
-  button: buttonFactory({ variant: 'primary' }),
   buttonPrimary: buttonFactory({ variant: 'primary' }),
   buttonConfirm: buttonFactory({ variant: 'confirm' }),
   buttonModalCancel: [
@@ -232,22 +231,7 @@ export const components = {
   invPillDivider: [{ width: 2, height: 20, backgroundColor: colors.borderMid }] as ViewStyle[],
   invPillCount: textFactory({ weight: 'bold', color: colors.white, size: '3xl' }),
 
-  invAddBoxBtn: [
-    base.row,
-    {
-      alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: radii.full,
-      backgroundColor: 'rgba(255,255,255,0.85)',
-      minHeight: 50,
-    },
-  ] as ViewStyle[],
-  invAddBoxBtnText: textFactory({ size: 'md', weight: 'semibold', color: colors.textDark }),
-
   // Button internals
-  glassActionSurface: [{ backgroundColor: colors.darkCard }] as ViewStyle[],
   actionButtonContent: [{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm }] as ViewStyle[],
 
   // ScreenLayout
@@ -287,14 +271,6 @@ export const components = {
 
   // General
   flex: [{ flex: 1 }] as ViewStyle[],
-
-  // BatchList archive section
-  blArchiveHeader: [{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)' }] as ViewStyle[],
-  blArchiveHeaderText: [{ fontFamily: 'Montserrat_500Medium', fontSize: 15, color: 'rgba(255,255,255,0.6)', letterSpacing: 1 }] as TextStyle[],
-  blArchiveRow: [{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.07)' }] as ViewStyle[],
-  blArchiveLabel: [{ fontFamily: 'Montserrat_400Regular', fontSize: 15, color: 'rgba(255,255,255,0.5)', flex: 1 }] as TextStyle[],
-  blArchiveSub: [{ fontFamily: 'Montserrat_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.35)', marginTop: 2 }] as TextStyle[],
-  blArchiveWeight: [{ fontFamily: 'Montserrat_500Medium', fontSize: 15, color: 'rgba(255,255,255,0.45)', marginRight: 8 }] as TextStyle[],
 
   // BatchEvents tab bar
   tabRow: [{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.1)', marginBottom: spacing.sm }] as ViewStyle[],

@@ -4,16 +4,6 @@ import { spacing } from '@/src/shared/constants/spacing';
 import { glassActionSurface } from './components';
 
 export const batchStyles = StyleSheet.create({
-  blProductHeader: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'center' as const,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  blProductName: { fontSize: 15, fontWeight: '700' as const, color: '#111', flex: 1 },
   blColHeader: {
     paddingHorizontal: 16,
     paddingTop: 4,
@@ -44,7 +34,7 @@ export const batchStyles = StyleSheet.create({
   blWeightText: {
     fontSize: 25,
     fontWeight: '500' as const,
-    color: 'white',
+    color: colors.white,
     width: 140,
     textAlign: 'right' as const,
   },
@@ -70,7 +60,7 @@ export const batchStyles = StyleSheet.create({
     fontWeight: '700' as const,
     fontSize: 25,
   },
-  blTotalText: { fontSize: 14, fontWeight: '700' as const, color: '#111', letterSpacing: 0.5 },
+  blTotalText: { fontSize: 14, fontWeight: '700' as const, color: colors.text, letterSpacing: 0.5 },
   blTotalRow: {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
@@ -87,49 +77,8 @@ export const batchStyles = StyleSheet.create({
   blTotalValue: {
     fontFamily: 'Montserrat_600SemiBold',
     fontSize: 26,
-    color: '#FFFFFF',
+    color: colors.white,
   },
-  blArchiveHeader: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'space-between' as const,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.12)',
-  },
-  blArchiveHeaderText: {
-    fontFamily: 'Montserrat_500Medium',
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 1,
-  },
-  blArchiveRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.07)',
-  },
-  blArchiveLabel: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 18,
-    color: 'rgba(255,255,255,0.55)',
-  },
-  blArchiveSub: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.3)',
-    marginTop: 2,
-  },
-  blArchiveWeight: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 18,
-    color: 'rgba(255,255,255,0.4)',
-  },
-
   // --- Weight adjustment modal ---
   blAdjOverlay: {
     flex: 1,
@@ -141,7 +90,7 @@ export const batchStyles = StyleSheet.create({
     maxWidth: 400,
     minWidth: 400,
     maxHeight: '90%' as `${number}%`,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     padding: spacing.xl,
@@ -192,7 +141,7 @@ export const batchStyles = StyleSheet.create({
     borderRadius: 50,
     paddingVertical: 13,
     alignItems: 'center' as const,
-    backgroundColor: '#39F56A',
+    backgroundColor: colors.actionGreen,
     boxShadow: '0px 2px 4px rgba(0,0,0,0.15)',
   },
   blAdjSaveBtnText: {
