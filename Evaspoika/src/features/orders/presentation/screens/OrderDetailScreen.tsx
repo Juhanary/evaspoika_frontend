@@ -230,10 +230,10 @@ export default function OrderDetailScreen({ orderId }: Props) {
     try {
       const box = await fetchBoxByEan(normalizedEan);
 
-      // Finnish GS1 weighted EAN-13: 2X PPPPP WWWWW C — PLU at positions 2–6
+      // Finnish GS1 weighted EAN-13: 2 PPPPP WWWWW C — PLU at 0-indexed positions 1–5
       const pluFromEan =
         normalizedEan.length === 13 && normalizedEan.charAt(0) === '2'
-          ? normalizedEan.substring(2, 7)
+          ? String(Number(normalizedEan.substring(1, 6)))
           : null;
 
       // If the stored box has a product that doesn't match the EAN's PLU,
