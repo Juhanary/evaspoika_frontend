@@ -1,4 +1,5 @@
 import React, { useRef, useMemo, useState, useCallback, useEffect } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import {
   Alert,
@@ -137,6 +138,15 @@ export default function ProductListScreen() {
   // Category list drag state
   const [catDragFrom, setCatDragFrom] = useState<number | null>(null);
   const [catDragTo, setCatDragTo] = useState<number | null>(null);
+
+  // Clear search when leaving inventory screen
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setQuery('');
+      };
+    }, []),
+  );
 
   const boxesByBatchId = useMemo(() => {
     const map = new Map<number, number>();

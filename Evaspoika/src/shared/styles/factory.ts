@@ -56,13 +56,14 @@ export const button = ({
       borderRadius: 67,
       paddingVertical: spacing.xl,
       paddingHorizontal: 46,
+      opacity: disabled ? 0.5 : 0.8,
     });
   }
 
   if (size === 'sm') styles.push({ paddingVertical: spacing.xs, paddingHorizontal: spacing.sm });
   if (size === 'lg') styles.push({ paddingVertical: spacing.lg, paddingHorizontal: spacing.xxl });
 
-  if (disabled) styles.push({ opacity: 0.4 });
+  if (disabled) styles.push({ opacity: 0.5 });
 
   return styles;
 };
