@@ -116,7 +116,7 @@ export function Button({
   const getDefaultPressedOpacity = () => {
     switch (variant) {
       case 'glassIcon':
-        return 0.72;
+        return 0.9;
       case 'glassNav':
         return 0.9;
       default:
@@ -127,11 +127,20 @@ export function Button({
   const getDefaultDisabledOpacity = () => {
     switch (variant) {
       case 'glassIcon':
-        return 0.6;
+        return 0.85;
       case 'glassNav':
-        return 0.1;
+        return 0.2;
       default:
-        return 0.45;
+        return 0.6;
+    }
+  };
+
+  const getDefaultNormalOpacity = () => {
+    switch (variant) {
+      case 'glassIcon':
+        return 1.2;
+      default:
+        return 1.2;
     }
   };
 
@@ -159,13 +168,23 @@ export function Button({
       disabled={disabled}
       hitSlop={getDefaultHitSlop()}
       onPress={onPress}
-      style={({ pressed }) => [
-        getDefaultStyle(),
-        style,
-        pressed && !disabled ? { opacity: pressedOpacity ?? getDefaultPressedOpacity() } : null,
-        disabled ? { opacity: disabledOpacity ?? getDefaultDisabledOpacity() } : null,
-      ]}
+      style={({ pressed }) => {
+        let opacity: number | undefined;
+        if (disabled) {
+          opacity = disabledOpacity ?? getDefaultDisabledOpacity();
+        } else if (pressed) {
+          opacity = pressedOpacity ?? getDefaultPressedOpacity();
+        } else {
+          opacity = getDefaultNormalOpacity();
+        }
+        return [
+          getDefaultStyle(),
+          style,
+          opacity !== undefined ? { opacity } : null,
+        ];
+      }}
     >
+    
       <View style={[components.actionButtonContent, getDefaultContentStyle(), contentStyle]}>
         {icon ? (
           <Ionicons

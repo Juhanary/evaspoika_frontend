@@ -3,6 +3,7 @@ import {
   Text,
   TextInput,
   View,
+  Pressable,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -33,6 +34,11 @@ export function SearchInput({
   style,
 }: Props) {
   const darkVariant = variant === 'dark';
+  const hasText = value.trim().length > 0;
+
+  const handleClear = () => {
+    onChangeText('');
+  };
 
   return (
     <View style={[components.searchContainer, style]}>
@@ -59,6 +65,19 @@ export function SearchInput({
           style={[components.searchInput, darkVariant ? components.searchInputDark : components.searchInputLight]}
           value={value}
         />
+        {hasText && (
+          <Pressable
+            hitSlop={6}
+            onPress={handleClear}
+            style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Ionicons
+              color={darkVariant ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)'}
+              name="close-circle"
+              size={30}
+            />
+          </Pressable>
+        )}
       </View>
     </View>
   );
