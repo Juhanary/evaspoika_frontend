@@ -230,24 +230,22 @@ export default function OrderDetailScreen({ orderId }: Props) {
     try {
       const box = await fetchBoxByEan(normalizedEan);
 
-      // Finnish GS1 weighted EAN-13: 2 PPPPP WWWWW C — PLU at 0-indexed positions 1–5
-      const pluFromEan =
+      // EAN-13 muoto: tyyppi(2) + laitostunnus(4) + tuotekoodi(2) + paino(4) + tarkiste(1)
+      const productCodeFromEan =
         normalizedEan.length === 13 && normalizedEan.charAt(0) === '2'
-          ? String(Number(normalizedEan.substring(1, 6)))
+          ? Number(normalizedEan.substring(6, 8))
           : null;
 
-      // If the stored box has a product that doesn't match the EAN's PLU,
-      // try to find the correct product using the PLU from the scanned barcode.
+      // Jos boksin tallennettu tuote ei vastaa EAN:n tuotekoodia, käytetään EAN:n tuotetta.
       const productFromDb = (products ?? []).find((p) => p.id === box.ProductId);
-      const productByPlu = pluFromEan
-        ? (products ?? []).find((p) => p.plu != null && String(p.plu) === pluFromEan)
+      const productByCode = (productCodeFromEan && productCodeFromEan > 0)
+        ? (products ?? []).find((p) => p.product_code != null && p.product_code === productCodeFromEan)
         : null;
 
-      // Prefer PLU match when it differs from the stored product (covers "erikoistuote" case)
-      const useOverride = productByPlu != null && productByPlu.id !== box.ProductId;
-      const resolvedProductId   = useOverride ? productByPlu!.id   : box.ProductId;
-      const resolvedProductName = useOverride ? productByPlu!.name : box.productName;
-      const resolvedPricePerKg  = (useOverride ? productByPlu!.price_per_kg : productFromDb?.price_per_kg) ?? 0;
+      const useOverride = productByCode != null && productByCode.id !== box.ProductId;
+      const resolvedProductId   = useOverride ? productByCode!.id   : box.ProductId;
+      const resolvedProductName = useOverride ? productByCode!.name : box.productName;
+      const resolvedPricePerKg  = (useOverride ? productByCode!.price_per_kg : productFromDb?.price_per_kg) ?? 0;
 
       setScannedBoxes((previous) => [
         ...previous,

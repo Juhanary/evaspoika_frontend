@@ -37,7 +37,7 @@ import { screen } from '@/src/shared/styles/screen';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
 import { formatKg } from '@/src/shared/utils/weight';
-import { patchProductPlu } from '../../infrastructure/productsApi';
+import { patchProductCode } from '../../infrastructure/productsApi';
 import { Product } from '../../domain/types';
 import { useProducts } from '../hooks/useProducts';
 import {
@@ -341,14 +341,14 @@ export default function ProductListScreen() {
               <Text numberOfLines={1} style={components.invPillLeftText}>
                 {item.product.name}
               </Text>
-              {item.product.plu ? (
-                <Text style={productStyles.invPillPlu}>{item.product.plu}</Text>
+              {item.product.product_code ? (
+                <Text style={productStyles.invPillPlu}>{item.product.product_code}</Text>
               ) : null}
             </View>
             {isFav ? (
               <Ionicons color="#f5a623" name="star" size={13} style={productStyles.invIconTrailingGap} />
             ) : null}
-            {!item.product.plu ? (
+            {!item.product.product_code ? (
               <Ionicons
                 color="rgba(220,60,0,0.85)"
                 name="keypad-outline"
@@ -426,9 +426,9 @@ export default function ProductListScreen() {
               >
                 <Text style={components.invDropdownBtnText}>MUOKKAA ERIÄ</Text>
               </Pressable>
-              {!item.product.plu ? (
-                <Text style={productStyles.pluWarningText}>
-                  PLU puuttuu — vaaka ei tunnista tuotetta. Paina pitkään asettaaksesi.
+              {!item.product.product_code ? (
+                <Text style={productStyles.productCodeWarningText}>
+                  Tuotekoodi puuttuu — vaaka ei tunnista tuotetta. Paina pitkään asettaaksesi.
                 </Text>
               ) : null}
               {!item.product.netvisor_key ? (
@@ -663,27 +663,27 @@ const ProductConfigModal = ({
   const queryClient = useQueryClient();
   const isFav = config.favorites.includes(row.product.id);
   const currentCatId = (config.assignments[String(row.product.id)] ?? null) as CategoryId | null;
-  const [pluInput, setPluInput] = useState(row.product.plu ? String(row.product.plu) : '');
-  const [pluSaving, setPluSaving] = useState(false);
-  const [pluSaved, setPluSaved] = useState(false);
+  const [codeInput, setCodeInput] = useState(row.product.product_code ? String(row.product.product_code) : '');
+  const [codeSaving, setCodeSaving] = useState(false);
+  const [codeSaved, setCodeSaved] = useState(false);
   const [catSaved, setCatSaved] = useState(false);
 
-  const handleSavePlu = async () => {
-    const parsed = pluInput.trim() === '' ? null : parseInt(pluInput.trim(), 10);
-    if (pluInput.trim() !== '' && (isNaN(parsed!) || parsed! <= 0)) {
-      Alert.alert('Virheellinen PLU', 'PLU-numeron täytyy olla positiivinen kokonaisluku.');
+  const handleSaveCode = async () => {
+    const parsed = codeInput.trim() === '' ? null : parseInt(codeInput.trim(), 10);
+    if (codeInput.trim() !== '' && (isNaN(parsed!) || parsed! <= 0 || parsed! > 99)) {
+      Alert.alert('Virheellinen tuotekoodi', 'Tuotekoodin täytyy olla 1–99 välillä.');
       return;
     }
-    setPluSaving(true);
+    setCodeSaving(true);
     try {
-      await patchProductPlu(row.product.id, parsed);
+      await patchProductCode(row.product.id, parsed);
       await queryClient.invalidateQueries({ queryKey: ['products'] });
-      setPluSaved(true);
-      setTimeout(() => setPluSaved(false), 2000);
+      setCodeSaved(true);
+      setTimeout(() => setCodeSaved(false), 2000);
     } catch {
-      Alert.alert('Virhe', 'PLU-numeron tallennus epäonnistui.');
+      Alert.alert('Virhe', 'Tuotekoodin tallennus epäonnistui.');
     } finally {
-      setPluSaving(false);
+      setCodeSaving(false);
     }
   };
 
@@ -772,29 +772,30 @@ const ProductConfigModal = ({
 
           <View style={productStyles.configModalDivider} />
 
-          <Text style={[productStyles.configModalSectionLabel, { marginTop: 10 }]}>PLU (VAAKA)</Text>
+          <Text style={[productStyles.configModalSectionLabel, { marginTop: 10 }]}>TUOTEKOODI (VAAKA)</Text>
           <Text style={productStyles.configModalPluCurrent}>
-            {row.product.plu ? `Nykyinen: ${row.product.plu}` : 'Ei asetettu — vaaka ei tunnista tuotetta'}
+            {row.product.product_code ? `Nykyinen: ${row.product.product_code}` : 'Ei asetettu — vaaka ei tunnista tuotetta'}
           </Text>
           <View style={productStyles.configModalPluRow}>
             <TextInput
               keyboardType="number-pad"
-              onChangeText={setPluInput}
-              placeholder="PLU-numero"
+              maxLength={2}
+              onChangeText={setCodeInput}
+              placeholder="Tuotekoodi (01–99)"
               placeholderTextColor="rgba(0,0,0,0.3)"
               style={productStyles.configModalPluInput}
-              value={pluInput}
+              value={codeInput}
             />
             <TouchableOpacity
-              disabled={pluSaving || pluSaved}
-              onPress={handleSavePlu}
+              disabled={codeSaving || codeSaved}
+              onPress={handleSaveCode}
               style={[
                 productStyles.configModalPluSaveBtn,
-                pluSaved && productStyles.configModalPluSaveBtnSuccess,
+                codeSaved && productStyles.configModalPluSaveBtnSuccess,
               ]}
             >
               <Text style={productStyles.configModalPluSaveBtnText}>
-                {pluSaving ? '...' : pluSaved ? '✓' : 'Tallenna'}
+                {codeSaving ? '...' : codeSaved ? '✓' : 'Tallenna'}
               </Text>
             </TouchableOpacity>
           </View>

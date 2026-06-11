@@ -8,7 +8,7 @@
     "scheme": "evaspoika",
     "userInterfaceStyle": "automatic",
     "extra": {
-      "apiBaseUrl": "http://10.0.0.42:3000/api",
+      "apiBaseUrl": "http://10.214.33.15:3000/api",
       "router": {},
       "eas": {
         "projectId": "a9bdf897-5950-4af7-aa8f-002a38f28a68"

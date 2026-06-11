@@ -52,10 +52,10 @@ export function updateProduct(id: number, input: Partial<CreateProductInput>) {
   });
 }
 
-export function patchProductPlu(id: number, plu: number | null) {
-  return apiRequest<{ id: number; plu: number | null }>(`${endpoints.products}/${id}`, {
+export function patchProductCode(id: number, product_code: number | null) {
+  return apiRequest<{ id: number; product_code: number | null }>(`${endpoints.products}/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ plu }),
+    body: JSON.stringify({ product_code }),
   });
 }
 

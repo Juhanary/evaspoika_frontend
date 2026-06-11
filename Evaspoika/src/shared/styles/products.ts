@@ -44,8 +44,8 @@ export const productStyles = StyleSheet.create({
     marginLeft: spacing.sm,
   },
 
-  // --- ProductListScreen PLU warning ---
-  pluWarningText: {
+  // --- ProductListScreen product code warning ---
+  productCodeWarningText: {
     fontFamily: 'Montserrat_400Regular',
     fontSize: typography.sizes.xs,
     color: 'rgba(220,60,0,0.9)' as const,
@@ -62,7 +62,7 @@ export const productStyles = StyleSheet.create({
     marginTop: spacing.xs + 2,
   },
 
-  // --- ProductConfigModal section label (shared by cat + PLU sections) ---
+  // --- ProductConfigModal section label ---
   configModalSectionLabel: {
     fontSize: 11,
     fontFamily: 'Montserrat_700Bold',

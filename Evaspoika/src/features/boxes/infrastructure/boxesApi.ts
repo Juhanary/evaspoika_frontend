@@ -22,7 +22,7 @@ export type ParsedEan = {
   productId: number | null;
   productName: string | null;
   price_per_kg: number | null;
-  plu: string;
+  productCodeFromEan: number | null;
 };
 
 export function parseBoxEan(ean: string) {
