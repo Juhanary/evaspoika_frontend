@@ -39,8 +39,10 @@ export function AppHeader({
 }: Props) {
   const insets = useSafeAreaInsets();
 
+  const headerPaddingTop = insets.top + 10;
+
   return (
-    <View style={[components.appHeader, { paddingTop: insets.top + 10 }]}>
+    <View style={[components.appHeader, { paddingTop: headerPaddingTop }]}>
       <View style={components.appHeaderSide}>
         {leftAction ? (
           <Button
@@ -53,11 +55,9 @@ export function AppHeader({
         ) : null}
       </View>
 
-      <View style={components.appHeaderCenter}>
-        {search ? (
+      {search ? (
+        <View style={components.appHeaderCenter}>
           <SearchInput
-          //if not focused, clear the search input and hide the keyboard
-           
             label={title}
             onChangeText={search.onChangeText ?? (() => {})}
             placeholder={search.placeholder ?? 'Hae...'}
@@ -65,13 +65,24 @@ export function AppHeader({
             value={search.value}
             variant="dark"
           />
-        ) : (
-          <>
-            <Image resizeMode="contain" source={LOGO} style={components.appHeaderLogo} />
-            {title ? <Text style={components.appHeaderTitle}>{title}</Text> : null}
-          </>
-        )}
-      </View>
+        </View>
+      ) : (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: headerPaddingTop,
+            bottom: 0,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Image resizeMode="contain" source={LOGO} style={components.appHeaderLogo} />
+          {title ? <Text style={components.appHeaderTitle}>{title}</Text> : null}
+        </View>
+      )}
 
       <View style={[components.appHeaderSide, components.appHeaderSideRight]}>
         {rightActions.map((action, index) => (

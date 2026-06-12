@@ -138,9 +138,9 @@ export function Button({
   const getDefaultNormalOpacity = () => {
     switch (variant) {
       case 'glassIcon':
-        return 1.2;
+        return 1.5;
       default:
-        return 1.2;
+        return 1.5;
     }
   };
 

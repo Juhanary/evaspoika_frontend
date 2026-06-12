@@ -5,7 +5,7 @@ import { NetvisorResponseEnvelope, NetvisorResponsePayload } from '../domain/typ
 export function syncNetvisorProducts() {
   return apiRequest<{ created: number; updated: number; skipped: number; total: number }>(
     `${endpoints.netvisor}/sync-products`,
-    { method: 'POST' }
+    { method: 'POST', auth: 'netvisorWrite' }
   );
 }
 
