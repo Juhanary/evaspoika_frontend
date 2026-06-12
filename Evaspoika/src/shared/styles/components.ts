@@ -112,7 +112,7 @@ export const components = {
   ] as TextStyle[],
 
   // Modal
-  modalOverlay: [{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }] as ViewStyle[],
+  modalOverlay: [{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', marginTop: spacing.xl }] as ViewStyle[],
   modalCard: containerFactory({ variant: 'modal' }),
   modalTitle: [
     ...textFactory({ size: '2xl', weight: 'bold' }),

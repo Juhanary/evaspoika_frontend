@@ -617,21 +617,30 @@ export default function OrderDetailScreen({ orderId }: Props) {
             </View>
 
             <View style={orderStyles.smPanel}>
-              <View style={orderStyles.smScanFieldRow}>
-                <TextInput
-                  autoFocus
-                  keyboardType="numeric"
-                  onChangeText={handleEanChange}
-                  onSubmitEditing={() => handleScan(eanValueRef.current)}
-                  placeholder="ALOITA SKANNAAMINEN..."
-                  placeholderTextColor="rgba(0,0,0,0.32)"
-                  ref={eanRef}
-                  returnKeyType="done"
-                  style={orderStyles.smScanFieldInput}
-                  value={eanInput}
-                />
-                <Ionicons color="rgba(0,0,0,0.42)" name="barcode-outline" size={28} />
-              </View>
+              <TextInput
+                autoFocus
+                caretHidden
+                keyboardType="numeric"
+                onBlur={() => {
+                  if (batchPickerFor === null && !saving) {
+                    setTimeout(() => eanRef.current?.focus(), 80);
+                  }
+                }}
+                onChangeText={handleEanChange}
+                onSubmitEditing={() => handleScan(eanValueRef.current)}
+                ref={eanRef}
+                returnKeyType="done"
+                showSoftInputOnFocus={false}
+                style={orderStyles.smHiddenEanInput}
+                value={eanInput}
+              />
+              <Pressable
+                onPress={() => eanRef.current?.focus()}
+                style={orderStyles.smScanStatusBar}
+              >
+                <Ionicons color="rgba(30, 140, 60, 0.85)" name="barcode-outline" size={24} />
+                <Text style={orderStyles.smScanStatusBarText}>ALOITA SKANNAAMINEN</Text>
+              </Pressable>
 
               <View style={orderStyles.smTableHeader}>
                 <View style={orderStyles.smDeleteCell} />
