@@ -112,7 +112,7 @@ export const components = {
   ] as TextStyle[],
 
   // Modal
-  modalOverlay: [{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', marginTop: spacing.xl }] as ViewStyle[],
+  modalOverlay: [{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', paddingHorizontal: spacing.lg, paddingBottom: spacing.lg }] as ViewStyle[],
   modalCard: containerFactory({ variant: 'modal' }),
   modalTitle: [
     ...textFactory({ size: '2xl', weight: 'bold' }),
@@ -281,6 +281,6 @@ export const components = {
   tabTextActive: [{ color: colors.textOnDark, fontWeight: '600' }] as TextStyle[],
 
   // GlassCard
-  glassCard: [{ borderRadius: 32, padding: 12, backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 1 }] as ViewStyle[],
+  glassCard: [{ borderRadius: 32, padding: 12, backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.50, shadowRadius: 1 }] as ViewStyle[],
   glassCardOverlay: [{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.06)',  }] as ViewStyle[],
 } as const;

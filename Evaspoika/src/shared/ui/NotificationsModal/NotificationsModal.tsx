@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -35,6 +36,7 @@ export function NotificationsModal({
   saveThreshold,
 }: Props) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [page, setPage] = useState<'warnings' | 'thresholds'>('warnings');
 
   const hasUnread = warnings.some((w) => w.isNew);
@@ -49,7 +51,7 @@ export function NotificationsModal({
     <Modal animationType="fade" onRequestClose={onClose} transparent visible={visible}>
       <GestureHandlerRootView style={StyleSheet.absoluteFill}>
         <Pressable onPress={onClose} style={styles.backdrop} />
-        <GlassCard blurRadius={24} style={styles.card}>
+        <GlassCard blurRadius={24} style={[styles.card, { top: insets.top + 90, bottom: insets.bottom + 35 }]}>
           <View style={styles.header}>
             <Ionicons
               color={hasUnread ? colors.warning : colors.white}

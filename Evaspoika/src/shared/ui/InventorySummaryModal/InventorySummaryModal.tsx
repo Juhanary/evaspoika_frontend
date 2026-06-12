@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector, GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -98,6 +99,7 @@ const Row = React.memo(function Row({
 });
 
 export function InventorySummaryModal({ visible, onClose, items }: Props) {
+  const insets = useSafeAreaInsets();
   const [order, setOrder] = useState<number[]>([]);
   const [orderLoaded, setOrderLoaded] = useState(false);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
@@ -179,7 +181,7 @@ export function InventorySummaryModal({ visible, onClose, items }: Props) {
     >
       <GestureHandlerRootView style={StyleSheet.absoluteFill}>
         <Pressable onPress={onClose} style={styles.backdrop} />
-        <GlassCard blurRadius={24} style={styles.card}>
+        <GlassCard blurRadius={24} style={[styles.card, { top: insets.top + 90, bottom: insets.bottom + 50 }]}>
           <View style={styles.header}>
             <Ionicons color={colors.white} name="server-outline" size={26} />
             <Text style={styles.title}>VARASTOSALDO</Text>

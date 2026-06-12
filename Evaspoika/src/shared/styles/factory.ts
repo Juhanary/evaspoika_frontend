@@ -120,8 +120,7 @@ export const container = ({
   if (variant === 'section') styles.push({ marginBottom: spacing.lg });
   if (variant === 'modal') styles.push({
     backgroundColor: colors.white,
-    borderTopLeftRadius: radii['3xl'],
-    borderTopRightRadius: radii['3xl'],
+    borderRadius: radii['3xl'],
     padding: spacing.xl,
   });
 

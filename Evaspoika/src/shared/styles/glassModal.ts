@@ -11,7 +11,7 @@ export const glassModalStyles = StyleSheet.create({
     position: 'absolute',
     left: spacing.lg,
     right: spacing.lg,
-    top: '2%',
+    top: spacing.lg,
     bottom: spacing.lg,
     padding: 0,
     borderRadius: 20,
