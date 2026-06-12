@@ -602,7 +602,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
         <View style={StyleSheet.absoluteFill}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => {}} />
           <View style={orderStyles.smOverlay} pointerEvents="box-none">
-              <GlassCard blurRadius={24} style={[orderStyles.smShell, { top: insets.top + 90, bottom: insets.bottom + 40 }]}>
+              <GlassCard blurRadius={24} style={orderStyles.smShell}>
             <View style={orderStyles.smTopRow}>
               <View style={orderStyles.smCustomerPill}>
                 <Text numberOfLines={1} style={orderStyles.smCustomerPillText}>
@@ -796,7 +796,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
         <View style={StyleSheet.absoluteFill}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => {}} />
           <View style={orderStyles.smOverlay} pointerEvents="box-none">
-          <GlassCard blurRadius={24} style={[orderStyles.smShell, { top: insets.top + 90, bottom: insets.bottom + 40 }]}>
+          <GlassCard blurRadius={24} style={orderStyles.smShell}>
             <View style={orderStyles.smTopRow}>
               <View style={orderStyles.smCustomerPill}>
                 <Text numberOfLines={1} style={orderStyles.smCustomerPillText}>
