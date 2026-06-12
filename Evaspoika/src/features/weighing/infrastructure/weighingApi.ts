@@ -18,6 +18,7 @@ export type WeighingInput = {
   weightKg: number;
   userId?: number;
   productionDate?: string;
+  bestBefore?: string;
 };
 
 export function submitWeighing(input: WeighingInput) {

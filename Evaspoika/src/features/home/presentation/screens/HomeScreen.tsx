@@ -14,6 +14,7 @@ import { useRouter, type Href } from 'expo-router';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
 import { syncCustomersFromNetvisor } from '@/src/features/customers/infrastructure/customersApi';
 import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
+import { syncNetvisorProducts } from '@/src/features/netvisor/infrastructure/netvisorApi';
 import { fetchOrderLines } from '@/src/features/orderLines/infrastructure/orderLinesApi';
 import { useOrders } from '@/src/features/orders/presentation/hooks/useOrders';
 import { syncOrdersFromNetvisor } from '@/src/features/orders/infrastructure/ordersApi';
@@ -98,6 +99,7 @@ export default function HomeScreen() {
       await Promise.all([
         syncOrdersFromNetvisor(),
         syncCustomersFromNetvisor(),
+        syncNetvisorProducts(),
       ]);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['orders'] }),
@@ -107,7 +109,7 @@ export default function HomeScreen() {
       ]);
       Alert.alert(
         'Päivitetty',
-        'Tilaukset ja asiakkaat päivitetty. Muut Netvisor-tiedot haetaan näkymiin uudelleen tarvittaessa.',
+        'Tilaukset, asiakkaat ja tuotteet päivitetty Netvisorista.',
       );
     } catch (err) {
       const msg = (() => {
