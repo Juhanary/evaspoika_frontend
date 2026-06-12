@@ -34,6 +34,7 @@ import { components } from '@/src/shared/styles/components';
 import { orderStyles } from '@/src/shared/styles/orders';
 import { productStyles } from '@/src/shared/styles/products';
 import { screen } from '@/src/shared/styles/screen';
+import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
 import { formatKg } from '@/src/shared/utils/weight';
@@ -321,6 +322,17 @@ export default function ProductListScreen() {
     const isExpanded = expandedId === item.product.id;
     const productBatches = batchesByProduct.get(item.product.id) ?? [];
     const isFav = config.favorites.includes(item.product.id);
+    
+    // Check if any batch has a warning
+    const hasWarning = productBatches.some((batch) => {
+      const daysLeft = batch.days_until_expiry ?? null;
+      return daysLeft !== null && daysLeft <= 100;
+    });
+    const minDaysLeft = productBatches.reduce((min, batch) => {
+      const daysLeft = batch.days_until_expiry ?? null;
+      if (daysLeft === null || daysLeft > 100) return min;
+      return Math.min(min, daysLeft);
+    }, Number.MAX_SAFE_INTEGER);
 
     return (
       <View style={components.invPillRow}>
@@ -360,6 +372,14 @@ export default function ProductListScreen() {
               <Ionicons
                 color="rgba(255,165,0,0.85)"
                 name="cloud-offline-outline"
+                size={16}
+                style={productStyles.invIconTrailingGap}
+              />
+            ) : null}
+            {hasWarning ? (
+              <Ionicons
+                color={minDaysLeft <= 50 ? colors.danger50pvonWhite : colors.danger100pvonWhite}
+                name="warning-outline"
                 size={16}
                 style={productStyles.invIconTrailingGap}
               />
@@ -970,7 +990,7 @@ const AddBoxesModal = ({
       {/* Backdrop: absorbs all stray touches — modal NEVER closes from outside */}
       <Pressable style={StyleSheet.absoluteFill} onPress={() => {}} />
       <View style={orderStyles.smOverlay} pointerEvents="box-none">
-      <View style={orderStyles.smShell}>
+      <GlassCard blurRadius={24} style={orderStyles.smShell}>
         <View style={orderStyles.smTopRow}>
           <View style={orderStyles.smCustomerPill}>
             <Text style={orderStyles.smCustomerPillText}>LISÄÄ LAATIKOITA</Text>
@@ -1129,7 +1149,7 @@ const AddBoxesModal = ({
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </GlassCard>
 
       <Modal
         animationType="slide"
