@@ -2,6 +2,13 @@ import { QueryParams, apiRequest } from '@/src/infrastructure/api/client';
 import { endpoints } from '@/src/infrastructure/api/endpoints';
 import { NetvisorResponseEnvelope, NetvisorResponsePayload } from '../domain/types';
 
+export function syncNetvisorProducts() {
+  return apiRequest<{ created: number; updated: number; skipped: number; total: number }>(
+    `${endpoints.netvisor}/sync-products`,
+    { method: 'POST' }
+  );
+}
+
 export function fetchNetvisorResource<TResponse = NetvisorResponsePayload>(
   path: string,
   query?: QueryParams

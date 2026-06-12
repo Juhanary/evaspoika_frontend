@@ -680,8 +680,9 @@ const ProductConfigModal = ({
       await queryClient.invalidateQueries({ queryKey: ['products'] });
       setCodeSaved(true);
       setTimeout(() => setCodeSaved(false), 2000);
-    } catch {
-      Alert.alert('Virhe', 'Tuotekoodin tallennus epäonnistui.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      Alert.alert('Virhe', `Tuotekoodin tallennus epäonnistui.\n${msg}`);
     } finally {
       setCodeSaving(false);
     }
@@ -823,6 +824,9 @@ const AddBoxesModal = ({
   const [dateInput, setDateInput] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerDate, setPickerDate] = useState(new Date());
+  const [bestBeforeInput, setBestBeforeInput] = useState('');
+  const [showBestBeforePicker, setShowBestBeforePicker] = useState(false);
+  const [pickerBestBeforeDate, setPickerBestBeforeDate] = useState(new Date());
   const [pendingBoxes, setPendingBoxes] = useState<PendingBox[]>([]);
   const [productPickerFor, setProductPickerFor] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -830,6 +834,7 @@ const AddBoxesModal = ({
   const eanRef = useRef<TextInput>(null);
   const eanValueRef = useRef('');
   const nextId = useRef(1);
+  const scanLockRef = useRef(false);
 
   const formatDateFinnish = (date: Date) => {
     const dd = String(date.getDate()).padStart(2, '0');
@@ -858,6 +863,26 @@ const AddBoxesModal = ({
     }
   };
 
+  const openBestBeforePicker = () => {
+    const parts = bestBeforeInput.split('.');
+    if (parts.length === 3) {
+      const d = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const y = parseInt(parts[2], 10);
+      const parsed = new Date(y, m, d);
+      if (!isNaN(parsed.getTime())) setPickerBestBeforeDate(parsed);
+    }
+    setShowBestBeforePicker(true);
+  };
+
+  const onBestBeforeDatePickerChange = (event: DateTimePickerEvent, date?: Date) => {
+    setShowBestBeforePicker(false);
+    if (event.type === 'set' && date) {
+      setBestBeforeInput(formatDateFinnish(date));
+      setPickerBestBeforeDate(date);
+    }
+  };
+
   // Refocus EAN input after product picker closes or saving finishes
   useEffect(() => {
     if (productPickerFor === null && !saving) {
@@ -868,9 +893,10 @@ const AddBoxesModal = ({
 
   const handleScan = async (ean: string) => {
     const normalized = ean.replace(/\s+/g, '').trim();
-    if (!normalized || scanning) return;
-    setEanInput('');
+    if (!normalized || scanLockRef.current) return;
+    scanLockRef.current = true;
     setScanning(true);
+    setEanInput('');
     try {
       const parsed = await parseBoxEan(normalized);
       setPendingBoxes((prev) => [
@@ -889,6 +915,7 @@ const AddBoxesModal = ({
         `EAN ${normalized} ei ole painotettu viivakoodimuoto tai tapahtui verkkovirhe.`,
       );
     } finally {
+      scanLockRef.current = false;
       setScanning(false);
       setTimeout(() => eanRef.current?.focus(), 50);
     }
@@ -918,6 +945,7 @@ const AddBoxesModal = ({
             name: box.productName,
             weightKg: box.weightKg,
             productionDate: dateInput.trim(),
+            bestBefore: bestBeforeInput.trim() || undefined,
           }),
         ),
       );
@@ -975,6 +1003,31 @@ const AddBoxesModal = ({
               mode="date"
               onChange={onDatePickerChange}
               value={pickerDate}
+            />
+          )}
+
+          <View style={orderStyles.smScanFieldRow}>
+            <TextInput
+              keyboardType="numbers-and-punctuation"
+              onChangeText={setBestBeforeInput}
+              placeholder="PARASTA ENNEN (pp.kk.vvvv)"
+              placeholderTextColor="rgba(0,0,0,0.32)"
+              returnKeyType="next"
+              style={orderStyles.smScanFieldInput}
+              value={bestBeforeInput}
+            />
+            <Pressable hitSlop={10} onPress={openBestBeforePicker}>
+              <Ionicons color="rgba(0,0,0,0.42)" name="calendar-outline" size={24} />
+            </Pressable>
+          </View>
+
+          {showBestBeforePicker && (
+            <DateTimePicker
+              display="default"
+              locale="fi"
+              mode="date"
+              onChange={onBestBeforeDatePickerChange}
+              value={pickerBestBeforeDate}
             />
           )}
 

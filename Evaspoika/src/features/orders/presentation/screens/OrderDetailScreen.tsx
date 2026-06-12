@@ -97,6 +97,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
   const eanRef = useRef<TextInput>(null);
   const eanValueRef = useRef('');
   const nextScannedRowId = useRef(1);
+  const scanLockRef = useRef(false);
 
   const customerName = useMemo(() => {
     if (!order || !customers) return null;
@@ -223,8 +224,8 @@ export default function OrderDetailScreen({ orderId }: Props) {
 
   const handleScan = async (ean: string) => {
     const normalizedEan = ean.replace(/\s+/g, '').trim();
-    if (!normalizedEan) return;
-
+    if (!normalizedEan || scanLockRef.current) return;
+    scanLockRef.current = true;
     setEanInput('');
 
     try {
@@ -265,9 +266,10 @@ export default function OrderDetailScreen({ orderId }: Props) {
       ]);
     } catch {
       Alert.alert('Boksia ei löydy', `Koodilla "${normalizedEan}" ei löydy varastosta bokseja.`);
+    } finally {
+      scanLockRef.current = false;
+      setTimeout(() => eanRef.current?.focus(), 50);
     }
-
-    setTimeout(() => eanRef.current?.focus(), 50);
   };
 
   const handleSelectBatch = (option: BatchPickerOption) => {
