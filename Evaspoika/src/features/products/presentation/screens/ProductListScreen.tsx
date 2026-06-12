@@ -380,7 +380,7 @@ export default function ProductListScreen() {
               <Ionicons
                 color={minDaysLeft <= 50 ? colors.danger50pvonWhite : colors.danger100pvonWhite}
                 name="warning-outline"
-                size={16}
+                size={30}
                 style={productStyles.invIconTrailingGap}
               />
             ) : null}
