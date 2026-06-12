@@ -293,7 +293,7 @@ export const orderStyles = StyleSheet.create({
   // --- Scan modal (sm*) ---
   smOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.22)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'center' as const,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xl,
@@ -307,7 +307,7 @@ export const orderStyles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
-    backgroundColor: 'rgba(86, 86, 86, 0.78)',
+    backgroundColor: 'rgba(30, 30, 30, 0.97)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
   },
@@ -336,7 +336,7 @@ export const orderStyles = StyleSheet.create({
   smPanel: {
     flex: 1,
     minHeight: 0,
-    backgroundColor: 'rgba(245,245,245,0.96)',
+    backgroundColor: 'rgba(245,245,245,1.0)',
     borderRadius: 42,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
