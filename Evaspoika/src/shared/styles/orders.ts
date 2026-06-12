@@ -536,4 +536,36 @@ export const orderStyles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   batchPickerScroll: { maxHeight: 300 },
+
+  smHiddenEanInput: {
+    position: 'absolute' as const,
+    width: 1,
+    height: 1,
+    opacity: 0,
+  },
+  smScanStatusBar: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: spacing.sm,
+    borderRadius: 999,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.md,
+    backgroundColor: 'rgba(57, 245, 106, 0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(57, 245, 106, 0.28)',
+  },
+  smScanStatusBarScanning: {
+    backgroundColor: colors.white,
+    borderColor: 'rgba(0,0,0,0.10)',
+  },
+  smScanStatusBarText: {
+    flex: 1,
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 18,
+    color: 'rgba(30, 140, 60, 0.9)',
+  },
+  smScanStatusBarTextScanning: {
+    color: 'rgba(0,0,0,0.42)',
+  },
 });

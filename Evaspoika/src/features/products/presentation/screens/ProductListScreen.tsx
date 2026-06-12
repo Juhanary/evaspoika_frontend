@@ -1031,22 +1031,36 @@ const AddBoxesModal = ({
             />
           )}
 
-          <View style={orderStyles.smScanFieldRow}>
-            <TextInput
-              autoFocus
-              editable={!scanning && !saving && productPickerFor === null}
-              keyboardType="numeric"
-              onChangeText={(v) => { const c = v.replace(/\s+/g, ''); eanValueRef.current = c; setEanInput(c); }}
-              onSubmitEditing={() => handleScan(eanValueRef.current)}
-              placeholder={scanning ? 'Tunnistetaan...' : 'SKANNAA EAN-KOODI...'}
-              placeholderTextColor="rgba(0,0,0,0.32)"
-              ref={eanRef}
-              returnKeyType="done"
-              style={orderStyles.smScanFieldInput}
-              value={eanInput}
+          <TextInput
+            autoFocus
+            caretHidden
+            keyboardType="numeric"
+            onBlur={() => {
+              if (productPickerFor === null && !saving) {
+                setTimeout(() => eanRef.current?.focus(), 80);
+              }
+            }}
+            onChangeText={(v) => { const c = v.replace(/\s+/g, ''); eanValueRef.current = c; setEanInput(c); }}
+            onSubmitEditing={() => handleScan(eanValueRef.current)}
+            ref={eanRef}
+            returnKeyType="done"
+            showSoftInputOnFocus={false}
+            style={orderStyles.smHiddenEanInput}
+            value={eanInput}
+          />
+          <Pressable
+            onPress={() => eanRef.current?.focus()}
+            style={[orderStyles.smScanStatusBar, scanning && orderStyles.smScanStatusBarScanning]}
+          >
+            <Ionicons
+              color={scanning ? 'rgba(0,0,0,0.38)' : 'rgba(30, 140, 60, 0.85)'}
+              name={scanning ? 'time-outline' : 'barcode-outline'}
+              size={24}
             />
-            <Ionicons color="rgba(0,0,0,0.42)" name="barcode-outline" size={28} />
-          </View>
+            <Text style={[orderStyles.smScanStatusBarText, scanning && orderStyles.smScanStatusBarTextScanning]}>
+              {scanning ? 'Tunnistetaan...' : 'SKANNAA EAN-KOODI'}
+            </Text>
+          </Pressable>
 
           <View style={orderStyles.smTableHeader}>
             <View style={orderStyles.smDeleteCell} />
