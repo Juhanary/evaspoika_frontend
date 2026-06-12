@@ -54,6 +54,7 @@ export const homeStyles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '500',
     color: colors.white,
+     alignSelf: 'center',
   },
   ordersSectionDivider: {
     height: 1,
