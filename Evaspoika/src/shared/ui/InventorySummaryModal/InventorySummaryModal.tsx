@@ -181,7 +181,7 @@ export function InventorySummaryModal({ visible, onClose, items }: Props) {
     >
       <GestureHandlerRootView style={StyleSheet.absoluteFill}>
         <Pressable onPress={onClose} style={styles.backdrop} />
-        <GlassCard blurRadius={24} style={[styles.card, { top: insets.top + 90, bottom: insets.bottom + 50 }]}>
+        <GlassCard blurRadius={24} style={[styles.card, { top: insets.top + 90, bottom: insets.bottom + 40 }]}>
           <View style={styles.header}>
             <Ionicons color={colors.white} name="server-outline" size={26} />
             <Text style={styles.title}>VARASTOSALDO</Text>

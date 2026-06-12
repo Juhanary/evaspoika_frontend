@@ -307,9 +307,9 @@ export const orderStyles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
-    backgroundColor: 'rgba(30, 30, 30, 0.97)',
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(255,255,255,0.18)',
   },
   smTopRow: {
     flexDirection: 'row' as const,

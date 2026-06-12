@@ -14,6 +14,7 @@ import {
 import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { useOrder } from '../hooks/useOrders';
 import { fetchOrderLines, createOrderLine, deleteOrderLine } from '@/src/features/orderLines/infrastructure/orderLinesApi';
@@ -30,6 +31,7 @@ import { ApiError } from '@/src/infrastructure/api/error';
 import { components } from '@/src/shared/styles/components';
 import { orderStyles } from '@/src/shared/styles/orders';
 import { screen } from '@/src/shared/styles/screen';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = { orderId?: number };
 
@@ -72,6 +74,8 @@ type ProductLineGroup = {
 
 
 export default function OrderDetailScreen({ orderId }: Props) {
+  const insets = useSafeAreaInsets();
+  
   const queryClient = useQueryClient();
   const { data: order, isLoading, error } = useOrder(orderId);
   const { data: orderLines } = useQuery({
@@ -598,7 +602,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
         <View style={StyleSheet.absoluteFill}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => {}} />
           <View style={orderStyles.smOverlay} pointerEvents="box-none">
-          <View style={orderStyles.smShell}>
+              <GlassCard blurRadius={24} style={[orderStyles.smShell, { top: insets.top + 90, bottom: insets.bottom + 40 }]}>
             <View style={orderStyles.smTopRow}>
               <View style={orderStyles.smCustomerPill}>
                 <Text numberOfLines={1} style={orderStyles.smCustomerPillText}>
@@ -734,7 +738,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </GlassCard>
           </View>
         </View>
 
@@ -792,7 +796,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
         <View style={StyleSheet.absoluteFill}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => {}} />
           <View style={orderStyles.smOverlay} pointerEvents="box-none">
-          <View style={orderStyles.smShell}>
+          <GlassCard blurRadius={24} style={[orderStyles.smShell, { top: insets.top + 90, bottom: insets.bottom + 40 }]}>
             <View style={orderStyles.smTopRow}>
               <View style={orderStyles.smCustomerPill}>
                 <Text numberOfLines={1} style={orderStyles.smCustomerPillText}>
@@ -899,7 +903,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </GlassCard>
           </View>
         </View>
       </Modal>
