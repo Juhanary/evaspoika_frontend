@@ -34,6 +34,7 @@ import { components } from '@/src/shared/styles/components';
 import { orderStyles } from '@/src/shared/styles/orders';
 import { productStyles } from '@/src/shared/styles/products';
 import { screen } from '@/src/shared/styles/screen';
+import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
@@ -638,14 +639,13 @@ export default function ProductListScreen() {
         </Pressable>
       </Modal>
 
-      <Modal animationType="fade" onRequestClose={() => {}} transparent visible={showAddBoxesModal}>
+      <AppModal animationType="fade" visible={showAddBoxesModal}>
         <AddBoxesModal onClose={() => setShowAddBoxesModal(false)} products={products ?? []} />
-      </Modal>
+      </AppModal>
 
-      <Modal
+      <AppModal
         animationType="fade"
-        onRequestClose={() => setConfigTargetId(null)}
-        transparent
+        onClose={() => setConfigTargetId(null)}
         visible={configTarget !== null}
       >
         {configTarget ? (
@@ -658,7 +658,7 @@ export default function ProductListScreen() {
             row={configTarget}
           />
         ) : null}
-      </Modal>
+      </AppModal>
     </>
   );
 }
@@ -1151,10 +1151,9 @@ const AddBoxesModal = ({
         </View>
       </GlassCard>
 
-      <Modal
+      <AppModal
         animationType="slide"
-        onRequestClose={() => setProductPickerFor(null)}
-        transparent
+        onClose={() => setProductPickerFor(null)}
         visible={productPickerFor != null}
       >
         <View style={components.modalOverlay}>
@@ -1187,7 +1186,7 @@ const AddBoxesModal = ({
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      </AppModal>
       </View>
     </View>
   );

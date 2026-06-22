@@ -2,10 +2,8 @@
 import {
   Alert,
   FlatList,
-  Modal,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -14,6 +12,7 @@ import {
 import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { useOrder } from '../hooks/useOrders';
@@ -88,16 +87,12 @@ export default function OrderDetailScreen({ orderId }: Props) {
   const { data: products } = useProducts();
 
   const [showScanModal, setShowScanModal] = useState(false);
-  const [showVirtualScanModal, setShowVirtualScanModal] = useState(false);
   const [eanInput, setEanInput] = useState('');
   const [scannedBoxes, setScannedBoxes] = useState<BoxLineState[]>([]);
   const [batchPickerFor, setBatchPickerFor] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingOrder, setDeletingOrder] = useState(false);
   const [deletingLineId, setDeletingLineId] = useState<number | null>(null);
-  const [virtualProductId, setVirtualProductId] = useState<number | null>(null);
-  const [virtualBatchId, setVirtualBatchId] = useState<number | null>(null);
-  const [virtualWeight, setVirtualWeight] = useState('');
   const eanRef = useRef<TextInput>(null);
   const eanValueRef = useRef('');
   const nextScannedRowId = useRef(1);
@@ -444,55 +439,6 @@ export default function OrderDetailScreen({ orderId }: Props) {
     );
   };
 
-  const handleAddVirtualBox = async () => {
-    if (!virtualProductId || !virtualBatchId || !virtualWeight) {
-      Alert.alert('Virhe', 'Valitse tuote, erä ja paino.');
-      return;
-    }
-
-    const weightGrams = parseWeightToGrams(virtualWeight);
-    if (!Number.isFinite(weightGrams) || weightGrams <= 0) {
-      Alert.alert('Virheellinen paino', 'Tarkista paino.');
-      return;
-    }
-
-    const product = products?.find(p => p.id === virtualProductId);
-    const batch = batches?.find(b => b.id === virtualBatchId);
-
-    if (!product || !batch) {
-      Alert.alert('Virhe', 'Tuotetta tai erää ei löydy.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await createOrderLine({
-        orderId: orderId!,
-        batchId: virtualBatchId,
-        sold_weight: weightGrams,
-        price_per_gram: Math.round(product.price_per_kg),
-      });
-
-      await queryClient.invalidateQueries({ queryKey: ['orderLines', orderId], exact: true });
-      setShowVirtualScanModal(false);
-      setVirtualProductId(null);
-      setVirtualBatchId(null);
-      setVirtualWeight('');
-      Alert.alert('Laatiko lisätty', 'Laatiko on lisätty tilaukseen onnistuneesti.');
-    } catch (error) {
-      const errMessage = (() => {
-        if (error instanceof ApiError) {
-          const p = error.payload as Record<string, unknown> | null;
-          return String(p?.details ?? p?.error ?? error.message);
-        }
-        return error instanceof Error ? error.message : 'Lisäys epäonnistui';
-      })();
-      Alert.alert('Virhe', errMessage);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   if (!orderId || (!isLoading && (error || !order))) {
     return (
       <ScreenLayout leftAction="back" title="TILAUS">
@@ -583,24 +529,11 @@ export default function OrderDetailScreen({ orderId }: Props) {
           <Text style={orderStyles.odVirtualScanBtnText}>SKANNAA</Text>
         </Pressable>
 
-        <Pressable
-          onPress={() => setShowVirtualScanModal(true)}
-          style={({ pressed }) => [orderStyles.odVirtualScanBtn, pressed && screen.pressed]}
-        >
-          <Text style={orderStyles.odVirtualScanBtnText}>LISÄÄ LAATIKKO</Text>
-        </Pressable>
       </ScrollView>
 
 
 
-      <Modal
-        animationType="fade"
-        onRequestClose={() => {}}
-        transparent
-        visible={showScanModal}
-      >
-        <View style={StyleSheet.absoluteFill}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => {}} />
+      <AppModal animationType="fade" visible={showScanModal}>
           <View style={orderStyles.smOverlay} pointerEvents="box-none">
               <GlassCard blurRadius={24} style={orderStyles.smShell}>
             <View style={orderStyles.smTopRow}>
@@ -740,12 +673,10 @@ export default function OrderDetailScreen({ orderId }: Props) {
             </View>
           </GlassCard>
           </View>
-        </View>
 
-        <Modal
+        <AppModal
           animationType="slide"
-          onRequestClose={() => setBatchPickerFor(null)}
-          transparent
+          onClose={() => setBatchPickerFor(null)}
           visible={batchPickerFor != null}
         >
           <View style={components.modalOverlay}>
@@ -784,129 +715,9 @@ export default function OrderDetailScreen({ orderId }: Props) {
               </TouchableOpacity>
             </View>
           </View>
-        </Modal>
-      </Modal>
+        </AppModal>
+      </AppModal>
 
-      <Modal
-        animationType="fade"
-        onRequestClose={() => {}}
-        transparent
-        visible={showVirtualScanModal}
-      >
-        <View style={StyleSheet.absoluteFill}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => {}} />
-          <View style={orderStyles.smOverlay} pointerEvents="box-none">
-          <GlassCard blurRadius={24} style={orderStyles.smShell}>
-            <View style={orderStyles.smTopRow}>
-              <View style={orderStyles.smCustomerPill}>
-                <Text numberOfLines={1} style={orderStyles.smCustomerPillText}>
-                  {customerName ?? 'Tilaus'}
-                </Text>
-              </View>
-
-              <Pressable
-                accessibilityLabel="Sulje"
-                accessibilityRole="button"
-                hitSlop={12}
-                onPress={() => setShowVirtualScanModal(false)}
-              >
-                <Ionicons color={colors.textOnDark} name="close" size={28} />
-              </Pressable>
-            </View>
-
-            <View style={orderStyles.smPanel}>
-              <Text style={orderStyles.smVirtualTitle}>Lisää laatikko tilaukseen</Text>
-
-              <ScrollView
-                contentContainerStyle={orderStyles.smVirtualScrollContent}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-                style={orderStyles.smVirtualScroll}
-              >
-                <View style={orderStyles.smVirtualField}>
-                  <Text style={orderStyles.smVirtualFieldLabel}>Tuote</Text>
-                  <ScrollView
-                    keyboardShouldPersistTaps="handled"
-                    nestedScrollEnabled
-                    showsVerticalScrollIndicator={false}
-                    style={orderStyles.smVirtualPicker}
-                  >
-                    {products?.map((product) => (
-                      <Pressable
-                        key={product.id}
-                        onPress={() => setVirtualProductId(product.id)}
-                        style={[
-                          orderStyles.smVirtualPickerOption,
-                          virtualProductId === product.id && orderStyles.smVirtualPickerSelected,
-                        ]}
-                      >
-                        <Text style={orderStyles.smVirtualPickerText}>{product.name}</Text>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
-                </View>
-
-                {virtualProductId && (
-                  <View style={orderStyles.smVirtualField}>
-                    <Text style={orderStyles.smVirtualFieldLabel}>Erä</Text>
-                    <ScrollView
-                      keyboardShouldPersistTaps="handled"
-                      nestedScrollEnabled
-                      showsVerticalScrollIndicator={false}
-                      style={orderStyles.smVirtualPicker}
-                    >
-                      {batches
-                        ?.filter((batch) => batch.ProductId === virtualProductId && !batch.deleted_at)
-                        .map((batch) => (
-                          <Pressable
-                            key={batch.id}
-                            onPress={() => setVirtualBatchId(batch.id)}
-                            style={[
-                              orderStyles.smVirtualPickerOption,
-                              virtualBatchId === batch.id && orderStyles.smVirtualPickerSelected,
-                            ]}
-                          >
-                            <Text style={orderStyles.smVirtualPickerText}>{batch.batch_number}</Text>
-                            <Text style={orderStyles.smVirtualPickerSubText}>
-                              {formatKg(batch.current_weight)} kg jäljellä
-                            </Text>
-                          </Pressable>
-                        ))}
-                    </ScrollView>
-                  </View>
-                )}
-
-                <View style={orderStyles.smVirtualField}>
-                  <Text style={orderStyles.smVirtualFieldLabel}>Paino (kg)</Text>
-                  <TextInput
-                    keyboardType="decimal-pad"
-                    onChangeText={setVirtualWeight}
-                    placeholder="0.000"
-                    style={orderStyles.smVirtualWeightInput}
-                    value={virtualWeight}
-                  />
-                </View>
-              </ScrollView>
-
-              <View style={orderStyles.smFooterRow}>
-                <TouchableOpacity
-                  disabled={saving || !virtualProductId || !virtualBatchId || !virtualWeight}
-                  onPress={handleAddVirtualBox}
-                  style={[
-                    orderStyles.smSavePill,
-                    (saving || !virtualProductId || !virtualBatchId || !virtualWeight) && orderStyles.smSaveBtnDisabled,
-                  ]}
-                >
-                  <Text style={orderStyles.smSavePillText}>
-                    {saving ? 'Lisätään...' : 'LISÄÄ'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </GlassCard>
-          </View>
-        </View>
-      </Modal>
     </ScreenLayout>
   );
 }
