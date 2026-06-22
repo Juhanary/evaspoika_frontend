@@ -249,4 +249,18 @@ export const productStyles = StyleSheet.create({
     marginHorizontal: 12,
     marginVertical: 4,
   },
+  // --- Hidden products modal ---
+  hiddenModalScroll: { maxHeight: 320 },
+  hiddenModalRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.06)' as const,
+  },
+  hiddenModalRowText: {
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 15,
+    color: 'rgba(0,0,0,0.75)' as const,
+  },
 });

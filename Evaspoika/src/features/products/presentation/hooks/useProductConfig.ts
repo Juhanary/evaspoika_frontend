@@ -16,9 +16,10 @@ export type ProductConfig = {
   favorites: number[];
   assignments: Record<string, CategoryId>;
   productOrder: Record<string, number[]>;
+  hidden: number[];
 };
 
-const DEFAULT: ProductConfig = { favorites: [], assignments: {}, productOrder: {} };
+const DEFAULT: ProductConfig = { favorites: [], assignments: {}, productOrder: {}, hidden: [] };
 
 export function useProductConfig() {
   const [config, setConfig] = useState<ProductConfig>(DEFAULT);
@@ -73,5 +74,23 @@ export function useProductConfig() {
     }));
   }, []);
 
-  return { config, MAX_FAVORITES, toggleFavorite, assignCategory, reorderFavorites, setProductCategoryOrder };
+  const toggleHidden = useCallback((productId: number) => {
+    setConfig((prev) => {
+      const isHidden = prev.hidden.includes(productId);
+      const hidden = isHidden
+        ? prev.hidden.filter((id) => id !== productId)
+        : [...prev.hidden, productId];
+      return { ...prev, hidden };
+    });
+  }, []);
+
+  return {
+    config,
+    MAX_FAVORITES,
+    toggleFavorite,
+    assignCategory,
+    reorderFavorites,
+    setProductCategoryOrder,
+    toggleHidden,
+  };
 }
