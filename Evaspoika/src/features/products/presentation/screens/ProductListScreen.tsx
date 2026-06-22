@@ -121,12 +121,14 @@ export default function ProductListScreen() {
     assignCategory,
     reorderFavorites,
     setProductCategoryOrder,
+    toggleHidden,
   } = useProductConfig();
 
   const [query, setQuery] = useState('');
   const [favExpandedId, setFavExpandedId] = useState<number | null>(null);
   const [catExpandedId, setCatExpandedId] = useState<number | null>(null);
   const [showAddBoxesModal, setShowAddBoxesModal] = useState(false);
+  const [showHiddenModal, setShowHiddenModal] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [dropdownY, setDropdownY] = useState(200);
   const filterBtnRef = useRef<View>(null);
@@ -158,7 +160,7 @@ export default function ProductListScreen() {
     return map;
   }, [batchEvents]);
 
-  const rows = useMemo<ProductRow[]>(() => {
+  const allRows = useMemo<ProductRow[]>(() => {
     const weightMap = new Map<number, { count: number; weight: number }>();
     const boxMap = new Map<number, number>();
 
@@ -175,17 +177,27 @@ export default function ProductListScreen() {
       }
     });
 
-    const normalizedQuery = query.trim().toLowerCase();
+    return (products ?? []).map((product) => ({
+      product,
+      batchCount: weightMap.get(product.id)?.count ?? 0,
+      totalWeight: weightMap.get(product.id)?.weight ?? 0,
+      boxCount: boxMap.get(product.id) ?? 0,
+    }));
+  }, [batches, boxesByBatchId, products]);
 
-    return (products ?? [])
-      .filter((product) => !normalizedQuery || product.name.toLowerCase().includes(normalizedQuery))
-      .map((product) => ({
-        product,
-        batchCount: weightMap.get(product.id)?.count ?? 0,
-        totalWeight: weightMap.get(product.id)?.weight ?? 0,
-        boxCount: boxMap.get(product.id) ?? 0,
-      }));
-  }, [batches, boxesByBatchId, products, query]);
+  const rows = useMemo<ProductRow[]>(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return allRows.filter(
+      (row) =>
+        !config.hidden.includes(row.product.id) &&
+        (!normalizedQuery || row.product.name.toLowerCase().includes(normalizedQuery)),
+    );
+  }, [allRows, config.hidden, query]);
+
+  const hiddenRows = useMemo(
+    () => allRows.filter((row) => config.hidden.includes(row.product.id)),
+    [allRows, config.hidden],
+  );
 
   const batchesByProduct = useMemo(() => {
     const map = new Map<number, Batch[]>();
@@ -653,6 +665,15 @@ export default function ProductListScreen() {
               <Ionicons color="rgba(0,0,0,0.65)" name="add-circle-outline" size={18} />
               <Text style={productStyles.filterDropdownItemText}>Lisää laatikoita</Text>
             </Pressable>
+            <Pressable
+              onPress={() => { setShowHiddenModal(true); setShowFilterDropdown(false); }}
+              style={productStyles.filterDropdownItem}
+            >
+              <Ionicons color="rgba(0,0,0,0.65)" name="eye-off-outline" size={18} />
+              <Text style={productStyles.filterDropdownItemText}>
+                {`Näytä piilotetut${hiddenRows.length > 0 ? ` (${hiddenRows.length})` : ''}`}
+              </Text>
+            </Pressable>
           </Pressable>
         </Pressable>
       </Modal>
@@ -673,13 +694,64 @@ export default function ProductListScreen() {
             onAssignCategory={(catId) => assignCategory(configTarget.product.id, catId)}
             onClose={() => setConfigTargetId(null)}
             onToggleFavorite={() => toggleFavorite(configTarget.product.id)}
+            onToggleHidden={() => toggleHidden(configTarget.product.id)}
             row={configTarget}
           />
         ) : null}
       </AppModal>
+
+      <AppModal animationType="fade" onClose={() => setShowHiddenModal(false)} visible={showHiddenModal}>
+        <HiddenProductsModal onClose={() => setShowHiddenModal(false)} onUnhide={toggleHidden} rows={hiddenRows} />
+      </AppModal>
     </>
   );
 }
+
+// ─── Hidden products modal ───────────────────────────────────────────────────
+
+const HiddenProductsModal = ({
+  rows,
+  onUnhide,
+  onClose,
+}: {
+  rows: ProductRow[];
+  onUnhide: (productId: number) => void;
+  onClose: () => void;
+}) => (
+  <View style={components.modalOverlay}>
+    <View style={components.modalCard}>
+      <View style={productStyles.configModalHeaderRow}>
+        <Text style={[components.modalTitle, productStyles.configModalTitleOverride]}>Piilotetut tuotteet</Text>
+        <Pressable hitSlop={10} onPress={onClose}>
+          <Ionicons color="rgba(0,0,0,0.4)" name="close" size={24} />
+        </Pressable>
+      </View>
+
+      {rows.length === 0 ? (
+        <Text style={screen.muted}>Ei piilotettuja tuotteita.</Text>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} style={productStyles.hiddenModalScroll}>
+          {rows.map((row) => (
+            <Pressable
+              key={row.product.id}
+              onPress={() => onUnhide(row.product.id)}
+              style={productStyles.hiddenModalRow}
+            >
+              <Text numberOfLines={1} style={[productStyles.hiddenModalRowText, { flex: 1 }]}>
+                {row.product.name}
+              </Text>
+              <Ionicons color="rgba(0,0,0,0.5)" name="eye-outline" size={18} />
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
+
+      <TouchableOpacity onPress={onClose} style={[components.buttonModalCancel, productStyles.configModalCloseBtnMargin]}>
+        <Text style={components.buttonTextModalCancel}>Valmis</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+);
 
 // ─── Product config modal ────────────────────────────────────────────────────
 
@@ -688,6 +760,7 @@ const ProductConfigModal = ({
   config,
   maxFavorites,
   onToggleFavorite,
+  onToggleHidden,
   onAssignCategory,
   onClose,
 }: {
@@ -695,6 +768,7 @@ const ProductConfigModal = ({
   config: ProductConfig;
   maxFavorites: number;
   onToggleFavorite: () => void;
+  onToggleHidden: () => void;
   onAssignCategory: (categoryId: CategoryId | null) => void;
   onClose: () => void;
 }) => {
@@ -766,6 +840,11 @@ const ProductConfigModal = ({
             <Text style={[productStyles.configModalFavText, isFav && { color: '#f5a623' }]}>
               {isFav ? 'Poista suosikeista' : 'Lisää suosikkeihin'}
             </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={onToggleHidden} style={productStyles.configModalFavRow}>
+            <Ionicons color="rgba(0,0,0,0.35)" name="eye-off-outline" size={22} />
+            <Text style={productStyles.configModalFavText}>Piilota</Text>
           </TouchableOpacity>
 
           <View style={productStyles.configModalDivider} />

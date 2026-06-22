@@ -12,6 +12,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
+import { useProductConfig } from '@/src/features/products/presentation/hooks/useProductConfig';
 import { useBatchEvents } from '@/src/features/batchEvents/presentation/hooks/useBatchEvents';
 import { goBackOrHome } from '@/src/shared/navigation/goBackOrHome';
 import { routes } from '@/src/shared/navigation/routes';
@@ -64,8 +65,14 @@ export function ScreenLayout({
   const { data: products } = useProducts();
   const { data: batches } = useBatches();
   const { data: batchEvents } = useBatchEvents({ types: 'WEIGHING,CREATE', limit: 9999 });
+  const { config: productConfig } = useProductConfig();
 
   const notif = useNotificationWarnings(batches ?? [], products ?? []);
+
+  const thresholdProducts = useMemo(
+    () => (products ?? []).filter((p) => !productConfig.hidden.includes(p.id)),
+    [products, productConfig.hidden],
+  );
 
   const inventoryItems = useMemo(
     () => buildInventorySummary(products, batches, batchEvents),
@@ -165,7 +172,7 @@ export function ScreenLayout({
         inputValues={notif.inputValues}
         markRead={notif.markRead}
         onClose={() => setShowNotifications(false)}
-        products={products ?? []}
+        products={thresholdProducts}
         saveThreshold={notif.saveThreshold}
         setInputValues={notif.setInputValues}
         totalCount={notif.totalCount}
