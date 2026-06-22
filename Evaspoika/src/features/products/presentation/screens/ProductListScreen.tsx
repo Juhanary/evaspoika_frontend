@@ -216,7 +216,16 @@ export default function ProductListScreen() {
         (r) => config.assignments[String(r.product.id)] === selectedCategory,
       );
       const order = config.productOrder?.[selectedCategory] ?? [];
-      if (!order.length) return catRows;
+      if (!order.length) {
+        return [...catRows].sort((a, b) => {
+          const aHasWeight = a.totalWeight > 0;
+          const bHasWeight = b.totalWeight > 0;
+          if (aHasWeight !== bHasWeight) {
+            return aHasWeight ? -1 : 1;
+          }
+          return a.product.name.localeCompare(b.product.name, 'fi', { sensitivity: 'base' });
+        });
+      }
       return [...catRows].sort((a, b) => {
         const ai = order.indexOf(a.product.id);
         const bi = order.indexOf(b.product.id);
@@ -224,7 +233,16 @@ export default function ProductListScreen() {
       });
     }
     const order = config.productOrder?.[ALL_PRODUCTS_ORDER_KEY] ?? [];
-    if (!order.length) return rows;
+    if (!order.length) {
+      return [...rows].sort((a, b) => {
+        const aHasWeight = a.totalWeight > 0;
+        const bHasWeight = b.totalWeight > 0;
+        if (aHasWeight !== bHasWeight) {
+          return aHasWeight ? -1 : 1;
+        }
+        return a.product.name.localeCompare(b.product.name, 'fi', { sensitivity: 'base' });
+      });
+    }
     return [...rows].sort((a, b) => {
       const ai = order.indexOf(a.product.id);
       const bi = order.indexOf(b.product.id);
