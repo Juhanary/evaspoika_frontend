@@ -8,14 +8,17 @@ export const homeStyles = StyleSheet.create({
   },
   outerScrollContent: {
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
     gap: spacing.lg,
   },
   card: {
     padding: 0,
+    borderRadius: 44,
   },
   ordersCard: {
     padding: 0,
+    borderRadius: 44,
   },
   logoSection: {
     alignItems: 'center',

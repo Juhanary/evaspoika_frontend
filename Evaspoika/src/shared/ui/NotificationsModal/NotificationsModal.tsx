@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Product } from '@/src/features/products/domain/types';
 import { colors } from '@/src/shared/constants/colors';
 import { components } from '@/src/shared/styles/components';
 import { notificationsModalStyles as styles } from '@/src/shared/styles/notificationsModal';
+import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import { type CombinedWarning } from '@/src/shared/hooks/useNotificationWarnings';
 
@@ -48,9 +48,7 @@ export function NotificationsModal({
   };
 
   return (
-    <Modal animationType="fade" onRequestClose={onClose} transparent visible={visible}>
-      <GestureHandlerRootView style={StyleSheet.absoluteFill}>
-        <Pressable onPress={onClose} style={styles.backdrop} />
+    <AppModal animationType="fade" onClose={onClose} useGestureHandler visible={visible}>
         <GlassCard blurRadius={24} style={[styles.card, { top: insets.top + 90, bottom: insets.bottom + 35 }]}>
           <View style={styles.header}>
             <Ionicons
@@ -171,7 +169,6 @@ export function NotificationsModal({
             </ScrollView>
           )}
         </GlassCard>
-      </GestureHandlerRootView>
-    </Modal>
+    </AppModal>
   );
 }

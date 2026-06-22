@@ -2,7 +2,6 @@ import React, { useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
-  Modal,
   Pressable,
   Text,
   TextInput,
@@ -21,6 +20,7 @@ import { routes } from '@/src/shared/navigation/routes';
 import { components } from '@/src/shared/styles/components';
 import { batchStyles } from '@/src/shared/styles/batches';
 import { screen } from '@/src/shared/styles/screen';
+import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
 import { type AppHeaderAction } from '@/src/shared/ui/AppHeader/AppHeader';
 import { ProductList } from '@/src/shared/ui/ProductList/ProductList';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
@@ -286,10 +286,9 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
       )}
 
       {/* Painon muokkaus -modaali */}
-      <Modal
+      <AppModal
         animationType="slide"
-        onRequestClose={closeAdjust}
-        transparent
+        onClose={closeAdjust}
         visible={adjusting !== null}
       >
         <View style={batchStyles.blAdjOverlay}>
@@ -344,7 +343,7 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
             </View>
           </View>
         </View>
-      </Modal>
+      </AppModal>
     </ScreenLayout>
   );
 }

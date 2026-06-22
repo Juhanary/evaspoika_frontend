@@ -1,12 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Gesture, GestureDetector, GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/shared/constants/colors';
 import { inventorySummaryModalStyles as styles } from '@/src/shared/styles/inventorySummaryModal';
+import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import {
   getInventoryBarColor,
@@ -173,14 +174,7 @@ export function InventorySummaryModal({ visible, onClose, items }: Props) {
   }, [sortedItems]);
 
   return (
-    <Modal
-      animationType="fade"
-      onRequestClose={onClose}
-      transparent
-      visible={visible}
-    >
-      <GestureHandlerRootView style={StyleSheet.absoluteFill}>
-        <Pressable onPress={onClose} style={styles.backdrop} />
+    <AppModal animationType="fade" onClose={onClose} useGestureHandler visible={visible}>
         <GlassCard blurRadius={24} style={[styles.card, { top: insets.top + 90, bottom: insets.bottom + 40 }]}>
           <View style={styles.header}>
             <Ionicons color={colors.white} name="server-outline" size={26} />
@@ -221,7 +215,6 @@ export function InventorySummaryModal({ visible, onClose, items }: Props) {
             )}
           </ScrollView>
         </GlassCard>
-      </GestureHandlerRootView>
-    </Modal>
+    </AppModal>
   );
 }

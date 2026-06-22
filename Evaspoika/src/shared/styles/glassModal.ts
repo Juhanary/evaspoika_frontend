@@ -31,6 +31,7 @@ export const glassModalStyles = StyleSheet.create({
     fontFamily: 'Montserrat_400Regular',
     fontSize: 32,
     color: colors.white,
+    textAlign: 'center',
     ...Platform.select({
       web: { textShadow: '0px 1px 4px rgba(0,0,0,0.38)' } as object,
       default: { textShadowColor: 'rgba(0,0,0,0.38)', textShadowRadius: 1 },

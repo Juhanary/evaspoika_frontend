@@ -1,12 +1,12 @@
 import React, { useDeferredValue, useMemo, useState } from 'react';
 import {
   FlatList,
-  Modal,
   Pressable,
   Text,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Batch } from '@/src/features/batches/domain/types';
 import {
   useBatches,
@@ -25,6 +25,7 @@ import { colors } from '@/src/shared/constants/colors';
 import { components } from '@/src/shared/styles/components';
 import { screen } from '@/src/shared/styles/screen';
 import { logModalStyles as modalStyles, logStyles as styles } from '@/src/shared/styles/logs';
+import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import {
   type ScreenLayoutLeftAction,
@@ -869,11 +870,10 @@ export default function LogScreen({ leftAction = 'home', customerId }: LogScreen
         </View>
       </ScreenLayout>
 
-      <Modal
+      <AppModal
         animationType="fade"
-        transparent
         visible={selectedCustomer !== null}
-        onRequestClose={() => setSelectedCustomer(null)}
+        onClose={() => setSelectedCustomer(null)}
       >
         {selectedCustomer ? (
           <CustomerOrdersModalContent
@@ -883,13 +883,12 @@ export default function LogScreen({ leftAction = 'home', customerId }: LogScreen
             onSelectOrder={(order) => setSelectedOrderForLines(order)}
           />
         ) : null}
-      </Modal>
+      </AppModal>
 
-      <Modal
+      <AppModal
         animationType="fade"
-        transparent
         visible={selectedOrderForLines !== null}
-        onRequestClose={() => setSelectedOrderForLines(null)}
+        onClose={() => setSelectedOrderForLines(null)}
       >
         {selectedOrderForLines ? (
           <OrderLinesModalContent
@@ -897,13 +896,12 @@ export default function LogScreen({ leftAction = 'home', customerId }: LogScreen
             onClose={() => setSelectedOrderForLines(null)}
           />
         ) : null}
-      </Modal>
+      </AppModal>
 
-      <Modal
+      <AppModal
         animationType="fade"
-        transparent
         visible={selectedBatch !== null}
-        onRequestClose={() => setSelectedBatch(null)}
+        onClose={() => setSelectedBatch(null)}
       >
         {selectedBatch ? (
           <BatchEventsModalContent
@@ -921,13 +919,12 @@ export default function LogScreen({ leftAction = 'home', customerId }: LogScreen
             tabCounts={modalTabCounts}
           />
         ) : null}
-      </Modal>
+      </AppModal>
 
-      <Modal
+      <AppModal
         animationType="fade"
-        transparent
         visible={selectedOrder !== null}
-        onRequestClose={() => setSelectedOrder(null)}
+        onClose={() => setSelectedOrder(null)}
       >
         {selectedOrder ? (
           <OrderBatchesModalContent
@@ -939,10 +936,20 @@ export default function LogScreen({ leftAction = 'home', customerId }: LogScreen
             }}
           />
         ) : null}
-      </Modal>
+      </AppModal>
     </>
   );
 }
+
+const LogGlassCard = ({ style, ...props }: React.ComponentProps<typeof GlassCard>) => {
+  const insets = useSafeAreaInsets();
+  return (
+    <GlassCard
+      {...props}
+      style={[modalStyles.card, { top: insets.top + 90, bottom: insets.bottom + 35 }, style]}
+    />
+  );
+};
 
 const CustomerOrdersModalContent = ({
   customerGroup,
@@ -957,7 +964,7 @@ const CustomerOrdersModalContent = ({
 }) => (
   <View style={modalStyles.overlay}>
     <Pressable onPress={onClose} style={modalStyles.backdrop} />
-    <GlassCard blurRadius={24} style={modalStyles.card}>
+    <LogGlassCard blurRadius={24}>
       <View style={modalStyles.header}>
         <Ionicons color={colors.white} name="person-outline" size={26} />
         <View style={modalStyles.headerTextWrap}>
@@ -1006,7 +1013,7 @@ const CustomerOrdersModalContent = ({
           </Pressable>
         )}
       />
-    </GlassCard>
+    </LogGlassCard>
   </View>
 );
 
@@ -1025,7 +1032,7 @@ const OrderLinesModalContent = ({
   return (
     <View style={modalStyles.overlay}>
       <Pressable onPress={onClose} style={modalStyles.backdrop} />
-      <GlassCard blurRadius={24} style={modalStyles.card}>
+      <LogGlassCard blurRadius={24}>
         <View style={modalStyles.header}>
           <Ionicons color={colors.white} name="document-outline" size={26} />
           <View style={modalStyles.headerTextWrap}>
@@ -1092,7 +1099,7 @@ const OrderLinesModalContent = ({
             );
           }}
         />
-      </GlassCard>
+      </LogGlassCard>
     </View>
   );
 };
@@ -1173,9 +1180,9 @@ const BatchEventsModalContent = ({
     <View style={modalStyles.overlay}>
       <Pressable onPress={onClose} style={modalStyles.backdrop} />
 
-      <GlassCard
+      <LogGlassCard
         blurRadius={24}
-        style={[modalStyles.card, isDeleted && modalStyles.cardDeleted]}
+        style={isDeleted ? modalStyles.cardDeleted : undefined}
       >
         <View style={modalStyles.header}>
           <Ionicons
@@ -1258,7 +1265,7 @@ const BatchEventsModalContent = ({
           }
           showsVerticalScrollIndicator={false}
         />
-      </GlassCard>
+      </LogGlassCard>
     </View>
   );
 };
@@ -1274,7 +1281,7 @@ const OrderBatchesModalContent = ({
 }) => (
   <View style={modalStyles.overlay}>
     <Pressable onPress={onClose} style={modalStyles.backdrop} />
-    <GlassCard blurRadius={24} style={modalStyles.card}>
+    <LogGlassCard blurRadius={24}>
       <View style={modalStyles.header}>
         <Ionicons color={colors.white} name="document-outline" size={26} />
         <View style={modalStyles.headerTextWrap}>
@@ -1335,6 +1342,6 @@ const OrderBatchesModalContent = ({
           );
         }}
       />
-    </GlassCard>
+    </LogGlassCard>
   </View>
 );

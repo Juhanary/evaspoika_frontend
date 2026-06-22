@@ -236,7 +236,7 @@ export const components = {
 
   // ScreenLayout
   screenContent: [{ flex: 1 }] as ViewStyle[],
-  screenCard: [{ flex: 1, marginHorizontal: spacing.lg, marginBottom: spacing.lg, padding: 0 }] as ViewStyle[],
+  screenCard: [{ flex: 1, marginHorizontal: spacing.lg, marginTop: spacing.sm, marginBottom: spacing.lg, padding: 0, borderRadius: 44 }] as ViewStyle[],
   screenPlain: [{ flex: 1 }] as ViewStyle[],
   screenBackBtn: [{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 4, alignSelf: 'flex-start' }] as ViewStyle[],
   screenBackBtnText: [{ fontFamily: 'Montserrat_400Regular', fontSize: 16, color: 'rgba(255,255,255,0.7)', letterSpacing: 1 }] as TextStyle[],
