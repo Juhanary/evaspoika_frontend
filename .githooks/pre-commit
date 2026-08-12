@@ -1,0 +1,79 @@
+#!/bin/sh
+#
+# Blocks commits that contain credential-shaped strings.
+#
+# Added after five API tokens — including the all-scopes admin token — were
+# committed to eas.json and app.json and pushed to a public repository, where
+# they stayed from 2026-05-28 until 2026-08-12.
+#
+# Enable (once per clone):   git config core.hooksPath .githooks
+# Bypass for a false positive: git commit --no-verify
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+fail=0
+
+report() {
+  if [ "$fail" -eq 0 ]; then
+    echo ""
+    echo "COMMIT BLOCKED — possible credential detected"
+    echo "---------------------------------------------"
+  fi
+  fail=1
+  echo "  $1"
+  echo "      $2"
+}
+
+for f in $staged; do
+  [ -f "$f" ] || continue
+
+  # Skip binaries and lockfiles: package-lock is full of legitimate hashes.
+  case "$f" in
+    *.png|*.jpg|*.jpeg|*.gif|*.ico|*.pdf|*.docx|*.xlsx|*.zip|*.jks|*.keystore) continue ;;
+    package-lock.json|yarn.lock|pnpm-lock.yaml) continue ;;
+  esac
+
+  added=$(git diff --cached -U0 -- "$f" | sed -n 's/^+//p')
+  [ -z "$added" ] && continue
+
+  # 32+ hex chars: the shape of every token this project issues
+  # (randomBytes(24) = 48 chars, randomBytes(32) = 64 chars).
+  hit=$(printf '%s\n' "$added" | grep -oE '\b[0-9a-f]{32,}\b' | head -1)
+  if [ -n "$hit" ]; then
+    report "$f" "long hex string: ${hit%"${hit#????????}"}... (${#hit} chars)"
+  fi
+
+  # A secret-shaped key assigned a quoted literal. The quotes matter: without
+  # them this also matches ordinary code such as
+  #   const token = resolveAuthToken(auth, method);
+  hit=$(printf '%s\n' "$added" \
+    | grep -iE '(token|secret|password|passwd|api[_-]?key|client[_-]?secret|refresh[_-]?token)"?'"'"'?[[:space:]]*[:=][[:space:]]*["'"'"'][A-Za-z0-9_/+.=-]{12,}["'"'"']' \
+    | grep -viE '(vaihda|placeholder|example|changeme|your[_-]|xxx|\$\{|process\.env|import\.meta)' \
+    | head -1)
+  if [ -n "$hit" ]; then
+    report "$f" "assigned credential: $(printf '%s' "$hit" | cut -c1-60 | sed 's/[[:space:]]*$//')..."
+  fi
+
+  # Private keys and Google OAuth client secrets.
+  hit=$(printf '%s\n' "$added" | grep -oE '(BEGIN [A-Z ]*PRIVATE KEY|GOCSPX-[A-Za-z0-9_-]+)' | head -1)
+  if [ -n "$hit" ]; then
+    report "$f" "key material: $hit"
+  fi
+done
+
+if [ "$fail" -eq 1 ]; then
+  cat <<'EOF'
+
+Secrets must never be committed, including in eas.json build profiles.
+  - Build-time values belong in EAS environment variables (eas env:create).
+  - Local values belong in .env.local, which is already gitignored.
+  - EXPO_PUBLIC_* is inlined into the app bundle and is NEVER a secret.
+
+If this is a false positive: git commit --no-verify
+
+EOF
+  exit 1
+fi
+
+exit 0

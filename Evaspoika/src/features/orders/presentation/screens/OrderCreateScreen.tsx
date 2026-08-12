@@ -13,8 +13,7 @@ import { createOrder } from '@/src/features/orders/infrastructure/ordersApi';
 import { Customer } from '@/src/features/customers/domain/types';
 import { ApiError } from '@/src/infrastructure/api/error';
 import { routes } from '@/src/shared/navigation/routes';
-import { screen } from '@/src/shared/styles/screen';
-import { components } from '@/src/shared/styles/components';
+import { screen, components } from '@/src/shared/styles/components';
 import { orderStyles } from '@/src/shared/styles/orders';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 

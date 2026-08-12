@@ -11,17 +11,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { updateBatch, deleteBatch } from '../../infrastructure/batchesApi';
+import { fetchBatch, updateBatch, deleteBatch } from '../../infrastructure/batchesApi';
 import { Batch } from '../../domain/types';
-import { useBatches, useDeletedBatches } from '../hooks/useBatches';
+import { useBatches } from '../hooks/useBatches';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
 import { colors } from '@/src/shared/constants/colors';
 import { routes } from '@/src/shared/navigation/routes';
-import { components } from '@/src/shared/styles/components';
-import { batchStyles } from '@/src/shared/styles/batches';
-import { screen } from '@/src/shared/styles/screen';
+import { components, screen } from '@/src/shared/styles/components';
+import { batchStyles } from '@/src/shared/styles/orders';
 import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
-import { type AppHeaderAction } from '@/src/shared/ui/AppHeader/AppHeader';
 import { ProductList } from '@/src/shared/ui/ProductList/ProductList';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { formatKg, parseWeightToGrams } from '@/src/shared/utils/weight';
@@ -48,10 +46,7 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: batches, isLoading: batchesLoading, error: batchesError } = useBatches();
-  const { data: deletedBatches } = useDeletedBatches();
   const { data: products, isLoading: productsLoading, error: productsError } = useProducts();
-  const [collapsed, setCollapsed] = useState(false);
-  const [showArchive, setShowArchive] = useState(false);
   const [productQuery, setProductQuery] = useState('');
 
   const [adjusting, setAdjusting] = useState<AdjustState>(null);
@@ -71,13 +66,6 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
       (batch) => batch.ProductId === productId && !batch.deleted_at,
     );
   }, [batches, productId]);
-
-  const archivedBatches = useMemo(() => {
-    if (!productId) return [];
-    return (deletedBatches ?? []).filter(
-      (batch) => batch.ProductId === productId,
-    );
-  }, [deletedBatches, productId]);
 
   const totalWeight = filteredBatches.reduce((sum, batch) => sum + batch.current_weight, 0);
 
@@ -113,6 +101,43 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
     setAdjReason('');
   };
 
+  // The API takes an absolute current_weight, so the delta has to be applied on
+  // top of a base value. Reading that base from the 10 s poll cache let a scale
+  // reading that landed in between get silently overwritten, so the base is
+  // re-read from the server here and the operator is asked to confirm whenever
+  // it moved under them.
+  const applyAdjustment = async (batchId: number, delta: number, reason: string) => {
+    setAdjSaving(true);
+
+    try {
+      const fresh = await fetchBatch(batchId);
+      const newWeight = fresh.current_weight + delta;
+
+      if (newWeight < 0) {
+        Alert.alert(
+          'Virheellinen paino',
+          `Erän paino ei voi olla negatiivinen. Erässä on nyt ${formatKg(fresh.current_weight)} kg.`,
+        );
+        return;
+      }
+
+      await updateBatch(batchId, {
+        current_weight: newWeight,
+        eventCode: 'INVENTORY',
+        eventDescription: reason,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['batches'] }),
+        queryClient.invalidateQueries({ queryKey: ['batchEvents'] }),
+      ]);
+      closeAdjust();
+    } catch (e) {
+      Alert.alert('Virhe', e instanceof Error ? e.message : 'Tallennus epäonnistui');
+    } finally {
+      setAdjSaving(false);
+    }
+  };
+
   const handleAdjustSave = async () => {
     if (!adjusting) return;
 
@@ -128,39 +153,45 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
       return;
     }
 
-    const batch = (batches ?? []).find((b) => b.id === adjusting.batchId);
+    const cachedBatch = (batches ?? []).find((b) => b.id === adjusting.batchId);
 
-    if (!batch) {
+    if (!cachedBatch) {
       Alert.alert('Virhe', 'Erää ei löydy.');
       return;
     }
 
     const delta = adjusting.mode === 'add' ? deltaGrams : -deltaGrams;
-    const newWeight = batch.current_weight + delta;
-
-    if (newWeight < 0) {
-      Alert.alert('Virheellinen paino', 'Erän paino ei voi olla negatiivinen.');
-      return;
-    }
+    const { batchId } = adjusting;
+    const reason = adjReason.trim();
+    const shownWeight = cachedBatch.current_weight;
 
     setAdjSaving(true);
 
+    let fresh;
     try {
-      await updateBatch(adjusting.batchId, {
-        current_weight: newWeight,
-        eventCode: 'INVENTORY',
-        eventDescription: adjReason.trim(),
-      });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['batches'] }),
-        queryClient.invalidateQueries({ queryKey: ['batchEvents'] }),
-      ]);
-      closeAdjust();
+      fresh = await fetchBatch(batchId);
     } catch (e) {
-      Alert.alert('Virhe', e instanceof Error ? e.message : 'Tallennus epäonnistui');
-    } finally {
       setAdjSaving(false);
+      Alert.alert('Virhe', e instanceof Error ? e.message : 'Erän tietoja ei voitu hakea');
+      return;
     }
+    setAdjSaving(false);
+
+    if (fresh.current_weight !== shownWeight) {
+      Alert.alert(
+        'Erän paino on muuttunut',
+        `Erässä on nyt ${formatKg(fresh.current_weight)} kg, ei ${formatKg(shownWeight)} kg. ` +
+          `Tehdäänkö muutos (${adjusting.mode === 'add' ? '+' : '−'}${formatKg(deltaGrams)} kg) ` +
+          `uuteen painoon, jolloin tulokseksi tulee ${formatKg(fresh.current_weight + delta)} kg?`,
+        [
+          { text: 'Peruuta', style: 'cancel' },
+          { text: 'Jatka', onPress: () => applyAdjustment(batchId, delta, reason) },
+        ],
+      );
+      return;
+    }
+
+    await applyAdjustment(batchId, delta, reason);
   };
 
   const headerTitle = selectedProduct

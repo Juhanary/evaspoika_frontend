@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -27,10 +27,8 @@ import { colors } from '@/src/shared/constants/colors';
 import { formatKg, parseWeightToGrams } from '@/src/shared/utils/weight';
 import { formatDateFi } from '@/src/shared/utils/date';
 import { ApiError } from '@/src/infrastructure/api/error';
-import { components } from '@/src/shared/styles/components';
+import { components, screen } from '@/src/shared/styles/components';
 import { orderStyles } from '@/src/shared/styles/orders';
-import { screen } from '@/src/shared/styles/screen';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = { orderId?: number };
 
@@ -73,8 +71,6 @@ type ProductLineGroup = {
 
 
 export default function OrderDetailScreen({ orderId }: Props) {
-  const insets = useSafeAreaInsets();
-  
   const queryClient = useQueryClient();
   const { data: order, isLoading, error } = useOrder(orderId);
   const { data: orderLines } = useQuery({
@@ -325,16 +321,24 @@ export default function OrderDetailScreen({ orderId }: Props) {
     setSaving(true);
 
     try {
-      await Promise.all(
-        scannedBoxes.map((box) =>
-          createOrderLine({
-            orderId: orderId!,
-            batchId: box.selectedBatchId!,
-            sold_weight: parseWeightToGrams(box.weightKg),
-            price_per_gram: Math.round(box.pricePerKg),
-          }),
-        ),
-      );
+      // Lähetetään rivit peräkkäin (ei Promise.all): jokainen POST /order-lines
+      // synkronoi tilauksen Netvisoriin, ja ensimmäisen on ehdittävä tallentaa
+      // netvisor_invoice_id ennen seuraavaa, jotta seuraavat tekevät "edit" eivätkä
+      // luo uutta tilausta. Backend serialisoi tämän myös itse, mutta peräkkäin
+      // lähettäminen välttää turhat rinnakkaiset edit-kutsut Netvisoriin.
+      for (const box of scannedBoxes) {
+        await createOrderLine({
+          orderId: orderId!,
+          batchId: box.selectedBatchId!,
+          sold_weight: parseWeightToGrams(box.weightKg),
+          // Despite the name, ORDER_LINE.price_per_gram holds euros per kilo —
+          // and it is an INTEGER column, so cents cannot survive here. The value
+          // is display-only; the invoice sent to Netvisor prices every line from
+          // Product.price_per_kg instead. Storing cents needs a backend column
+          // change (price_per_kg_cents), not a client-side workaround.
+          price_per_gram: Math.round(box.pricePerKg),
+        });
+      }
 
       await queryClient.invalidateQueries({
         queryKey: ['orderLines', orderId],

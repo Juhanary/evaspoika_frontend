@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import { errorBoundaryStyles as styles } from '@/src/shared/styles/errorBoundary';
+import { errorBoundaryStyles as styles } from '@/src/shared/styles/components';
 
 type Props = { children: React.ReactNode };
 type State = { error: Error | null };

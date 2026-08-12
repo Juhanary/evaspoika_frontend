@@ -1,8 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { FlatList, Text, View, Pressable } from 'react-native';
-import { layout } from '@/src/shared/styles/layout';
-import { components } from '@/src/shared/styles/components';
-import { colors } from '@/src/shared/constants/colors';
+import { layout, components } from '@/src/shared/styles/components';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { formatDateDisplayFromIso } from '@/src/shared/utils/date';
 import { useBatchEvents } from '../hooks/useBatchEvents';
@@ -19,10 +17,10 @@ const EVENT_LABELS: Record<string, string> = {
   DELETE: 'Poistettu',
 };
 
-const TABS: Array<{
+const TABS: {
   key: 'ALL' | 'SALE' | 'WEIGHING' | 'INVENTORY';
   label: string;
-}> = [
+}[] = [
   { key: 'ALL', label: 'Kaikki' },
   { key: 'SALE', label: 'Myynti' },
   { key: 'WEIGHING', label: 'Punnitus' },

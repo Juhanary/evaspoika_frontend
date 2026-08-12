@@ -1,8 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
-import { spacing } from '@/src/shared/constants/spacing';
-import { layout } from '@/src/shared/styles/layout';
-import { components } from '@/src/shared/styles/components';
+import { layout, components } from '@/src/shared/styles/components';
 import { Button } from '@/src/shared/ui/Button/ActionButton';
 import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
 
@@ -126,7 +124,7 @@ export function SelectableSearchList<T>({
               onPress={() => onSelect(item)}
               style={({ pressed }) => [
                 layout.listItem,
-                pressed && layout.listItemPressed,
+                pressed && layout.pressed,
               ]}
             >
               {content}

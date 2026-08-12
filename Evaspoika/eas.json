@@ -6,27 +6,16 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "environment": "development"
     },
     "preview": {
       "distribution": "internal",
-      "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "http://REMOVED-INTERNAL-ADDRESS:3000/api",
-        "EXPO_PUBLIC_API_READ_TOKEN": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12",
-        "EXPO_PUBLIC_API_WRITE_TOKEN": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12",
-        "EXPO_PUBLIC_NETVISOR_READ_TOKEN": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12",
-        "EXPO_PUBLIC_NETVISOR_WRITE_TOKEN": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12"
-      }
+      "environment": "preview"
     },
     "production": {
       "autoIncrement": true,
-      "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "http://REMOVED-INTERNAL-ADDRESS:3000/api",
-        "EXPO_PUBLIC_API_READ_TOKEN": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12",
-        "EXPO_PUBLIC_API_WRITE_TOKEN": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12",
-        "EXPO_PUBLIC_NETVISOR_READ_TOKEN": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12",
-        "EXPO_PUBLIC_NETVISOR_WRITE_TOKEN": "REMOVED-LEAKED-TOKEN-ROTATED-2026-08-12"
-      }
+      "environment": "production"
     }
   },
   "submit": {

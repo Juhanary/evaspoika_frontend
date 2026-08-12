@@ -27,6 +27,31 @@ export const parseDateSafe = (value: string): Date | null => {
 export const formatDateIso = (date: Date) =>
   `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 
+/**
+ * Strict pp.kk.vvvv parser for hand-typed dates.
+ *
+ * `new Date(2026, 12, 1)` rolls over to January 2027 instead of failing, so a
+ * typo like "1.13.2026" or "32.1.2026" parses into a valid-looking but wrong
+ * date and gets stored. The round-trip check rejects those; parseDateSafe
+ * deliberately keeps its lenient behaviour for display parsing.
+ */
+export const parseFinnishDateStrict = (value: string): Date | null => {
+  const match = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(value.trim());
+  if (!match) return null;
+
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+
+  const rolledOver =
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day;
+
+  return rolledOver ? null : date;
+};
+
 export const formatDateDisplay = (date: Date) =>
   `${pad2(date.getDate())}.${pad2(date.getMonth() + 1)}.${date.getFullYear()}`;
 

@@ -17,8 +17,7 @@ import { useBatchEvents } from '@/src/features/batchEvents/presentation/hooks/us
 import { goBackOrHome } from '@/src/shared/navigation/goBackOrHome';
 import { routes } from '@/src/shared/navigation/routes';
 import { colors } from '@/src/shared/constants/colors';
-import { dark } from '@/src/shared/styles/dark';
-import { components } from '@/src/shared/styles/components';
+import { dark, components } from '@/src/shared/styles/components';
 import {
   AppHeader,
   type AppHeaderAction,
@@ -45,7 +44,6 @@ type Props = {
   children: React.ReactNode;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const BG = require('@/src/assets/images/home_bg-50c5c1.png');
 
 export function ScreenLayout({

@@ -9,9 +9,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/shared/constants/colors';
-import { radii } from '@/src/shared/constants/radii';
-import { spacing } from '@/src/shared/constants/spacing';
-import { typography } from '@/src/shared/constants/typography';
 import { components } from '@/src/shared/styles/components';
 
 export type SearchInputVariant = 'light' | 'dark';

@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Product } from '@/src/features/products/domain/types';
 import { colors } from '@/src/shared/constants/colors';
 import { components } from '@/src/shared/styles/components';
-import { notificationsModalStyles as styles } from '@/src/shared/styles/notificationsModal';
-import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
-import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
+import { notificationsModalStyles as styles } from '@/src/shared/styles/glassModal';
+import { GlassModal } from '@/src/shared/ui/GlassModal/GlassModal';
 import { type CombinedWarning } from '@/src/shared/hooks/useNotificationWarnings';
 
 type Props = {
@@ -36,7 +34,6 @@ export function NotificationsModal({
   saveThreshold,
 }: Props) {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const [page, setPage] = useState<'warnings' | 'thresholds'>('warnings');
 
   const hasUnread = warnings.some((w) => w.isNew);
@@ -48,22 +45,14 @@ export function NotificationsModal({
   };
 
   return (
-    <AppModal animationType="fade" onClose={onClose} useGestureHandler visible={visible}>
-        <GlassCard blurRadius={24} style={[styles.card, { top: insets.top + 90, bottom: insets.bottom + 35 }]}>
-          <View style={styles.header}>
-            <Ionicons
-              color={hasUnread ? colors.warning : colors.white}
-              name={hasUnread ? 'notifications' : 'notifications-outline'}
-              size={26}
-            />
-            <Text style={styles.title}>ILMOITUKSET</Text>
-            <Pressable hitSlop={12} onPress={onClose}>
-              <Ionicons color={colors.white} name="close" size={26} />
-            </Pressable>
-          </View>
-
-          <View style={styles.divider} />
-
+    <GlassModal
+      icon={hasUnread ? 'notifications' : 'notifications-outline'}
+      iconColor={hasUnread ? colors.warning : colors.white}
+      onClose={onClose}
+      title="ILMOITUKSET"
+      useGestureHandler
+      visible={visible}
+    >
           <View style={styles.tabBar}>
             <Pressable
               onPress={() => setPage('warnings')}
@@ -168,7 +157,6 @@ export function NotificationsModal({
               ))}
             </ScrollView>
           )}
-        </GlassCard>
-    </AppModal>
+    </GlassModal>
   );
 }

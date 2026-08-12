@@ -3,8 +3,7 @@ import { FlatList, RefreshControl, Text, View } from 'react-native';
 import { Customer } from '../../domain/types';
 import { useCustomers } from '../hooks/useCustomers';
 import { useRefreshAll } from '@/src/shared/hooks/useRefreshAll';
-import { components } from '@/src/shared/styles/components';
-import { layout } from '@/src/shared/styles/layout';
+import { components, layout } from '@/src/shared/styles/components';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 
 function renderItem({ item }: { item: Customer }) {

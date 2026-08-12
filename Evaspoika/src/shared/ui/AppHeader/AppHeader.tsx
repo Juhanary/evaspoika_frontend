@@ -2,8 +2,6 @@ import React from 'react';
 import { Image, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '@/src/shared/constants/colors';
-import { spacing } from '@/src/shared/constants/spacing';
 import { components } from '@/src/shared/styles/components';
 import { Button } from '@/src/shared/ui/Button/ActionButton';
 import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';

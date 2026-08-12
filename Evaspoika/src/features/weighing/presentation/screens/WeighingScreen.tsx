@@ -13,8 +13,7 @@ import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
 import { useBatchEvents } from '@/src/features/batchEvents/presentation/hooks/useBatchEvents';
 import { submitWeighing } from '../../infrastructure/weighingApi';
-import { layout } from '@/src/shared/styles/layout';
-import { components } from '@/src/shared/styles/components';
+import { layout, components } from '@/src/shared/styles/components';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { Product } from '@/src/features/products/domain/types';
 import { BatchLog } from '@/src/features/batchEvents/domain/types';

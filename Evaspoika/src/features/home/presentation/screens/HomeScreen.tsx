@@ -22,7 +22,7 @@ import { useProducts } from '@/src/features/products/presentation/hooks/useProdu
 import { ApiError } from '@/src/infrastructure/api/error';
 import { useRefreshAll } from '@/src/shared/hooks/useRefreshAll';
 import { routes } from '@/src/shared/navigation/routes';
-import { dark } from '@/src/shared/styles/dark';
+import { dark } from '@/src/shared/styles/components';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import { Button } from '@/src/shared/ui/Button/ActionButton';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';

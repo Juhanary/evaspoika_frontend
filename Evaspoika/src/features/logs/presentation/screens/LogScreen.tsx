@@ -5,8 +5,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Batch } from '@/src/features/batches/domain/types';
 import {
   useBatches,
@@ -21,12 +19,9 @@ import { useProducts } from '@/src/features/products/presentation/hooks/useProdu
 import { useClosedOrders, useOrders } from '@/src/features/orders/presentation/hooks/useOrders';
 import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
 import { fetchOrderLines } from '@/src/features/orderLines/infrastructure/orderLinesApi';
-import { colors } from '@/src/shared/constants/colors';
-import { components } from '@/src/shared/styles/components';
-import { screen } from '@/src/shared/styles/screen';
+import { screen } from '@/src/shared/styles/components';
 import { logModalStyles as modalStyles, logStyles as styles } from '@/src/shared/styles/logs';
-import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
-import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
+import { GlassModal, ModalRow } from '@/src/shared/ui/GlassModal/GlassModal';
 import {
   type ScreenLayoutLeftAction,
   ScreenLayout,
@@ -71,13 +66,6 @@ type OrderGroup = {
   status?: string | null;
   batchCount: number;
   relatedBatchGroups: BatchGroup[];
-};
-
-type CustomerOrdersGroup = {
-  customerId: number;
-  customerName: string;
-  orderCount: number;
-  relatedOrders: OrderGroup[];
 };
 
 const UNKNOWN_PRODUCT_LABEL = 'Tuntematon tuote';
@@ -582,7 +570,6 @@ export default function LogScreen({ leftAction = 'home', customerId }: LogScreen
     (orders ?? [])
       .filter((order) => Number(order.customer_id ?? order.CustomerId) === customerId)
       .forEach((order) => {
-        const key = `o:${order.id}`;
         const orderBatches = batchGroups.filter((bg) =>
           bg.events.some((evt) => evt.OrderLine?.OrderId === order.id)
         );
@@ -870,188 +857,100 @@ export default function LogScreen({ leftAction = 'home', customerId }: LogScreen
         </View>
       </ScreenLayout>
 
-      <AppModal
-        animationType="fade"
-        visible={selectedCustomer !== null}
+      <CustomerOrdersModal
+        customer={selectedCustomer}
         onClose={() => setSelectedCustomer(null)}
-      >
-        {selectedCustomer ? (
-          <CustomerOrdersModalContent
-            customerGroup={selectedCustomer}
-            orders={customerOrdersMap.get(selectedCustomer.customerId) ?? []}
-            onClose={() => setSelectedCustomer(null)}
-            onSelectOrder={(order) => setSelectedOrderForLines(order)}
-          />
-        ) : null}
-      </AppModal>
+        onSelectOrder={(order) => setSelectedOrderForLines(order)}
+        orders={selectedCustomer ? customerOrdersMap.get(selectedCustomer.customerId) ?? [] : []}
+      />
 
-      <AppModal
-        animationType="fade"
-        visible={selectedOrderForLines !== null}
+      <OrderLinesModal
         onClose={() => setSelectedOrderForLines(null)}
-      >
-        {selectedOrderForLines ? (
-          <OrderLinesModalContent
-            order={selectedOrderForLines}
-            onClose={() => setSelectedOrderForLines(null)}
-          />
-        ) : null}
-      </AppModal>
+        order={selectedOrderForLines}
+      />
 
-      <AppModal
-        animationType="fade"
-        visible={selectedBatch !== null}
+      <BatchEventsModal
+        activeTab={modalTab}
+        batch={selectedBatch}
+        events={visibleModalEvents}
+        isLoading={Boolean(selectedBatch?.batchId) && isSelectedBatchLoading}
         onClose={() => setSelectedBatch(null)}
-      >
-        {selectedBatch ? (
-          <BatchEventsModalContent
-            activeTab={modalTab}
-            batchLabel={selectedBatch.batchLabel}
-            deletedAt={selectedBatch.deletedAt ?? null}
-            events={visibleModalEvents}
-            isDeleted={selectedBatch.isDeleted}
-            isLoading={Boolean(selectedBatch.batchId) && isSelectedBatchLoading}
-            onClose={() => setSelectedBatch(null)}
-            onTabChange={setModalTab}
-            orderCustomerMap={orderCustomerMap}
-            orderDateMap={orderDateMap}
-            productName={selectedBatchProductName}
-            tabCounts={modalTabCounts}
-          />
-        ) : null}
-      </AppModal>
+        onTabChange={setModalTab}
+        orderCustomerMap={orderCustomerMap}
+        orderDateMap={orderDateMap}
+        productName={selectedBatchProductName}
+        tabCounts={modalTabCounts}
+      />
 
-      <AppModal
-        animationType="fade"
-        visible={selectedOrder !== null}
+      <OrderBatchesModal
         onClose={() => setSelectedOrder(null)}
-      >
-        {selectedOrder ? (
-          <OrderBatchesModalContent
-            orderGroup={selectedOrder}
-            onClose={() => setSelectedOrder(null)}
-            onSelectBatch={(batch) => {
-              setSelectedBatch(batch);
-              setModalTab('ALL');
-            }}
-          />
-        ) : null}
-      </AppModal>
+        onSelectBatch={(batch) => {
+          setSelectedBatch(batch);
+          setModalTab('ALL');
+        }}
+        orderGroup={selectedOrder}
+      />
     </>
   );
 }
 
-const LogGlassCard = ({ style, ...props }: React.ComponentProps<typeof GlassCard>) => {
-  const insets = useSafeAreaInsets();
-  return (
-    <GlassCard
-      {...props}
-      style={[modalStyles.card, { top: insets.top + 90, bottom: insets.bottom + 35 }, style]}
-    />
-  );
-};
-
-const CustomerOrdersModalContent = ({
-  customerGroup,
+const CustomerOrdersModal = ({
+  customer,
   orders,
   onClose,
   onSelectOrder,
 }: {
-  customerGroup: CustomerGroup;
+  customer: CustomerGroup | null;
   orders: Order[];
   onClose: () => void;
   onSelectOrder: (order: Order) => void;
 }) => (
-  <View style={modalStyles.overlay}>
-    <Pressable onPress={onClose} style={modalStyles.backdrop} />
-    <LogGlassCard blurRadius={24}>
-      <View style={modalStyles.header}>
-        <Ionicons color={colors.white} name="person-outline" size={26} />
-        <View style={modalStyles.headerTextWrap}>
-          <Text numberOfLines={1} style={modalStyles.title}>
-            {customerGroup.customerName}
-          </Text>
-          <Text numberOfLines={1} style={modalStyles.subtitle}>
-            {orders.length} tilaus{orders.length !== 1 ? 'ta' : ''}
-          </Text>
-        </View>
-        <Pressable hitSlop={12} onPress={onClose}>
-          <Ionicons color={colors.white} name="close" size={26} />
-        </Pressable>
-      </View>
-
-      <View style={modalStyles.divider} />
-
-      <FlatList
-        contentContainerStyle={modalStyles.listContent}
-        data={orders}
-        keyExtractor={(item) => `o:${item.id}`}
-        showsVerticalScrollIndicator={false}
-        style={modalStyles.list}
-        ListEmptyComponent={
-          <Text style={modalStyles.emptyText}>Ei tilauksia.</Text>
-        }
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => onSelectOrder(item)}
-            style={({ pressed }) => [
-              modalStyles.batchItem,
-              pressed && { opacity: 0.7 },
-            ]}
-          >
-            <View style={components.flex1}>
-              <Text style={modalStyles.batchItemTitle}>
-                {formatDateFi(item.order_date) ?? 'Ei päivämäärää'}
-              </Text>
-              {(item.status ?? item.netvisor_status) ? (
-                <Text numberOfLines={1} style={modalStyles.batchItemSubtitle}>
-                  {item.status ?? item.netvisor_status}
-                </Text>
-              ) : null}
-            </View>
-            <Ionicons color="rgba(255,255,255,0.45)" name="chevron-forward" size={18} />
-          </Pressable>
-        )}
-      />
-    </LogGlassCard>
-  </View>
+  <GlassModal
+    icon="person-outline"
+    onClose={onClose}
+    subtitle={`${orders.length} tilaus${orders.length !== 1 ? 'ta' : ''}`}
+    title={customer?.customerName ?? ''}
+    visible={customer !== null}
+  >
+    <FlatList
+      contentContainerStyle={modalStyles.listContent}
+      data={orders}
+      keyExtractor={(item) => `o:${item.id}`}
+      showsVerticalScrollIndicator={false}
+      style={modalStyles.list}
+      ListEmptyComponent={<Text style={modalStyles.emptyText}>Ei tilauksia.</Text>}
+      renderItem={({ item }) => (
+        <ModalRow
+          onPress={() => onSelectOrder(item)}
+          subtitle={item.status ?? item.netvisor_status}
+          title={formatDateFi(item.order_date) ?? 'Ei päivämäärää'}
+        />
+      )}
+    />
+  </GlassModal>
 );
 
-const OrderLinesModalContent = ({
+const OrderLinesModal = ({
   order,
   onClose,
 }: {
-  order: Order;
+  order: Order | null;
   onClose: () => void;
 }) => {
   const { data: lines, isLoading } = useQuery({
-    queryKey: ['orderLines', order.id],
-    queryFn: () => fetchOrderLines(order.id),
+    queryKey: ['orderLines', order?.id],
+    queryFn: () => fetchOrderLines(order!.id),
+    enabled: order !== null,
   });
 
   return (
-    <View style={modalStyles.overlay}>
-      <Pressable onPress={onClose} style={modalStyles.backdrop} />
-      <LogGlassCard blurRadius={24}>
-        <View style={modalStyles.header}>
-          <Ionicons color={colors.white} name="document-outline" size={26} />
-          <View style={modalStyles.headerTextWrap}>
-            <Text numberOfLines={1} style={modalStyles.title}>
-              {formatDateFi(order.order_date) ?? 'Tilaus'}
-            </Text>
-            {(order.status ?? order.netvisor_status) ? (
-              <Text numberOfLines={1} style={modalStyles.subtitle}>
-                {order.status ?? order.netvisor_status}
-              </Text>
-            ) : null}
-          </View>
-          <Pressable hitSlop={12} onPress={onClose}>
-            <Ionicons color={colors.white} name="close" size={26} />
-          </Pressable>
-        </View>
-
-        <View style={modalStyles.divider} />
-
+    <GlassModal
+      icon="document-outline"
+      onClose={onClose}
+      subtitle={order ? order.status ?? order.netvisor_status : undefined}
+      title={order ? formatDateFi(order.order_date) ?? 'Tilaus' : ''}
+      visible={order !== null}
+    >
         <FlatList
           contentContainerStyle={modalStyles.listContent}
           data={(lines ?? []).filter((line) => !line.deleted_at)}
@@ -1066,50 +965,38 @@ const OrderLinesModalContent = ({
             )
           }
           renderItem={({ item }) => {
-            const productName = item.Batch?.Product?.name ?? 'Tuntematon tuote';
-            const batchNumber = item.Batch?.batch_number
-              ? `Erä ${item.Batch.batch_number}`
-              : null;
             const weightKg =
               (item.sold_weight / GRAMS_PER_KG).toLocaleString('fi-FI', {
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 3,
               }) + ' kg';
+            // ORDER_LINE.price_per_gram is misnamed: the column is an INTEGER and
+            // this app writes euros per kilo into it. Multiplying by 1000 here
+            // rendered a 13 €/kg line as "13 000 €/kg". Invoice amounts are not
+            // affected — the Netvisor XML prices lines from Product.price_per_kg.
             const pricePerKg = item.price_per_kg
               ? `${item.price_per_kg.toLocaleString('fi-FI')} €/kg`
               : item.price_per_gram
-                ? `${(item.price_per_gram * GRAMS_PER_KG).toLocaleString('fi-FI')} €/kg`
+                ? `${item.price_per_gram.toLocaleString('fi-FI')} €/kg`
                 : null;
 
             return (
-              <View style={modalStyles.batchItem}>
-                <View style={components.flex1}>
-                  <Text style={modalStyles.batchItemTitle}>{productName}</Text>
-                  {batchNumber ? (
-                    <Text numberOfLines={1} style={modalStyles.batchItemSubtitle}>
-                      {batchNumber}
-                    </Text>
-                  ) : null}
-                  <Text style={modalStyles.batchItemMeta}>
-                    {weightKg}
-                    {pricePerKg ? `  ·  ${pricePerKg}` : ''}
-                  </Text>
-                </View>
-              </View>
+              <ModalRow
+                meta={`${weightKg}${pricePerKg ? `  ·  ${pricePerKg}` : ''}`}
+                subtitle={item.Batch?.batch_number ? `Erä ${item.Batch.batch_number}` : null}
+                title={item.Batch?.Product?.name ?? 'Tuntematon tuote'}
+              />
             );
           }}
         />
-      </LogGlassCard>
-    </View>
+    </GlassModal>
   );
 };
 
-const BatchEventsModalContent = ({
+const BatchEventsModal = ({
   activeTab,
-  batchLabel,
-  deletedAt,
+  batch,
   events,
-  isDeleted,
   isLoading,
   onClose,
   onTabChange,
@@ -1119,10 +1006,8 @@ const BatchEventsModalContent = ({
   tabCounts,
 }: {
   activeTab: ModalTab;
-  batchLabel: string;
-  deletedAt?: string | null;
+  batch: BatchGroup | null;
   events: BatchLog[];
-  isDeleted: boolean;
   isLoading: boolean;
   onClose: () => void;
   onTabChange: (tab: ModalTab) => void;
@@ -1176,44 +1061,26 @@ const BatchEventsModalContent = ({
     );
   };
 
+  const isDeleted = batch?.isDeleted ?? false;
+
   return (
-    <View style={modalStyles.overlay}>
-      <Pressable onPress={onClose} style={modalStyles.backdrop} />
-
-      <LogGlassCard
-        blurRadius={24}
-        style={isDeleted ? modalStyles.cardDeleted : undefined}
-      >
-        <View style={modalStyles.header}>
-          <Ionicons
-            color={colors.white}
-            name={isDeleted ? 'archive-outline' : 'time-outline'}
-            size={26}
-          />
-
-          <View style={modalStyles.headerTextWrap}>
-            <Text numberOfLines={1} style={modalStyles.title}>
-              {batchLabel}
+    <GlassModal
+      cardStyle={isDeleted ? modalStyles.cardDeleted : undefined}
+      headerExtra={
+        isDeleted ? (
+          <View style={modalStyles.deletedHeaderBadge}>
+            <Text style={modalStyles.deletedHeaderBadgeText}>
+              Poistettu {formatDateFi(batch?.deletedAt) ?? ''}
             </Text>
-            <Text numberOfLines={1} style={modalStyles.subtitle}>
-              Tuote: {productName}
-            </Text>
-            {isDeleted ? (
-              <View style={modalStyles.deletedHeaderBadge}>
-                <Text style={modalStyles.deletedHeaderBadgeText}>
-                  Poistettu {formatDateFi(deletedAt) ?? ''}
-                </Text>
-              </View>
-            ) : null}
           </View>
-
-          <Pressable hitSlop={12} onPress={onClose}>
-            <Ionicons color={colors.white} name="close" size={26} />
-          </Pressable>
-        </View>
-
-        <View style={modalStyles.divider} />
-
+        ) : undefined
+      }
+      icon={isDeleted ? 'archive-outline' : 'time-outline'}
+      onClose={onClose}
+      subtitle={batch ? `Tuote: ${productName}` : undefined}
+      title={batch?.batchLabel ?? ''}
+      visible={batch !== null}
+    >
         <View style={modalStyles.metaRow}>
           <Text style={modalStyles.metaText}>
             Tapahtumia: {tabCounts[activeTab]} / {tabCounts.ALL}
@@ -1265,43 +1132,29 @@ const BatchEventsModalContent = ({
           }
           showsVerticalScrollIndicator={false}
         />
-      </LogGlassCard>
-    </View>
+    </GlassModal>
   );
 };
 
-const OrderBatchesModalContent = ({
+const OrderBatchesModal = ({
   orderGroup,
   onClose,
   onSelectBatch,
 }: {
-  orderGroup: OrderGroup;
+  orderGroup: OrderGroup | null;
   onClose: () => void;
   onSelectBatch: (batch: BatchGroup) => void;
 }) => (
-  <View style={modalStyles.overlay}>
-    <Pressable onPress={onClose} style={modalStyles.backdrop} />
-    <LogGlassCard blurRadius={24}>
-      <View style={modalStyles.header}>
-        <Ionicons color={colors.white} name="document-outline" size={26} />
-        <View style={modalStyles.headerTextWrap}>
-          <Text numberOfLines={1} style={modalStyles.title}>
-            {orderGroup.orderLabel}
-          </Text>
-          <Text numberOfLines={1} style={modalStyles.subtitle}>
-            {orderGroup.batchCount} erä{orderGroup.batchCount !== 1 ? 'a' : ''}
-          </Text>
-        </View>
-        <Pressable hitSlop={12} onPress={onClose}>
-          <Ionicons color={colors.white} name="close" size={26} />
-        </Pressable>
-      </View>
-
-      <View style={modalStyles.divider} />
-
+  <GlassModal
+    icon="document-outline"
+    onClose={onClose}
+    subtitle={orderGroup ? `${orderGroup.batchCount} erä${orderGroup.batchCount !== 1 ? 'a' : ''}` : undefined}
+    title={orderGroup?.orderLabel ?? ''}
+    visible={orderGroup !== null}
+  >
       <FlatList
         contentContainerStyle={modalStyles.listContent}
-        data={orderGroup.relatedBatchGroups}
+        data={orderGroup?.relatedBatchGroups ?? []}
         keyExtractor={(item) => item.batchKey}
         showsVerticalScrollIndicator={false}
         style={modalStyles.list}
@@ -1319,29 +1172,15 @@ const OrderBatchesModalContent = ({
                   : 'Ei tapahtumia';
 
           return (
-            <Pressable
+            <ModalRow
+              deleted={item.isDeleted}
+              meta={`${badgeText}${item.lastEventDate ? `  ·  ${formatDateFi(item.lastEventDate) ?? ''}` : ''}`}
               onPress={() => onSelectBatch(item)}
-              style={({ pressed }) => [
-                modalStyles.batchItem,
-                item.isDeleted && modalStyles.batchItemDeleted,
-                pressed && { opacity: 0.7 },
-              ]}
-            >
-              <View style={components.flex1}>
-                <Text style={modalStyles.batchItemTitle}>{item.batchLabel}</Text>
-                <Text numberOfLines={1} style={modalStyles.batchItemSubtitle}>
-                  {[item.productName, item.lastEventLabel].filter(Boolean).join(' / ')}
-                </Text>
-                <Text style={modalStyles.batchItemMeta}>
-                  {badgeText}
-                  {item.lastEventDate ? `  ·  ${formatDateFi(item.lastEventDate) ?? ''}` : ''}
-                </Text>
-              </View>
-              <Ionicons color="rgba(255,255,255,0.45)" name="chevron-forward" size={18} />
-            </Pressable>
+              subtitle={[item.productName, item.lastEventLabel].filter(Boolean).join(' / ')}
+              title={item.batchLabel}
+            />
           );
         }}
       />
-    </LogGlassCard>
-  </View>
+    </GlassModal>
 );

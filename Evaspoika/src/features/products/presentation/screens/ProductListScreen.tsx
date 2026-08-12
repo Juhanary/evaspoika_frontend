@@ -30,15 +30,14 @@ import { parseBoxEan } from '@/src/features/boxes/infrastructure/boxesApi';
 import { submitWeighing } from '@/src/features/weighing/infrastructure/weighingApi';
 import { routes } from '@/src/shared/navigation/routes';
 import { colors } from '@/src/shared/constants/colors';
-import { components } from '@/src/shared/styles/components';
-import { orderStyles } from '@/src/shared/styles/orders';
-import { productStyles } from '@/src/shared/styles/products';
-import { screen } from '@/src/shared/styles/screen';
+import { components, screen } from '@/src/shared/styles/components';
+import { orderStyles, productStyles } from '@/src/shared/styles/orders';
 import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
 import { formatKg } from '@/src/shared/utils/weight';
+import { formatDateIso, parseFinnishDateStrict } from '@/src/shared/utils/date';
 import { patchProductCode } from '../../infrastructure/productsApi';
 import { Product } from '../../domain/types';
 import { useProducts } from '../hooks/useProducts';
@@ -1043,6 +1042,35 @@ const AddBoxesModal = ({
       Alert.alert('Päivämäärä puuttuu', 'Kirjoita boksin päivämäärä ennen tallentamista.');
       return;
     }
+
+    const productionDate = parseFinnishDateStrict(dateInput);
+    if (!productionDate) {
+      Alert.alert(
+        'Virheellinen päivämäärä',
+        `"${dateInput.trim()}" ei ole kelvollinen päivämäärä. Käytä muotoa pp.kk.vvvv.`,
+      );
+      return;
+    }
+
+    let bestBefore: Date | null = null;
+    if (bestBeforeInput.trim()) {
+      bestBefore = parseFinnishDateStrict(bestBeforeInput);
+      if (!bestBefore) {
+        Alert.alert(
+          'Virheellinen parasta ennen -päivä',
+          `"${bestBeforeInput.trim()}" ei ole kelvollinen päivämäärä. Käytä muotoa pp.kk.vvvv.`,
+        );
+        return;
+      }
+      if (bestBefore < productionDate) {
+        Alert.alert(
+          'Virheellinen parasta ennen -päivä',
+          'Parasta ennen -päivä ei voi olla ennen valmistuspäivää.',
+        );
+        return;
+      }
+    }
+
     if (pendingBoxes.length === 0) {
       Alert.alert('Tyhjä', 'Ei laatikoita tallennettavaksi.');
       return;
@@ -1053,31 +1081,54 @@ const AddBoxesModal = ({
         return;
       }
     }
+
     setSaving(true);
-    try {
-      await Promise.all(
-        pendingBoxes.map((box) =>
-          submitWeighing({
-            ean: box.ean,
-            name: box.productName,
-            weightKg: box.weightKg,
-            productionDate: dateInput.trim(),
-            bestBefore: bestBeforeInput.trim() || undefined,
-          }),
-        ),
-      );
-      await queryClient.invalidateQueries({ queryKey: ['batches'] });
-      await queryClient.invalidateQueries({ queryKey: ['batchEvents', 'inventory'] });
-      const count = pendingBoxes.length;
-      setPendingBoxes([]);
+
+    // Sent one at a time, not with Promise.all: every box in a session normally
+    // shares (product, production_date), so parallel requests contend for the
+    // same row. A rejected Promise.all also left the successful writes in place
+    // with every row still on screen, so retrying re-sent — and double-counted —
+    // the boxes that had already landed. Successful rows are dropped as they go,
+    // so a retry only re-sends what actually failed.
+    const failed: PendingBox[] = [];
+    let saved = 0;
+    let firstError: unknown = null;
+
+    for (const box of pendingBoxes) {
+      try {
+        await submitWeighing({
+          ean: box.ean,
+          name: box.productName,
+          weightKg: box.weightKg,
+          productionDate: formatDateIso(productionDate),
+          bestBefore: bestBefore ? formatDateIso(bestBefore) : undefined,
+        });
+        saved += 1;
+      } catch (err) {
+        failed.push(box);
+        firstError ??= err;
+      }
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ['batches'] });
+    await queryClient.invalidateQueries({ queryKey: ['batchEvents', 'inventory'] });
+
+    setPendingBoxes(failed);
+    setSaving(false);
+
+    if (failed.length === 0) {
       setEanInput('');
       onClose();
-      Alert.alert('Tallennettu', `${count} laatikkoa lisätty järjestelmään.`);
-    } catch (err) {
-      Alert.alert('Virhe', err instanceof Error ? err.message : 'Tallennus epäonnistui.');
-    } finally {
-      setSaving(false);
+      Alert.alert('Tallennettu', `${saved} laatikkoa lisätty järjestelmään.`);
+      return;
     }
+
+    const detail = firstError instanceof Error ? `\n\n${firstError.message}` : '';
+    Alert.alert(
+      'Osa laatikoista jäi tallentamatta',
+      `${saved} laatikkoa tallennettiin, ${failed.length} epäonnistui. ` +
+        `Epäonnistuneet jäivät listalle — voit yrittää niitä uudelleen.${detail}`,
+    );
   };
 
   const totalWeightGrams = pendingBoxes.reduce((sum, b) => sum + Math.round(b.weightKg * 1000), 0);

@@ -1,57 +1,14 @@
-import { Platform, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { colors } from '@/src/shared/constants/colors';
 import { spacing } from '@/src/shared/constants/spacing';
+import { glassModalStyles } from './glassModal';
 
-// Batch-modal overlay styles (was `modalStyles` in LogScreen)
-export const logModalStyles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    flex: 1,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-  },
-  card: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    top: '2%',
-    bottom: spacing.lg,
-    padding: 0,
-    borderRadius: 32,
-    overflow: 'hidden',
-  },
+// Log-modal specific styles. The card / header / divider / list geometry is
+// shared via `glassModalStyles`; only log-specific extras and overrides live here.
+const logModalSpecific = StyleSheet.create({
   cardDeleted: {
     borderColor: 'rgba(255, 126, 126, 0.34)',
     backgroundColor: 'rgba(94, 32, 32, 0.22)',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.xl,
-    paddingTop: 20,
-    paddingBottom: spacing.md,
-  },
-  headerTextWrap: {
-    flex: 1,
-  },
-  title: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 28,
-    color: colors.white,
-    textAlign: 'center',
-    ...Platform.select({
-      web: { textShadow: '0px 1px 4px rgba(0,0,0,0.38)' } as object,
-      default: { textShadowColor: 'rgba(0,0,0,0.38)', textShadowRadius: 1 },
-    }),
-  },
-  subtitle: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 15,
-    color: colors.lightGray,
-    marginTop: 2,
   },
   deletedHeaderBadge: {
     alignSelf: 'flex-start',
@@ -67,12 +24,6 @@ export const logModalStyles = StyleSheet.create({
     fontFamily: 'Montserrat_500Medium',
     fontSize: 13,
     color: colors.deletedText,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.white,
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.xs,
   },
   metaRow: {
     flexDirection: 'row',
@@ -121,13 +72,6 @@ export const logModalStyles = StyleSheet.create({
   },
   tabButtonTextActive: {
     color: 'rgba(0,0,0,0.78)',
-  },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xl,
   },
   eventItem: {
     backgroundColor: 'rgba(217,217,217,0.16)',
@@ -191,41 +135,9 @@ export const logModalStyles = StyleSheet.create({
     fontSize: 16,
     color: 'rgba(255,255,255,0.6)',
   },
-  batchItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(217,217,217,0.12)',
-    borderRadius: 16,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    gap: spacing.sm,
-  },
-  batchItemDeleted: {
-    backgroundColor: 'rgba(196,60,60,0.15)',
-    borderColor: 'rgba(255,120,120,0.20)',
-  },
-  batchItemTitle: {
-    fontFamily: 'Montserrat_500Medium',
-    fontSize: 18,
-    color: colors.offWhite,
-    marginBottom: 2,
-  },
-  batchItemSubtitle: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.72)',
-  },
-  batchItemMeta: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.48)',
-    marginTop: 2,
-  },
 });
+
+export const logModalStyles = { ...glassModalStyles, ...logModalSpecific };
 
 // Main list / item styles (was `styles` in LogScreen)
 export const logStyles = StyleSheet.create({

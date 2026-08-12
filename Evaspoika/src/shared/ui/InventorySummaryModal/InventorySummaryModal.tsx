@@ -1,14 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, View } from 'react-native';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/shared/constants/colors';
-import { inventorySummaryModalStyles as styles } from '@/src/shared/styles/inventorySummaryModal';
-import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
-import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
+import { inventorySummaryModalStyles as styles } from '@/src/shared/styles/glassModal';
+import { GlassModal } from '@/src/shared/ui/GlassModal/GlassModal';
 import {
   getInventoryBarColor,
   type InventorySummaryItem,
@@ -100,7 +98,6 @@ const Row = React.memo(function Row({
 });
 
 export function InventorySummaryModal({ visible, onClose, items }: Props) {
-  const insets = useSafeAreaInsets();
   const [order, setOrder] = useState<number[]>([]);
   const [orderLoaded, setOrderLoaded] = useState(false);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
@@ -174,18 +171,13 @@ export function InventorySummaryModal({ visible, onClose, items }: Props) {
   }, [sortedItems]);
 
   return (
-    <AppModal animationType="fade" onClose={onClose} useGestureHandler visible={visible}>
-        <GlassCard blurRadius={24} style={[styles.card, { top: insets.top + 90, bottom: insets.bottom + 40 }]}>
-          <View style={styles.header}>
-            <Ionicons color={colors.white} name="server-outline" size={26} />
-            <Text style={styles.title}>VARASTOSALDO</Text>
-            <Pressable hitSlop={12} onPress={onClose}>
-              <Ionicons color={colors.white} name="close" size={26} />
-            </Pressable>
-          </View>
-
-          <View style={styles.divider} />
-
+    <GlassModal
+      icon="server-outline"
+      onClose={onClose}
+      title="VARASTOSALDO"
+      useGestureHandler
+      visible={visible}
+    >
           <View style={styles.columnHeader}>
             <Text style={styles.columnHeaderText}>Paino / Laatikoita</Text>
           </View>
@@ -214,7 +206,6 @@ export function InventorySummaryModal({ visible, onClose, items }: Props) {
               ))
             )}
           </ScrollView>
-        </GlassCard>
-    </AppModal>
+    </GlassModal>
   );
 }
