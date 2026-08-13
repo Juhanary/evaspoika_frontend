@@ -9,7 +9,7 @@ import {
   postNetvisorXml,
   putNetvisorXml,
 } from '@/src/features/netvisor/infrastructure/netvisorApi';
-import { CreateProductInput, Product } from '../domain/types';
+import { Product } from '../domain/types';
 
 export function fetchProducts() {
   return apiRequest<Product[]>(endpoints.products);
@@ -38,19 +38,12 @@ export function updateNetvisorProduct(productId: number | string, xmlBody: strin
   return putNetvisorXml(`/products/${productId}`, xmlBody);
 }
 
-export function createProduct(input: CreateProductInput) {
-  return apiRequest<Product>(endpoints.products, {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
-}
-
-export function updateProduct(id: number, input: Partial<CreateProductInput>) {
-  return apiRequest<void>(`${endpoints.products}/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(input),
-  });
-}
+// HUOM: tuotteiden luonti, muokkaus, poisto ja yhdistäminen on poistettu täältä.
+// Funktiot kutsuivat reittejä POST/PUT/DELETE /products ja POST /products/:id/merge/:id,
+// joita backendissä ei ole — routes/productRoute.js tarjoaa vain GET / ja PATCH /:id.
+// Yksikään näkymä ei kutsunut niitä, mutta valmiilta näyttävä rajapinta olisi tuottanut
+// 404:n heti kun joku kytkee napin kiinni. Tuotteita hallitaan Netvisorissa ja
+// synkronoidaan sieltä; jos paikallinen hallinta tulee, reitit tehdään ensin backendiin.
 
 export function patchProductCode(id: number, product_code: number | null) {
   return apiRequest<{ id: number; product_code: number | null }>(`${endpoints.products}/${id}`, {
@@ -59,15 +52,3 @@ export function patchProductCode(id: number, product_code: number | null) {
   });
 }
 
-export function deleteProduct(id: number) {
-  return apiRequest<unknown>(`${endpoints.products}/${id}`, {
-    method: 'DELETE',
-  });
-}
-
-export function mergeProducts(targetId: number, sourceId: number) {
-  return apiRequest<{ message: string; batchesMoved: number }>(
-    `${endpoints.products}/${targetId}/merge/${sourceId}`,
-    { method: 'POST' },
-  );
-}

@@ -21,4 +21,16 @@ export const formatKg = (grams: number) => {
   return value.toFixed(2).replace(/\.?0+$/, '');
 };
 
+// Valmis näyttöteksti yksikön kanssa, esim. "12,5 kg". formatKg pyöristää
+// kahteen desimaaliin; loki ja jäljitys näyttävät painot grammatarkkuudella,
+// koska punnitustulokset tallennetaan grammoina.
+export const formatKgLabel = (grams?: number | null) => {
+  if (typeof grams !== 'number' || !Number.isFinite(grams)) return '-';
+
+  return `${(grams / GRAMS_PER_KG).toLocaleString('fi-FI', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 3,
+  })} kg`;
+};
+
  export const MIN_REMAINING_GRAMS = 500;

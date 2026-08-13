@@ -9,6 +9,12 @@ export type OrderLineBatch = {
   Product?: OrderLineProduct | null;
 };
 
+export type OrderLineBox = {
+  id: number;
+  ean: string | null;
+  weight: number;
+};
+
 export type OrderLine = {
   id: number;
   OrderId?: number | null;
@@ -19,6 +25,9 @@ export type OrderLine = {
   deleted_at?: string | null;
   deleted_by_user_id?: number | null;
   Batch?: OrderLineBatch | null;
+  // Rivin kaikki laatikot. Yhdellä rivillä on erän kaikki myydyt laatikot, koska
+  // backend sallii vain yhden rivin per erä tilauksella.
+  Boxes?: OrderLineBox[] | null;
 };
 
 export type CreateOrderLineInput = {
@@ -27,4 +36,8 @@ export type CreateOrderLineInput = {
   sold_weight: number;
   price_per_gram: number;
   userId?: number;
+  // Rivin laatikot. Ilman näitä ORDER_LINE_BOX jää tyhjäksi, jolloin reklamaatiossa
+  // ei voi kysyä kenelle yksittäinen laatikko meni — eikä backend voi estää saman
+  // laatikon skannaamista tilaukselle kahdesti.
+  boxIds?: number[];
 };

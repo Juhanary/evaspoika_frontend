@@ -17,20 +17,19 @@ import { layout, components } from '@/src/shared/styles/components';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { Product } from '@/src/features/products/domain/types';
 import { BatchLog } from '@/src/features/batchEvents/domain/types';
+import { eventLabel } from '@/src/features/batchEvents/domain/eventLabels';
 import { formatKg } from '@/src/shared/utils/weight';
-
-const EVENT_LABELS: Record<string, string> = {
-  CREATE: 'Luotu',
-  WEIGHING: 'Punnitus',
-  SALE: 'Myynti',
-  ADJUSTMENT: 'Korjaus',
-  INVENTORY: 'Inventaario',
-  DELETE: 'Poistettu',
-};
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-const generateEan = () => Math.floor(10000 + Math.random() * 90000).toString();
+// EAN-koodia ei enää arvota täällä. Aiemmin kenttä esitäytettiin viisinumeroisella
+// satunnaisluvulla, joka ei ole EAN lainkaan: viivakoodinlukija ei tuota sellaista,
+// joten manuaalisesti punnittua laatikkoa ei voinut skannata tilaukselle. Lisäksi
+// arvoja oli vain 90 000, jolloin kaksi eri laatikkoa sai saman koodin jo muutaman
+// sadan punnituksen jälkeen ja jäljitys osoitti väärään laatikkoon.
+//
+// Kenttä jätetään tyhjäksi: jos tarrassa on koodi, se skannataan tai kirjoitetaan
+// tähän. Muuten backend rakentaa oikean EAN-13-painokoodin tuotekoodista ja painosta.
 
 type WeighingMode =
   | { type: 'idle' }
@@ -40,7 +39,9 @@ type WeighingMode =
 export default function WeighingScreen() {
   const { data: products } = useProducts();
   const { data: batches } = useBatches();
-  const { data: events } = useBatchEvents();
+  // Vaakanäkymä on ainoa paikka jossa tapahtumat pitää nähdä heti kun vaaka
+  // lähettää punnituksen — muualla loki haetaan ilman pollausta.
+  const { data: events } = useBatchEvents(undefined, { live: true });
 
   const [mode, setMode] = useState<WeighingMode>({ type: 'idle' });
   const [ean, setEan] = useState('');
@@ -53,14 +54,14 @@ export default function WeighingScreen() {
 
   const selectProduct = useCallback((product: Product) => {
     setMode({ type: 'existing', product });
-    setEan(generateEan());
+    setEan('');
     setWeightInput('');
     setTimeout(() => weightRef.current?.focus(), 100);
   }, []);
 
   const startNewProduct = useCallback(() => {
     setMode({ type: 'new' });
-    setEan(generateEan());
+    setEan('');
     setNewName('');
     setNewPrice('');
     setWeightInput('');
@@ -101,11 +102,9 @@ export default function WeighingScreen() {
   }, [events, allProductBatches]);
 
   const handleWeigh = () => {
+    // EAN on vapaaehtoinen: jos tarrassa on koodi, se annetaan tässä; muuten backend
+    // rakentaa EAN-13-painokoodin tuotekoodista ja painosta.
     const eanTrimmed = ean.trim();
-    if (!eanTrimmed) {
-      Alert.alert('Virhe', 'EAN-koodi puuttuu');
-      return;
-    }
     if (mode.type === 'new' && !newName.trim()) {
       Alert.alert('Virhe', 'Syötä tuotteen nimi');
       return;
@@ -121,13 +120,20 @@ export default function WeighingScreen() {
       activeProduct?.price_per_kg ?? (parseFloat(newPrice.replace(',', '.')) || 0);
 
     withRefresh(async () => {
-      const result = await submitWeighing({ ean: eanTrimmed, name, pricePerKg: price, weightKg });
+      const result = await submitWeighing({
+        ...(eanTrimmed ? { ean: eanTrimmed } : {}),
+        name,
+        pricePerKg: price,
+        weightKg,
+      });
       handleReset();
-      const msg = result.productCreated
+      const base = result.productCreated
         ? `Uusi tuote ja erä luotu.\nLisätään Netvisoriin...\nPaino: ${formatKg(result.current_weight)} kg`
         : result.action === 'created'
           ? `Uusi erä luotu. Paino: ${formatKg(result.current_weight)} kg`
           : `Erä päivitetty. Kokonaispaino: ${formatKg(result.current_weight)} kg`;
+      // Palvelimen luoma koodi näytetään, jotta tarran voi kirjoittaa laatikkoon.
+      const msg = !eanTrimmed && result.ean ? `${base}\n\nLaatikon EAN: ${result.ean}` : base;
       Alert.alert('Punnitus tallennettu', msg);
     }).catch((err) => {
       Alert.alert('Virhe', err instanceof Error ? err.message : 'Punnitus epäonnistui');
@@ -135,7 +141,7 @@ export default function WeighingScreen() {
   };
 
   const renderEvent = ({ item }: { item: BatchLog }) => {
-    const label = EVENT_LABELS[item.event_code] ?? item.event_code;
+    const label = eventLabel(item.event_code);
     const dateStr = item.event_date
       ? new Date(item.event_date).toLocaleString('fi-FI', {
           day: '2-digit',

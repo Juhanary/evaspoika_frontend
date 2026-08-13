@@ -26,6 +26,14 @@ export type BatchLog = {
       customer_id?: number | null;
       order_date?: string | null;
       status?: string | null;
+      // Backend liittää asiakkaan mukaan (batchLogRoute.orderLineInclude).
+      // Aiemmin tätä ei ollut tyypissä, joten näyttö haki asiakkaan nimen
+      // erillisestä tilauslistasta — ja se lista sisälsi vain avoimet
+      // tilaukset, joten laskutetuilta tilauksilta asiakas katosi.
+      Customer?: {
+        id: number;
+        name: string;
+      } | null;
     } | null;
   } | null;
 };

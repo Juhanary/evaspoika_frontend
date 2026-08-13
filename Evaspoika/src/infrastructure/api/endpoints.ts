@@ -9,4 +9,5 @@ export const endpoints = {
   netvisor: '/netvisor',
   weighing: '/weighing',
   boxes: '/boxes',
+  trace: '/trace',
 };

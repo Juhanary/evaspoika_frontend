@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   fetchCustomer,
+  fetchCustomerOrderHistory,
   fetchCustomers,
   fetchNetvisorCustomer,
   fetchNetvisorCustomerDetails,
@@ -33,6 +34,16 @@ export function useCustomer(customerId?: number) {
     queryKey: ['customers', customerId ?? null],
     queryFn: () => fetchCustomer(customerId as number),
     enabled: typeof customerId === 'number',
+  });
+}
+
+// Tilaushistoria on menneisyyttä, joten sitä ei pollata.
+export function useCustomerOrderHistory(customerId?: number) {
+  return useQuery({
+    queryKey: ['customers', customerId ?? null, 'orders'],
+    queryFn: () => fetchCustomerOrderHistory(customerId as number),
+    enabled: typeof customerId === 'number' && Number.isFinite(customerId) && customerId > 0,
+    staleTime: 30_000,
   });
 }
 

@@ -23,6 +23,9 @@ export type ParsedEan = {
   productName: string | null;
   price_per_kg: number | null;
   productCodeFromEan: number | null;
+  // Backend palauttaa nämä kun tuote löytyi olemassa olevan laatikon kautta.
+  batchId: number | null;
+  batchNumber: string | null;
 };
 
 export function parseBoxEan(ean: string) {

@@ -35,6 +35,9 @@ type Props = { orderId?: number };
 type BoxLineState = {
   id: string;
   ean: string;
+  // Varaston laatikon id (BOX.id), ei tämän listarivin id. Kulkee tallennuksessa
+  // backendille, joka luo ORDER_LINE_BOX -liitoksen jäljitystä varten.
+  boxId: number | null;
   productId: number | null;
   productName: string;
   weightKg: string;
@@ -226,6 +229,13 @@ export default function OrderDetailScreen({ orderId }: Props) {
     try {
       const box = await fetchBoxByEan(normalizedEan);
 
+      // Sama laatikko kahdesti samaan skannaukseen: backend hylkää sen 409:llä vasta
+      // tallennuksessa, mikä olisi turhauttavaa kymmenen laatikon jälkeen. Kerrotaan heti.
+      if (scannedBoxes.some((scanned) => scanned.boxId === box.id)) {
+        Alert.alert('Jo skannattu', 'Tämä laatikko on jo tässä listassa.');
+        return;
+      }
+
       // EAN-13 muoto: tyyppi(2) + laitostunnus(4) + tuotekoodi(2) + paino(4) + tarkiste(1)
       const productCodeFromEan =
         normalizedEan.length === 13 && normalizedEan.charAt(0) === '2'
@@ -248,6 +258,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
         {
           id: String(nextScannedRowId.current++),
           ean: normalizedEan,
+          boxId: box.id,
           productId: resolvedProductId,
           productName: resolvedProductName,
           weightKg: box.weight_kg.toFixed(3),
@@ -321,22 +332,51 @@ export default function OrderDetailScreen({ orderId }: Props) {
     setSaving(true);
 
     try {
+      // Yhdellä erällä on tilauksella vain yksi rivi, joten saman erän laatikot
+      // niputetaan yhdeksi pyynnöksi. Backend yhdistäisi ne muutenkin (kasvattaisi
+      // olemassa olevan rivin painoa), mutta niputus säästää turhat Netvisor-kutsut.
+      //
+      // Laatikoiden id:t kulkevat mukana boxIds-listana: niistä syntyy ORDER_LINE_BOX
+      // -liitokset, joita reklamaation jäljitys seuraa, ja niiden avulla backend estää
+      // saman laatikon lisäämisen tilaukselle kahdesti.
+      const linesByBatch = new Map<
+        number,
+        { soldWeight: number; pricePerKg: number; boxIds: number[] }
+      >();
+      for (const box of scannedBoxes) {
+        const batchId = box.selectedBatchId!;
+        const soldWeight = parseWeightToGrams(box.weightKg);
+        const existing = linesByBatch.get(batchId);
+
+        if (existing) {
+          existing.soldWeight += soldWeight;
+          if (box.boxId != null) existing.boxIds.push(box.boxId);
+        } else {
+          linesByBatch.set(batchId, {
+            soldWeight,
+            pricePerKg: box.pricePerKg,
+            boxIds: box.boxId != null ? [box.boxId] : [],
+          });
+        }
+      }
+
       // Lähetetään rivit peräkkäin (ei Promise.all): jokainen POST /order-lines
       // synkronoi tilauksen Netvisoriin, ja ensimmäisen on ehdittävä tallentaa
       // netvisor_invoice_id ennen seuraavaa, jotta seuraavat tekevät "edit" eivätkä
       // luo uutta tilausta. Backend serialisoi tämän myös itse, mutta peräkkäin
       // lähettäminen välttää turhat rinnakkaiset edit-kutsut Netvisoriin.
-      for (const box of scannedBoxes) {
+      for (const [batchId, line] of linesByBatch) {
         await createOrderLine({
           orderId: orderId!,
-          batchId: box.selectedBatchId!,
-          sold_weight: parseWeightToGrams(box.weightKg),
+          batchId,
+          sold_weight: line.soldWeight,
           // Despite the name, ORDER_LINE.price_per_gram holds euros per kilo —
           // and it is an INTEGER column, so cents cannot survive here. The value
           // is display-only; the invoice sent to Netvisor prices every line from
           // Product.price_per_kg instead. Storing cents needs a backend column
           // change (price_per_kg_cents), not a client-side workaround.
-          price_per_gram: Math.round(box.pricePerKg),
+          price_per_gram: Math.round(line.pricePerKg),
+          boxIds: line.boxIds,
         });
       }
 
@@ -360,7 +400,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
         const details = String(p?.details ?? p?.error ?? '');
         Alert.alert(
           'Tilausrivit lisätty',
-          `Rivit lisätty onnistuneesti, mutta Netvisor-synkronointi epäonnistui${details ? `:\n${details}` : '.'}\n\nVoit yrittää lähettää tilauksen "Lähetä tilaus"-napista.`,
+          `Rivit lisätty onnistuneesti, mutta Netvisor-synkronointi epäonnistui${details ? `:\n${details}` : '.'}\n\nJärjestelmä yrittää lähetystä uudelleen automaattisesti noin 10 minuutin välein. Rivit ovat tallessa — niitä ei tarvitse lisätä uudelleen.`,
         );
       } else {
         const errMessage = (() => {

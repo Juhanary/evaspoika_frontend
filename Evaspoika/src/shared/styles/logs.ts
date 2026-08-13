@@ -255,4 +255,187 @@ export const logStyles = StyleSheet.create({
     fontSize: 12,
     color: colors.deletedText,
   },
+
+  // Tyhjentynyt erä on normaali elinkaaren loppu, ei poikkeus — vaalea
+  // korostus erottaa sen aktiivisesta ilman että se näyttää virheeltä.
+  logItemEmptied: {
+    backgroundColor: 'rgba(217, 217, 217, 0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    borderLeftWidth: 4,
+    borderLeftColor: 'rgba(240, 150, 30, 0.55)',
+  },
+  stateBadgeActive: {
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs,
+    borderRadius: 999,
+    backgroundColor: 'rgba(74, 222, 128, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.28)',
+  },
+  stateBadgeActiveText: {
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 12,
+    color: colors.successText,
+  },
+  stateBadgeEmptied: {
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs,
+    borderRadius: 999,
+    backgroundColor: 'rgba(240, 165, 60, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 190, 110, 0.28)',
+  },
+  stateBadgeEmptiedText: {
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 12,
+    color: '#FFE0B8',
+  },
+
+  // Aikavälin rajaus Erät-välilehdellä.
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  filterChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 3,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(217,217,217,0.10)',
+  },
+  filterChipActive: {
+    backgroundColor: colors.lightGray,
+    borderColor: colors.lightGray,
+  },
+  filterChipText: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 13,
+    color: colors.lightGray,
+  },
+  filterChipTextActive: {
+    color: 'rgba(0,0,0,0.78)',
+  },
+
+  loadMoreButton: {
+    alignSelf: 'center',
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.20)',
+    backgroundColor: 'rgba(217,217,217,0.12)',
+  },
+  loadMoreText: {
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 14,
+    color: colors.textOnDark,
+  },
+});
+
+// Jäljitysvälilehti: koodihaku ja sen tuloskortit.
+export const traceStyles = StyleSheet.create({
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  searchInput: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(217,217,217,0.12)',
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 17,
+    color: colors.textOnDark,
+  },
+  searchButton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: 999,
+    backgroundColor: colors.lightGray,
+  },
+  searchButtonDisabled: {
+    opacity: 0.45,
+  },
+  searchButtonText: {
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 15,
+    color: 'rgba(0,0,0,0.78)',
+  },
+  hint: {
+    marginBottom: spacing.md,
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.58)',
+  },
+  card: {
+    backgroundColor: 'rgba(217,217,217,0.14)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.md,
+  },
+  cardTitle: {
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 20,
+    color: colors.offWhite,
+    marginBottom: spacing.xs,
+  },
+  sectionTitle: {
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 15,
+    letterSpacing: 0.6,
+    color: 'rgba(255,255,255,0.72)',
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  kvRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingVertical: 3,
+  },
+  kvLabel: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.62)',
+  },
+  kvValue: {
+    flexShrink: 1,
+    textAlign: 'right',
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 14,
+    color: colors.textOnDark,
+  },
+  // Haettu laatikko erottuu muista saman erän toimituksista.
+  deliveryHighlight: {
+    borderColor: 'rgba(120, 220, 140, 0.42)',
+    borderLeftWidth: 4,
+    borderLeftColor: 'rgba(80, 200, 100, 0.75)',
+    backgroundColor: 'rgba(80, 180, 100, 0.14)',
+  },
+  deliveryReturned: {
+    borderColor: 'rgba(255, 120, 120, 0.30)',
+    borderLeftWidth: 4,
+    borderLeftColor: 'rgba(220, 60, 60, 0.65)',
+  },
+  emptyText: {
+    textAlign: 'center',
+    paddingVertical: spacing.xl,
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.6)',
+  },
 });

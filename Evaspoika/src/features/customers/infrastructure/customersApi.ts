@@ -6,7 +6,7 @@ import {
   NetvisorResponseEnvelope,
 } from '@/src/features/netvisor/domain/types';
 import { fetchNetvisorResource } from '@/src/features/netvisor/infrastructure/netvisorApi';
-import { CreateCustomerInput, Customer } from '../domain/types';
+import { CreateCustomerInput, Customer, CustomerOrderHistory } from '../domain/types';
 
 type NetvisorCustomerListPayload = {
   Root?: {
@@ -31,6 +31,13 @@ export function fetchCustomers() {
 
 export function fetchCustomer(id: number) {
   return apiRequest<Customer>(`${endpoints.customers}/${id}`);
+}
+
+// Asiakkaan koko tilaushistoria riveineen, erineen ja laatikoineen. Backend
+// kokoaa ketjun ja kategorisoi tilaukset, joten lokinäkymän ei tarvitse enää
+// yhdistellä avoimia ja suljettuja tilauslistoja itse.
+export function fetchCustomerOrderHistory(id: number) {
+  return apiRequest<CustomerOrderHistory>(`${endpoints.customers}/${id}/orders`);
 }
 
 export function fetchNetvisorCustomers(query?: NetvisorCustomerListQuery) {
