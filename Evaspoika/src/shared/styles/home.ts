@@ -13,8 +13,9 @@ export const homeStyles = StyleSheet.create({
     gap: spacing.lg,
   },
   card: {
-    padding: 0,
+    padding: spacing.lg,
     borderRadius: 44,
+
   },
   ordersCard: {
     padding: 0,
