@@ -25,23 +25,33 @@ const logModalSpecific = StyleSheet.create({
     fontSize: 13,
     color: colors.deletedText,
   },
-  metaRow: {
+  // Erän luvut listan yläpuolella: punnittu / myyty / jäljellä.
+  summaryCard: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.sm,
+    flexWrap: 'wrap',
+    gap: spacing.lg,
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(217,217,217,0.12)',
   },
-  metaText: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 18,
-    color: colors.lightGray,
+  summaryItem: {
+    minWidth: 92,
   },
-  metaSubtle: {
+  summaryValue: {
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 19,
+    color: colors.offWhite,
+  },
+  summaryLabel: {
+    marginTop: 2,
     fontFamily: 'Montserrat_400Regular',
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.62)',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.58)',
   },
   tabRow: {
     flexDirection: 'row',
@@ -73,60 +83,131 @@ const logModalSpecific = StyleSheet.create({
   tabButtonTextActive: {
     color: 'rgba(0,0,0,0.78)',
   },
-  eventItem: {
-    backgroundColor: 'rgba(217,217,217,0.16)',
-    borderRadius: 24,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.sm,
+  // Päiväotsikko erottaa päivät toisistaan, jotta päivämäärää ei toisteta
+  // jokaisella rivillä.
+  dayHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+    paddingHorizontal: spacing.xs,
+  },
+  dayHeaderText: {
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 15,
+    letterSpacing: 0.4,
+    color: 'rgba(255,255,255,0.86)',
+  },
+  dayHeaderCount: {
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.48)',
+  },
+
+  // Yksi tapahtuma yhdellä rivillä: aika · mitä tapahtui · painon muutos.
+  eventRow: {
+    backgroundColor: 'rgba(217,217,217,0.13)',
+    borderRadius: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    marginBottom: spacing.xs + 2,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.07)',
+  },
+  eventRowPressed: {
+    opacity: 0.72,
+  },
+  eventRowMain: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
   },
   // CREATE: vihreä korostus — erä luotu
-  eventItemCreate: {
-    backgroundColor: 'rgba(80,180,100,0.18)',
-    borderColor: 'rgba(120,220,140,0.32)',
+  eventRowCreate: {
+    backgroundColor: 'rgba(80,180,100,0.16)',
+    borderColor: 'rgba(120,220,140,0.28)',
     borderLeftWidth: 4,
     borderLeftColor: 'rgba(80,200,100,0.72)',
   },
   // EMPTY: oranssi korostus — erä tyhjentyi
-  eventItemEmpty: {
-    backgroundColor: 'rgba(220,130,40,0.18)',
-    borderColor: 'rgba(255,180,80,0.32)',
+  eventRowEmpty: {
+    backgroundColor: 'rgba(220,130,40,0.16)',
+    borderColor: 'rgba(255,180,80,0.28)',
     borderLeftWidth: 4,
     borderLeftColor: 'rgba(240,150,30,0.72)',
   },
   // DELETE: punainen korostus — erä poistettu
-  eventItemDelete: {
-    backgroundColor: 'rgba(196,60,60,0.22)',
-    borderColor: 'rgba(255,120,120,0.30)',
+  eventRowDelete: {
+    backgroundColor: 'rgba(196,60,60,0.20)',
+    borderColor: 'rgba(255,120,120,0.28)',
     borderLeftWidth: 4,
     borderLeftColor: 'rgba(220,60,60,0.72)',
   },
   // RETURN: sininen korostus — paino palautettu
-  eventItemReturn: {
-    backgroundColor: 'rgba(60,130,220,0.18)',
-    borderColor: 'rgba(100,180,255,0.30)',
+  eventRowReturn: {
+    backgroundColor: 'rgba(60,130,220,0.16)',
+    borderColor: 'rgba(100,180,255,0.28)',
     borderLeftWidth: 4,
     borderLeftColor: 'rgba(60,140,240,0.72)',
   },
+  eventTime: {
+    minWidth: 84,
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 13,
+    lineHeight: 22,
+    color: 'rgba(255,255,255,0.56)',
+  },
+  eventBody: {
+    flex: 1,
+  },
   eventTitle: {
     fontFamily: 'Montserrat_500Medium',
-    fontSize: 20,
+    fontSize: 17,
+    lineHeight: 22,
     color: colors.offWhite,
-    marginBottom: spacing.xs,
   },
-  eventTotalWeight: {
-    fontFamily: 'Montserrat_500Medium',
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.90)',
-    marginBottom: spacing.xs / 2,
-  },
-  eventSubtitle: {
+  eventMeta: {
+    marginTop: 2,
     fontFamily: 'Montserrat_400Regular',
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.72)',
-    marginBottom: spacing.xs / 2,
+    fontSize: 13,
+    lineHeight: 18,
+    color: 'rgba(255,255,255,0.62)',
+  },
+  eventAmount: {
+    fontFamily: 'Montserrat_500Medium',
+    fontSize: 16,
+    lineHeight: 22,
+    textAlign: 'right',
+    minWidth: 88,
+    color: colors.offWhite,
+  },
+  eventAmountPositive: {
+    color: colors.successText,
+  },
+  eventAmountNegative: {
+    color: colors.deletedText,
+  },
+  // Avatun punnitusnipun rivit.
+  eventChildren: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+    gap: 2,
+  },
+  eventChildRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: spacing.md,
+  },
+  eventChildText: {
+    flex: 1,
+    fontFamily: 'Montserrat_400Regular',
+    fontSize: 13,
+    lineHeight: 20,
+    color: 'rgba(255,255,255,0.62)',
   },
   emptyText: {
     textAlign: 'center',

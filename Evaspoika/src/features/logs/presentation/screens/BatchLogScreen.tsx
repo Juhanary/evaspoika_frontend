@@ -45,7 +45,13 @@ export default function BatchLogScreen({
         <Text style={screen.sectionTitle}>{log.batchLabel.toUpperCase()}</Text>
         <View style={screen.divider} />
         <Text style={styles.resultSummary}>
-          {log.productName} · {BATCH_STATE_LABELS[log.state]}
+          {[
+            log.productName,
+            log.productionDate ? `valmistettu ${log.productionDate}` : null,
+            BATCH_STATE_LABELS[log.state],
+          ]
+            .filter(Boolean)
+            .join(' · ')}
         </Text>
         <BatchEventList log={log} />
       </View>

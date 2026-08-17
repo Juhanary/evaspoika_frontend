@@ -16,13 +16,25 @@ import type { BatchModalTarget } from './batchEventLog';
 // erätapahtumien listoista — ja koska osa niistä rajasi laskutetut tai poistetut
 // rivit pois, historiaan jäi reikiä.
 
+// Tilauksen otsikko on aina päivämäärä. Aiemmin otsikoksi tuli "Tilaus 43" aina
+// kun order_date puuttui — sisäinen tunnus ei kerro käyttäjälle mitään, eikä
+// tilauksia voinut asettaa aikajärjestykseen silmämääräisesti. Päiväys puuttui
+// koska Netvisorin InvoiceDate luettiin väärin; backend täyttää sen nyt, ja
+// tämä varateksti on vain sen varalta ettei päiväystä oikeasti ole olemassa.
 const orderTitle = (order: CustomerOrder) =>
-  formatDateFi(order.order_date) ?? `Tilaus ${order.id}`;
+  formatDateFi(order.order_date) ?? 'Päiväämätön tilaus';
 
+// Tunniste kuuluu riville, mutta pienellä: Netvisorin laskunumerolla tilaus
+// löytyy kirjanpidosta, sovelluksen oma id ei auta ketään.
 const orderStatus = (order: CustomerOrder) => {
   const status = order.netvisor_status ?? order.status ?? null;
-  if (order.deleted_at) return status ? `${status} · poistettu` : 'Poistettu';
-  return status;
+  const parts = [
+    status,
+    order.netvisor_invoice_id ? `lasku ${order.netvisor_invoice_id}` : null,
+    order.deleted_at ? 'poistettu' : null,
+  ].filter(Boolean);
+
+  return parts.length ? parts.join(' · ') : null;
 };
 
 const orderLines = (order: CustomerOrder) => order.OrderLines ?? [];

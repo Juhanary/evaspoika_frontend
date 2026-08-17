@@ -36,7 +36,15 @@ export function BatchEventsModal({
       }
       icon={isDeleted ? 'archive-outline' : 'time-outline'}
       onClose={onClose}
-      subtitle={target ? `Tuote: ${log.productName}` : undefined}
+      // Eränumero on tiivis 09062026 — valmistuspäivä luettavassa muodossa
+      // otsikon alla kertoo mitä numero tarkoittaa.
+      subtitle={
+        target
+          ? [log.productName, log.productionDate ? `valmistettu ${log.productionDate}` : null]
+              .filter(Boolean)
+              .join(' · ')
+          : undefined
+      }
       title={log.batchLabel}
       visible={target !== null}
     >

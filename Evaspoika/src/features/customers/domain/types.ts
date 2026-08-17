@@ -69,6 +69,9 @@ export type CustomerOrderHistory = {
     open: number;
     past: number;
     deleted: number;
+    // total = palautettujen tilausten määrä. empty kertoo montako rivitöntä
+    // tilausta backend jätti pois (ne saa näkyviin ?includeEmpty=true).
     total: number;
+    empty?: number;
   };
 };

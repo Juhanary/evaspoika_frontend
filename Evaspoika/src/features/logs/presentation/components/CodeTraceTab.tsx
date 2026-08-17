@@ -29,8 +29,12 @@ const KeyValue = ({ label, value }: { label: string; value?: string | null }) =>
   );
 };
 
+// Toimituksen otsikko on asiakas; jos asiakasta ei ole, tilauksen päiväys
+// kertoo enemmän kuin sovelluksen sisäinen tunnus.
 const deliveryTitle = (delivery: TraceDelivery) =>
-  delivery.customer?.name ?? (delivery.order ? `Tilaus ${delivery.order.id}` : 'Tuntematon');
+  delivery.customer?.name ??
+  formatDateFi(delivery.order?.order_date) ??
+  (delivery.order ? 'Tuntematon asiakas' : 'Tuntematon');
 
 export function CodeTraceTab({
   onOpenBatch,

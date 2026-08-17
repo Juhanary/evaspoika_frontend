@@ -101,8 +101,8 @@ export const homeStyles = StyleSheet.create({
     color: colors.white,
   },
   searchResultsPadding: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
   },
   syncBtn: {
     position: 'absolute',
