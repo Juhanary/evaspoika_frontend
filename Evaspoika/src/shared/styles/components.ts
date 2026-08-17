@@ -573,7 +573,7 @@ export const dark = {
 
   sectionLabel: [
     ...text({ size: 'xs', weight: 'semibold', color: colors.textOnDarkMuted }),
-    { letterSpacing: 2, marginBottom: spacing.xs },
+    { letterSpacing: 2, marginBottom: spacing.md, marginLeft: spacing.md, marginTop: spacing.lg , marginRight: spacing.md},
   ] as TextStyle[],
 
   row: [
