@@ -3,6 +3,8 @@ export type Batch = {
   batch_number: string;
   production_date?: string | null;
   best_before?: string | null;
+  /** Aktiivisten laatikoiden määrä — backend laskee BOX-taulusta. */
+  box_count?: number | null;
   initial_weight: number;
   current_weight: number;
   deleted_at?: string | null;
