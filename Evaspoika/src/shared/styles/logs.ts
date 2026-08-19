@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { colors } from '@/src/shared/constants/colors';
 import { spacing } from '@/src/shared/constants/spacing';
+import { typography } from '@/src/shared/constants/typography';
 import { glassModalStyles } from './glassModal';
 
 // Log-modal specific styles. The card / header / divider / list geometry is
@@ -21,7 +22,7 @@ const logModalSpecific = StyleSheet.create({
     borderColor: 'rgba(255, 167, 167, 0.28)',
   },
   deletedHeaderBadgeText: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 13,
     color: colors.deletedText,
   },
@@ -43,13 +44,13 @@ const logModalSpecific = StyleSheet.create({
     minWidth: 92,
   },
   summaryValue: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 19,
     color: colors.offWhite,
   },
   summaryLabel: {
     marginTop: 2,
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 12,
     color: 'rgba(255,255,255,0.58)',
   },
@@ -76,7 +77,7 @@ const logModalSpecific = StyleSheet.create({
     opacity: 0.7,
   },
   tabButtonText: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 14,
     color: colors.textOnDark,
   },
@@ -95,13 +96,13 @@ const logModalSpecific = StyleSheet.create({
     paddingHorizontal: spacing.xs,
   },
   dayHeaderText: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 15,
     letterSpacing: 0.4,
     color: 'rgba(255,255,255,0.86)',
   },
   dayHeaderCount: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 12,
     color: 'rgba(255,255,255,0.48)',
   },
@@ -154,7 +155,7 @@ const logModalSpecific = StyleSheet.create({
   },
   eventTime: {
     minWidth: 84,
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 13,
     lineHeight: 22,
     color: 'rgba(255,255,255,0.56)',
@@ -163,20 +164,20 @@ const logModalSpecific = StyleSheet.create({
     flex: 1,
   },
   eventTitle: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 17,
     lineHeight: 22,
     color: colors.offWhite,
   },
   eventMeta: {
     marginTop: 2,
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 13,
     lineHeight: 18,
     color: 'rgba(255,255,255,0.62)',
   },
   eventAmount: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 16,
     lineHeight: 22,
     textAlign: 'right',
@@ -204,7 +205,7 @@ const logModalSpecific = StyleSheet.create({
   },
   eventChildText: {
     flex: 1,
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 13,
     lineHeight: 20,
     color: 'rgba(255,255,255,0.62)',
@@ -212,13 +213,21 @@ const logModalSpecific = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     paddingVertical: spacing.xl,
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 16,
     color: 'rgba(255,255,255,0.6)',
   },
 });
 
 export const logModalStyles = { ...glassModalStyles, ...logModalSpecific };
+
+// screenTabActive and filterChipActive are verbatim-identical (confirmed by
+// a value-level before/after diff) — shared so they stay identical by
+// construction.
+const activePillStyle = {
+  backgroundColor: colors.lightGray,
+  borderColor: colors.lightGray,
+};
 
 // Main list / item styles (was `styles` in LogScreen)
 export const logStyles = StyleSheet.create({
@@ -236,12 +245,9 @@ export const logStyles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.18)',
     backgroundColor: 'rgba(217,217,217,0.10)',
   },
-  screenTabActive: {
-    backgroundColor: colors.lightGray,
-    borderColor: colors.lightGray,
-  },
+  screenTabActive: activePillStyle,
   screenTabText: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 14,
     color: colors.lightGray,
   },
@@ -257,7 +263,7 @@ export const logStyles = StyleSheet.create({
   },
   resultSummary: {
     marginBottom: spacing.md,
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 14,
     color: 'rgba(255,255,255,0.72)',
   },
@@ -298,7 +304,7 @@ export const logStyles = StyleSheet.create({
     gap: spacing.sm,
   },
   logItemTitle: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 22,
     color: colors.textOnDark,
   },
@@ -306,7 +312,7 @@ export const logStyles = StyleSheet.create({
     color: '#FFE0E0',
   },
   logItemSummary: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 15,
     lineHeight: 22,
     color: 'rgba(255,255,255,0.84)',
@@ -315,7 +321,7 @@ export const logStyles = StyleSheet.create({
     color: 'rgba(255,224,224,0.86)',
   },
   logItemDescription: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 13,
     lineHeight: 18,
     color: 'rgba(255,255,255,0.58)',
@@ -332,7 +338,7 @@ export const logStyles = StyleSheet.create({
     borderColor: 'rgba(255, 188, 188, 0.2)',
   },
   deletedBadgeText: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 12,
     color: colors.deletedText,
   },
@@ -355,7 +361,7 @@ export const logStyles = StyleSheet.create({
     borderColor: 'rgba(74, 222, 128, 0.28)',
   },
   stateBadgeActiveText: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 12,
     color: colors.successText,
   },
@@ -368,7 +374,7 @@ export const logStyles = StyleSheet.create({
     borderColor: 'rgba(255, 190, 110, 0.28)',
   },
   stateBadgeEmptiedText: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 12,
     color: '#FFE0B8',
   },
@@ -388,12 +394,9 @@ export const logStyles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.16)',
     backgroundColor: 'rgba(217,217,217,0.10)',
   },
-  filterChipActive: {
-    backgroundColor: colors.lightGray,
-    borderColor: colors.lightGray,
-  },
+  filterChipActive: activePillStyle,
   filterChipText: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 13,
     color: colors.lightGray,
   },
@@ -413,7 +416,7 @@ export const logStyles = StyleSheet.create({
     backgroundColor: 'rgba(217,217,217,0.12)',
   },
   loadMoreText: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 14,
     color: colors.textOnDark,
   },
@@ -435,7 +438,7 @@ export const traceStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',
     backgroundColor: 'rgba(217,217,217,0.12)',
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 17,
     color: colors.textOnDark,
   },
@@ -449,13 +452,13 @@ export const traceStyles = StyleSheet.create({
     opacity: 0.45,
   },
   searchButtonText: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 15,
     color: 'rgba(0,0,0,0.78)',
   },
   hint: {
     marginBottom: spacing.md,
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 13,
     color: 'rgba(255,255,255,0.58)',
   },
@@ -469,13 +472,13 @@ export const traceStyles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   cardTitle: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 20,
     color: colors.offWhite,
     marginBottom: spacing.xs,
   },
   sectionTitle: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 15,
     letterSpacing: 0.6,
     color: 'rgba(255,255,255,0.72)',
@@ -489,14 +492,14 @@ export const traceStyles = StyleSheet.create({
     paddingVertical: 3,
   },
   kvLabel: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 14,
     color: 'rgba(255,255,255,0.62)',
   },
   kvValue: {
     flexShrink: 1,
     textAlign: 'right',
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 14,
     color: colors.textOnDark,
   },
@@ -515,7 +518,7 @@ export const traceStyles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     paddingVertical: spacing.xl,
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 16,
     color: 'rgba(255,255,255,0.6)',
   },

@@ -14,6 +14,7 @@ import {
   useDeletedBatches,
 } from '@/src/features/batches/presentation/hooks/useBatches';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
+import { EmptyState } from '@/src/shared/ui/EmptyState/EmptyState';
 import { screen } from '@/src/shared/styles/components';
 import { logStyles as styles } from '@/src/shared/styles/logs';
 import { formatDateFi } from '@/src/shared/utils/date';
@@ -259,13 +260,15 @@ export function BatchLogTab({
           keyExtractor={(item) => String(item.batchId)}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
-            <Text style={screen.muted}>
-              {isLoading
-                ? 'Ladataan...'
-                : trimmedSearch
-                  ? 'Hakua vastaavia eriä ei löytynyt.'
-                  : 'Ei tapahtumia valitulla aikavälillä.'}
-            </Text>
+            <EmptyState
+              message={
+                isLoading
+                  ? 'Ladataan...'
+                  : trimmedSearch
+                    ? 'Hakua vastaavia eriä ei löytynyt.'
+                    : 'Ei tapahtumia valitulla aikavälillä.'
+              }
+            />
           }
           ListFooterComponent={
             canLoadMore ? (

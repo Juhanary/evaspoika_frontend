@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/shared/constants/colors';
 import { components, glassActionSurface } from '@/src/shared/styles/components';
 
-type ButtonVariant = 'primary' | 'glass' | 'glassIcon' | 'glassNav';
+type ButtonVariant = 'primary' | 'glass' | 'glassIcon' | 'glassNav' | 'cancel';
 
 type ButtonBaseProps = {
   onPress: () => void;
@@ -78,6 +78,8 @@ export function Button({
         return [{ backgroundColor: colors.darkCard, borderRadius: size / 2, width: size, height: size }];
       case 'glassNav':
         return components.buttonGlassNav;
+      case 'cancel':
+        return components.buttonModalCancel;
       default:
         return components.buttonPrimary;
     }
@@ -89,6 +91,8 @@ export function Button({
         return components.buttonText;
       case 'glassNav':
         return components.buttonTextGlassNav;
+      case 'cancel':
+        return components.buttonTextModalCancel;
       default:
         return components.buttonText;
     }

@@ -1,6 +1,6 @@
 # Evaspoika – frontend
 
-Kalanjalostamon varastonhallinta- ja tilausjärjestelmä. Tämä on **frontend**:
+Makkaroita ja hampurilaispihvejä valmistavan elintarvikeyrityksen varastonhallinta- ja tilausjärjestelmä. Tämä on **frontend**:
 Expo / React Native -sovellus, joka ajetaan tabletilla varastossa.
 Järjestelmä koostuu kahdesta erillisestä git-repositoriosta:
 

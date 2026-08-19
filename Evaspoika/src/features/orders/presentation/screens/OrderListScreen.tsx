@@ -10,7 +10,7 @@ import { useCustomers } from '@/src/features/customers/presentation/hooks/useCus
 import { useOrders } from '@/src/features/orders/presentation/hooks/useOrders';
 import { routes } from '@/src/shared/navigation/routes';
 import { Order } from '@/src/features/orders/domain/types';
-import { buildOrderLineSummary } from '@/src/shared/utils/orderSummary';
+import { buildOrderLineSummary, EMPTY_ORDER_SUMMARY_LABEL } from '@/src/shared/utils/orderSummary';
 import { Button } from '@/src/shared/ui/Button/ActionButton';
 
 const CLOSED = new Set(['closed', 'completed', 'cancelled', 'canceled', 'invoiced', 'billed', 'archived']);
@@ -181,7 +181,7 @@ export default function OrderScreen() {
                     {item.customerName}
                   </Text>
                   <Text numberOfLines={2} style={screen.listRowSummary}>
-                    {orderSummaryById.get(item.order.id) ?? 'Ei tuotteita vielä.'}
+                    {orderSummaryById.get(item.order.id) ?? EMPTY_ORDER_SUMMARY_LABEL}
                   </Text>
                 </View>
                 <View style={screen.listRowMeta}>

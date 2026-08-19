@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { colors } from '../constants/colors';
 import { spacing } from '../constants/spacing';
+import { typography } from '../constants/typography';
 
 export const homeStyles = StyleSheet.create({
   outerScroll: {
@@ -32,7 +33,7 @@ export const homeStyles = StyleSheet.create({
   },
   logoSubtitle: {
     marginTop: spacing.xs,
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 28,
     fontWeight: '400',
     letterSpacing: 4,
@@ -54,7 +55,7 @@ export const homeStyles = StyleSheet.create({
   },
   ordersSectionLabel: {
     marginBottom: spacing.sm,
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 20,
     fontWeight: '500',
     color: colors.white,
@@ -81,13 +82,13 @@ export const homeStyles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
   ordersRowName: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 24,
     fontWeight: '500',
     color: colors.white,
   },
   ordersRowSummary: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 20,
     lineHeight: 18,
     padding: 4,
@@ -96,7 +97,7 @@ export const homeStyles = StyleSheet.create({
   ordersRowDate: {
     minWidth: 72,
     textAlign: 'right',
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 24,
     fontWeight: '500',
     color: colors.white,

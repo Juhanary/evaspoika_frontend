@@ -25,6 +25,7 @@ import { routes } from '@/src/shared/navigation/routes';
 import { dark } from '@/src/shared/styles/components';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import { Button } from '@/src/shared/ui/Button/ActionButton';
+import { EmptyState } from '@/src/shared/ui/EmptyState/EmptyState';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { buildOrderLineSummary } from '@/src/shared/utils/orderSummary';
 import { formatKg } from '@/src/shared/utils/weight';
@@ -345,6 +346,7 @@ export default function HomeScreen() {
                 <Image resizeMode="contain" source={LOGO} style={homeStyles.logo} />
                 <Text style={homeStyles.logoSubtitle}>KOTI</Text>
                 <Pressable
+                  accessibilityLabel="Synkronoi Netvisorista"
                   disabled={syncing}
                   onPress={handleSync}
                   style={({ pressed }) => [
@@ -434,7 +436,7 @@ function SearchSection({
   return (
     <>
       <Text style={dark.sectionLabel}>{label}</Text>
-      {empty ? <Text style={dark.muted}>Ei tuloksia.</Text> : children}
+      {empty ? <EmptyState message="Ei tuloksia." style={dark.muted} /> : children}
     </>
   );
 }

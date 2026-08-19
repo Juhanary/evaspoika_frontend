@@ -22,10 +22,10 @@ import {
 import { runOnJS } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
 import { Batch } from '@/src/features/batches/domain/types';
-import { fetchBatchEvents } from '@/src/features/batchEvents/infrastructure/batchEventsApi';
+import { useBatchEvents } from '@/src/features/batchEvents/presentation/hooks/useBatchEvents';
 import { parseBoxEan } from '@/src/features/boxes/infrastructure/boxesApi';
 import { submitWeighing } from '@/src/features/weighing/infrastructure/weighingApi';
 import { routes } from '@/src/shared/navigation/routes';
@@ -33,6 +33,8 @@ import { colors } from '@/src/shared/constants/colors';
 import { components, screen } from '@/src/shared/styles/components';
 import { orderStyles, productStyles } from '@/src/shared/styles/orders';
 import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
+import { Button } from '@/src/shared/ui/Button/ActionButton';
+import { EmptyState } from '@/src/shared/ui/EmptyState/EmptyState';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
@@ -102,6 +104,9 @@ const DragHandle = React.memo(function DragHandle({
   );
 });
 
+// Stable component reference (defined once at module scope) so FlatList
+// never sees it as "changed" between renders.
+const ItemSeparator = () => <View style={productStyles.favItemSeparator} />;
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -109,10 +114,10 @@ export default function ProductListScreen() {
   const router = useRouter();
   const { data: products, isLoading, error: productsError } = useProducts();
   const { data: batches, error: batchesError } = useBatches();
-  const { data: batchEvents } = useQuery({
-    queryKey: ['batchEvents', 'inventory'],
-    queryFn: () => fetchBatchEvents({ types: 'WEIGHING,CREATE', limit: 9999 }),
-  });
+  // Same query (types + limit) and cache key as ScreenLayout's inventory-modal
+  // fetch, so opening this screen and opening the inventory modal share one
+  // request instead of each firing their own 9999-row fetch.
+  const { data: batchEvents } = useBatchEvents({ types: 'WEIGHING,CREATE', limit: 9999 });
   const {
     config,
     MAX_FAVORITES,
@@ -151,13 +156,27 @@ export default function ProductListScreen() {
     }, []),
   );
 
+  // Laatikkomäärä tulee ensisijaisesti erän box_count-kentästä (backend laskee
+  // sen BOX-taulusta) — sama luotettava lähde kuin src/shared/utils/inventory.ts
+  // käyttää varastosaldo-modaalissa. Tapahtumalokiin (batchEvents) perustuva
+  // laskenta on vain varapolku, jos box_count puuttuu: erän palautus tai
+  // painonkorjaus voi tuottaa tapahtuman joka ei vastaa yhtään laatikkoa,
+  // jolloin pelkkä tapahtumalaskenta näyttäisi väärän luvun.
   const boxesByBatchId = useMemo(() => {
-    const map = new Map<number, number>();
+    const eventCounts = new Map<number, number>();
     (batchEvents ?? []).forEach((event) => {
-      map.set(event.BatchId, (map.get(event.BatchId) ?? 0) + 1);
+      eventCounts.set(event.BatchId, (eventCounts.get(event.BatchId) ?? 0) + 1);
+    });
+
+    const map = new Map<number, number>();
+    (batches ?? []).forEach((batch) => {
+      map.set(
+        batch.id,
+        batch.box_count != null ? batch.box_count : (eventCounts.get(batch.id) ?? 0),
+      );
     });
     return map;
-  }, [batchEvents]);
+  }, [batchEvents, batches]);
 
   const allRows = useMemo<ProductRow[]>(() => {
     const weightMap = new Map<number, { count: number; weight: number }>();
@@ -342,8 +361,11 @@ export default function ProductListScreen() {
   }, []);
 
   // ── Row renderer ────────────────────────────────────────────────────────────
+  // Memoized so a keystroke in the search box or expanding one row doesn't
+  // hand FlatList a brand-new renderItem/header on every render (which forces
+  // it to re-render every visible row instead of just the one that changed).
 
-  const renderProductRow = (
+  const renderProductRow = useCallback((
     item: ProductRow,
     expandedId: number | null,
     setExpandedId: React.Dispatch<React.SetStateAction<number | null>>,
@@ -424,7 +446,7 @@ export default function ProductListScreen() {
           {isExpanded ? (
             <View style={components.invDropdown}>
               {productBatches.length === 0 ? (
-                <Text style={components.invDropdownLabel}>Ei eriä.</Text>
+                <EmptyState message="Ei eriä." style={components.invDropdownLabel} />
               ) : (
                 <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={productStyles.invBatchScrollView}>
                   {productBatches.map((batch) => {
@@ -497,16 +519,16 @@ export default function ProductListScreen() {
         </View>
       </View>
     );
-  };
+  }, [batchesByProduct, boxesByBatchId, config.favorites, router, setConfigTargetId]);
 
-  const sectionLabel = (title: string) => (
+  const sectionLabel = useCallback((title: string) => (
     <View style={productStyles.sectionLabelRow}>
       <Text style={productStyles.sectionLabelText}>{title}</Text>
       <View style={productStyles.sectionLabelRule} />
     </View>
-  );
+  ), []);
 
-  const listHeader = (
+  const listHeader = useMemo(() => (
     <View>
       {/* Favorites — only in all-products view */}
       {!query.trim() && selectedCategory === null && favoriteRows.length > 0 ? (
@@ -540,7 +562,11 @@ export default function ProductListScreen() {
       {/* Section label for selected category */}
       {!query.trim() && activeCatLabel ? sectionLabel(activeCatLabel.toUpperCase()) : null}
     </View>
-  );
+  ), [
+    query, selectedCategory, favoriteRows, sectionLabel, favDragFrom, favDragTo,
+    renderProductRow, favExpandedId, setFavExpandedId, onFavDragEnd, onFavDragStart,
+    onFavDragUpdate, activeCatLabel,
+  ]);
 
   const emptyText = useMemo(() => {
     if (query.trim()) return 'Ei tuotteita.';
@@ -549,6 +575,30 @@ export default function ProductListScreen() {
   }, [query, selectedCategory]);
 
   const showCatDragHandles = !query.trim();
+
+  const renderListItem = useCallback(({ item, index }: { item: ProductRow; index: number }) => {
+    const isDragging = catDragFrom === index;
+    const dropAbove = catDragTo === index && catDragFrom !== null && catDragTo < catDragFrom;
+    const dropBelow = catDragTo === index && catDragFrom !== null && catDragTo > catDragFrom;
+    return (
+      <View style={{ opacity: isDragging ? 0.4 : 1 }}>
+        {dropAbove && <View style={productStyles.dragDropLine} />}
+        {renderProductRow(item, catExpandedId, setCatExpandedId, showCatDragHandles ? (
+          <DragHandle
+            active={isDragging}
+            index={index}
+            onDragEnd={onCatDragEnd}
+            onDragStart={onCatDragStart}
+            onDragUpdate={onCatDragUpdate}
+          />
+        ) : undefined)}
+        {dropBelow && <View style={productStyles.dragDropLine} />}
+      </View>
+    );
+  }, [
+    catDragFrom, catDragTo, renderProductRow, catExpandedId, setCatExpandedId,
+    showCatDragHandles, onCatDragEnd, onCatDragStart, onCatDragUpdate,
+  ]);
 
   return (
     <>
@@ -564,6 +614,7 @@ export default function ProductListScreen() {
             />
             <View ref={filterBtnRef}>
               <Pressable
+                accessibilityLabel="Suodata tuotteita"
                 onPress={openDropdown}
                 style={({ pressed }) => [
                   productStyles.filterBtn,
@@ -593,30 +644,11 @@ export default function ProductListScreen() {
             <FlatList
               contentContainerStyle={productStyles.invListContent}
               data={displayRows}
-              ItemSeparatorComponent={() => <View style={productStyles.favItemSeparator} />}
+              ItemSeparatorComponent={ItemSeparator}
               keyExtractor={(row) => String(row.product.id)}
-              ListEmptyComponent={emptyText ? <Text style={screen.muted}>{emptyText}</Text> : null}
+              ListEmptyComponent={emptyText ? <EmptyState message={emptyText} /> : null}
               ListHeaderComponent={listHeader}
-              renderItem={({ item, index }) => {
-                const isDragging = catDragFrom === index;
-                const dropAbove = catDragTo === index && catDragFrom !== null && catDragTo < catDragFrom;
-                const dropBelow = catDragTo === index && catDragFrom !== null && catDragTo > catDragFrom;
-                return (
-                  <View style={{ opacity: isDragging ? 0.4 : 1 }}>
-                    {dropAbove && <View style={productStyles.dragDropLine} />}
-                    {renderProductRow(item, catExpandedId, setCatExpandedId, showCatDragHandles ? (
-                      <DragHandle
-                        active={isDragging}
-                        index={index}
-                        onDragEnd={onCatDragEnd}
-                        onDragStart={onCatDragStart}
-                        onDragUpdate={onCatDragUpdate}
-                      />
-                    ) : undefined)}
-                    {dropBelow && <View style={productStyles.dragDropLine} />}
-                  </View>
-                );
-              }}
+              renderItem={renderListItem}
               showsVerticalScrollIndicator={false}
               style={components.flex1}
             />
@@ -721,7 +753,7 @@ const HiddenProductsModal = ({
     <View style={components.modalCard}>
       <View style={productStyles.configModalHeaderRow}>
         <Text style={[components.modalTitle, productStyles.configModalTitleOverride]}>Piilotetut tuotteet</Text>
-        <Pressable hitSlop={10} onPress={onClose}>
+        <Pressable accessibilityLabel="Sulje" hitSlop={10} onPress={onClose}>
           <Ionicons color="rgba(0,0,0,0.4)" name="close" size={24} />
         </Pressable>
       </View>
@@ -745,9 +777,12 @@ const HiddenProductsModal = ({
         </ScrollView>
       )}
 
-      <TouchableOpacity onPress={onClose} style={[components.buttonModalCancel, productStyles.configModalCloseBtnMargin]}>
-        <Text style={components.buttonTextModalCancel}>Valmis</Text>
-      </TouchableOpacity>
+      <Button
+        contentStyle={productStyles.configModalCloseBtnMargin}
+        label="Valmis"
+        onPress={onClose}
+        variant="cancel"
+      />
     </View>
   </View>
 );
@@ -815,7 +850,7 @@ const ProductConfigModal = ({
           <Text numberOfLines={1} style={[components.modalTitle, productStyles.configModalTitleOverride]}>
             {row.product.name}
           </Text>
-          <Pressable hitSlop={10} onPress={onClose}>
+          <Pressable accessibilityLabel="Sulje" hitSlop={10} onPress={onClose}>
             <Ionicons color="rgba(0,0,0,0.4)" name="close" size={24} />
           </Pressable>
         </View>
@@ -917,9 +952,12 @@ const ProductConfigModal = ({
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity onPress={onClose} style={[components.buttonModalCancel, productStyles.configModalCloseBtnMargin]}>
-            <Text style={components.buttonTextModalCancel}>Valmis</Text>
-          </TouchableOpacity>
+          <Button
+            contentStyle={productStyles.configModalCloseBtnMargin}
+            label="Valmis"
+            onPress={onClose}
+            variant="cancel"
+          />
         </ScrollView>
       </View>
     </KeyboardAvoidingView>
@@ -1111,7 +1149,9 @@ const AddBoxesModal = ({
     }
 
     await queryClient.invalidateQueries({ queryKey: ['batches'] });
-    await queryClient.invalidateQueries({ queryKey: ['batchEvents', 'inventory'] });
+    // Prefix match: invalidates every batchEvents query (this screen's,
+    // ScreenLayout's inventory modal, per-batch logs), not one specific key.
+    await queryClient.invalidateQueries({ queryKey: ['batchEvents'] });
 
     setPendingBoxes(failed);
     setSaving(false);
@@ -1159,7 +1199,7 @@ const AddBoxesModal = ({
               style={orderStyles.smScanFieldInput}
               value={dateInput}
             />
-            <Pressable hitSlop={10} onPress={openDatePicker}>
+            <Pressable accessibilityLabel="Valitse päivämäärä" hitSlop={10} onPress={openDatePicker}>
               <Ionicons color="rgba(0,0,0,0.42)" name="calendar-outline" size={24} />
             </Pressable>
           </View>
@@ -1184,7 +1224,7 @@ const AddBoxesModal = ({
               style={orderStyles.smScanFieldInput}
               value={bestBeforeInput}
             />
-            <Pressable hitSlop={10} onPress={openBestBeforePicker}>
+            <Pressable accessibilityLabel="Valitse parasta ennen -päivämäärä" hitSlop={10} onPress={openBestBeforePicker}>
               <Ionicons color="rgba(0,0,0,0.42)" name="calendar-outline" size={24} />
             </Pressable>
           </View>
@@ -1249,6 +1289,7 @@ const AddBoxesModal = ({
             renderItem={({ item }) => (
               <View style={orderStyles.smTableRow}>
                 <TouchableOpacity
+                  accessibilityLabel="Poista laatikko"
                   disabled={saving}
                   onPress={() => setPendingBoxes((prev) => prev.filter((b) => b.id !== item.id))}
                   style={orderStyles.smDeleteCell}
@@ -1326,12 +1367,11 @@ const AddBoxesModal = ({
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            <TouchableOpacity
+            <Button
+              label="Peruuta"
               onPress={() => setProductPickerFor(null)}
-              style={components.buttonModalCancel}
-            >
-              <Text style={components.buttonTextModalCancel}>Peruuta</Text>
-            </TouchableOpacity>
+              variant="cancel"
+            />
           </View>
         </View>
       </AppModal>

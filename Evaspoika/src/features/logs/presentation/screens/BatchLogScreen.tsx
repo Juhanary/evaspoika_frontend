@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import { BATCH_STATE_LABELS } from '@/src/features/batches/domain/batchState';
 import { screen } from '@/src/shared/styles/components';
 import { logStyles as styles } from '@/src/shared/styles/logs';
+import { EmptyState } from '@/src/shared/ui/EmptyState/EmptyState';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { BatchEventList } from '../components/BatchEventList';
 import { useBatchEventLog } from '../components/batchEventLog';
@@ -33,7 +34,7 @@ export default function BatchLogScreen({
     return (
       <ScreenLayout leftAction="back" title="ERÄ">
         <View style={screen.inner}>
-          <Text style={screen.muted}>Erää ei löytynyt.</Text>
+          <EmptyState message="Erää ei löytynyt." />
         </View>
       </ScreenLayout>
     );

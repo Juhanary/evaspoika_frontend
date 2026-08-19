@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import {
-  ImageBackground,
   Pressable,
   Text,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { ImageBackground } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -44,7 +44,7 @@ type Props = {
   children: React.ReactNode;
 };
 
-const BG = require('@/src/assets/images/home_bg-50c5c1.png');
+const BG = require('@/src/assets/images/home_bg-50c5c1.webp');
 
 export function ScreenLayout({
   title,
@@ -62,7 +62,15 @@ export function ScreenLayout({
   const insets = useSafeAreaInsets();
   const { data: products } = useProducts();
   const { data: batches } = useBatches();
-  const { data: batchEvents } = useBatchEvents({ types: 'WEIGHING,CREATE', limit: 9999 });
+  // Box counts inside the inventory modal are the only thing that needs the
+  // (potentially large) batch-events history, and that modal is opaque until
+  // opened — so skip the fetch until the user actually opens it instead of
+  // pulling it in on every single screen. Product/batch weights themselves
+  // don't depend on this (see buildInventorySummary).
+  const { data: batchEvents } = useBatchEvents(
+    { types: 'WEIGHING,CREATE', limit: 9999 },
+    { enabled: showInventory },
+  );
   const { config: productConfig } = useProductConfig();
 
   const notif = useNotificationWarnings(batches ?? [], products ?? []);
@@ -106,7 +114,7 @@ export function ScreenLayout({
     : rightActions;
 
   return (
-    <ImageBackground resizeMode="cover" source={BG} style={dark.screen}>
+    <ImageBackground cachePolicy="memory-disk" contentFit="cover" source={BG} style={dark.screen}>
       <AppHeader
         leftAction={headerLeftAction}
         rightActions={headerRightActions}

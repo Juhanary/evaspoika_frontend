@@ -12,6 +12,12 @@ import {
 // vaa'alta tulevat punnitukset pitää nähdä heti.
 type BatchEventsOptions = {
   live?: boolean;
+  /**
+   * Set to false to skip fetching until some condition is met (e.g. a modal
+   * that displays this data becoming visible). Defaults to true so existing
+   * callers keep fetching immediately, unchanged.
+   */
+  enabled?: boolean;
 };
 
 const LIVE_REFETCH_MS = 5_000;
@@ -23,6 +29,7 @@ export function useBatchEvents(params?: BatchEventsQueryParams, options?: BatchE
   return useQuery({
     queryKey: ['batchEvents', params],
     queryFn: () => fetchBatchEvents(params),
+    enabled: options?.enabled ?? true,
     refetchInterval: live ? LIVE_REFETCH_MS : false,
     staleTime: live ? 0 : HISTORY_STALE_MS,
   });

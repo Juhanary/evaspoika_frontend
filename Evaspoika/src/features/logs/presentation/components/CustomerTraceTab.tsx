@@ -5,6 +5,7 @@ import { useCustomerOrderHistory } from '@/src/features/customers/presentation/h
 import { useTraceCustomers } from '@/src/features/trace/presentation/hooks/useTrace';
 import { screen } from '@/src/shared/styles/components';
 import { logModalStyles as modalStyles, logStyles as styles } from '@/src/shared/styles/logs';
+import { EmptyState } from '@/src/shared/ui/EmptyState/EmptyState';
 import { GlassModal, ModalRow } from '@/src/shared/ui/GlassModal/GlassModal';
 import { formatDateFi } from '@/src/shared/utils/date';
 import { formatKgLabel } from '@/src/shared/utils/weight';
@@ -75,13 +76,15 @@ export function CustomerTraceTab({
           keyExtractor={(item) => String(item.id)}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
-            <Text style={screen.muted}>
-              {isLoading
-                ? 'Ladataan...'
-                : search.trim()
-                  ? 'Hakua vastaavia asiakkaita ei löytynyt.'
-                  : 'Ei asiakkaita joilla on tilaushistoriaa.'}
-            </Text>
+            <EmptyState
+              message={
+                isLoading
+                  ? 'Ladataan...'
+                  : search.trim()
+                    ? 'Hakua vastaavia asiakkaita ei löytynyt.'
+                    : 'Ei asiakkaita joilla on tilaushistoriaa.'
+              }
+            />
           }
           renderItem={({ item, index }) => {
             const lastOrder = formatDateFi(item.last_order_date);
@@ -165,9 +168,7 @@ function CustomerOrdersModal({
           data={orders}
           keyExtractor={(item) => String(item.id)}
           ListEmptyComponent={
-            <Text style={modalStyles.emptyText}>
-              {isLoading ? 'Ladataan...' : 'Ei tilauksia.'}
-            </Text>
+            <EmptyState message={isLoading ? 'Ladataan...' : 'Ei tilauksia.'} style={modalStyles.emptyText} />
           }
           renderItem={({ item }) => (
             <ModalRow
@@ -215,7 +216,7 @@ function OrderLinesModal({
         contentContainerStyle={modalStyles.listContent}
         data={order ? orderLines(order) : []}
         keyExtractor={(item) => String(item.id)}
-        ListEmptyComponent={<Text style={modalStyles.emptyText}>Ei tilausrivejä.</Text>}
+        ListEmptyComponent={<EmptyState message="Ei tilausrivejä." style={modalStyles.emptyText} />}
         renderItem={({ item }) => {
           const batch = item.Batch;
           const meta = [
@@ -284,7 +285,7 @@ export function CustomerOrdersPanel({
           keyExtractor={(item) => String(item.id)}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
-            <Text style={screen.muted}>{isLoading ? 'Ladataan...' : 'Ei tilauksia.'}</Text>
+            <EmptyState message={isLoading ? 'Ladataan...' : 'Ei tilauksia.'} />
           }
           renderItem={({ item, index }) => (
             <Pressable

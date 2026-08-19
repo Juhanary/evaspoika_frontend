@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Pressable,
@@ -13,6 +14,7 @@ import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
+import { Button } from '@/src/shared/ui/Button/ActionButton';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { useOrder } from '../hooks/useOrders';
@@ -82,8 +84,8 @@ export default function OrderDetailScreen({ orderId }: Props) {
     enabled: !!orderId,
   });
   const { data: customers } = useCustomers();
-  const { data: batches } = useBatches();
-  const { data: products } = useProducts();
+  const { data: batches, isLoading: batchesLoading } = useBatches();
+  const { data: products, isLoading: productsLoading } = useProducts();
 
   const [showScanModal, setShowScanModal] = useState(false);
   const [eanInput, setEanInput] = useState('');
@@ -537,6 +539,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
                     <View key={line.id} style={orderStyles.odLineRow}>
                       <Text style={orderStyles.odLineWeight}>{formatKg(line.sold_weight)} kg</Text>
                       <TouchableOpacity
+                        accessibilityLabel="Poista tilausrivi"
                         disabled={deletingLineId === line.id}
                         onPress={() => handleDeleteLine(line.id)}
                         style={orderStyles.odLineDeleteBtn}
@@ -645,6 +648,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
                 renderItem={({ item }) => (
                   <View style={orderStyles.smTableRow}>
                     <TouchableOpacity
+                      accessibilityLabel="Poista rivi"
                       accessibilityRole="button"
                       disabled={saving}
                       onPress={() => handleRemoveScannedRow(item.id)}
@@ -727,7 +731,11 @@ export default function OrderDetailScreen({ orderId }: Props) {
             <View style={components.modalCard}>
               <Text style={components.modalTitle}>Valitse erä</Text>
 
-              {batchPickerOptions.length === 0 ? (
+              {productsLoading || batchesLoading ? (
+                <View style={screen.centeredInline}>
+                  <ActivityIndicator color={colors.muted} size="small" />
+                </View>
+              ) : batchPickerOptions.length === 0 ? (
                 <Text style={components.modalEmpty}>Ei vapaita laatikoita tälle tuotteelle.</Text>
               ) : (
                 <ScrollView style={orderStyles.batchPickerScroll} showsVerticalScrollIndicator={false}>
@@ -751,12 +759,11 @@ export default function OrderDetailScreen({ orderId }: Props) {
                 </ScrollView>
               )}
 
-              <TouchableOpacity
+              <Button
+                label="Peruuta"
                 onPress={() => setBatchPickerFor(null)}
-                style={components.buttonModalCancel}
-              >
-                <Text style={components.buttonTextModalCancel}>Peruuta</Text>
-              </TouchableOpacity>
+                variant="cancel"
+              />
             </View>
           </View>
         </AppModal>

@@ -1,0 +1,155 @@
+import { StyleSheet } from 'react-native';
+import { colors } from '@/src/shared/constants/colors';
+import { spacing } from '@/src/shared/constants/spacing';
+import { typography } from '@/src/shared/constants/typography';
+import { glassActionSurface } from './styleFactory';
+
+// ===========================================================================
+// BatchListScreen styles.
+// ===========================================================================
+export const batchStyles = StyleSheet.create({
+  blColHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 4,
+    fontSize: 30,
+    color: '#E5E5E5',
+    fontWeight: '500' as const,
+  },
+  blRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingHorizontal: 16,
+    paddingVertical: 5,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E5E5',
+  },
+  blDateText: { flex: 1, fontSize: 25, color: '#E5E5E5' },
+  blWarnIcon: { marginRight: 6 },
+  blBtnGroup: { flexDirection: 'row' as const, gap: 8, marginRight: 12 },
+  blAdjBtn: {
+    ...glassActionSurface,
+    width: 52,
+    height: 52,
+    borderRadius: 20,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  blWeightText: {
+    fontSize: 25,
+    fontWeight: '500' as const,
+    color: colors.white,
+    width: 140,
+    textAlign: 'right' as const,
+  },
+  blEmpty: { padding: 16, color: '#888', textAlign: 'center' as const },
+  blFooter: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+  },
+  blValmisBtn: {
+    ...glassActionSurface,
+    borderRadius: 50,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+  },
+  blValmisBtnText: {
+    color: colors.textOnDark,
+    fontWeight: '700' as const,
+    fontSize: 25,
+  },
+  blTotalText: { fontSize: 14, fontWeight: '700' as const, color: colors.text, letterSpacing: 0.5 },
+  blTotalRow: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  blTotalLabel: {
+    fontFamily: typography.families.semibold,
+    fontSize: 26,
+    color: 'rgba(255,255,255,0.85)',
+    letterSpacing: 1,
+  },
+  blTotalValue: {
+    fontFamily: typography.families.semibold,
+    fontSize: 26,
+    color: colors.white,
+  },
+  // --- Weight adjustment modal ---
+  blAdjOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  blAdjCard: {
+    maxWidth: 400,
+    minWidth: 400,
+    maxHeight: '90%' as `${number}%`,
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  blAdjTitle: {
+    fontFamily: typography.families.semibold,
+    fontSize: 22,
+    color: 'rgba(0,0,0,0.82)',
+    marginBottom: 4,
+  },
+  blAdjCurrentWeight: {
+    fontFamily: typography.families.regular,
+    fontSize: 15,
+    color: 'rgba(0,0,0,0.5)',
+  },
+  blAdjInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.15)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontFamily: typography.families.regular,
+    fontSize: 18,
+    color: 'rgba(0,0,0,0.82)',
+    backgroundColor: '#F5F5F5',
+  },
+  blAdjBtnRow: {
+    flexDirection: 'row' as const,
+    gap: spacing.md,
+    marginTop: 4,
+  },
+  blAdjCancelBtn: {
+    flex: 1,
+    borderRadius: 50,
+    paddingVertical: 13,
+    alignItems: 'center' as const,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.18)',
+  },
+  blAdjCancelBtnText: {
+    fontFamily: typography.families.regular,
+    fontSize: 17,
+    color: 'rgba(0,0,0,0.6)',
+  },
+  blAdjSaveBtn: {
+    flex: 1,
+    borderRadius: 50,
+    paddingVertical: 13,
+    alignItems: 'center' as const,
+    backgroundColor: colors.actionGreen,
+    boxShadow: '0px 2px 4px rgba(0,0,0,0.15)',
+  },
+  blAdjSaveBtnText: {
+    fontFamily: typography.families.semibold,
+    fontSize: 17,
+    color: 'rgba(0,0,0,0.82)',
+  },
+});

@@ -106,7 +106,11 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   }
 
   try {
-    console.log('[API] -->', method, url);
+    // Routine request/success logs are dev-only — they ran on every single API
+    // call (including background polling) even in production builds. Failures
+    // stay logged unconditionally since there's no crash reporting on this app
+    // and they're the only trail an operator has to diagnose a stuck screen.
+    if (__DEV__) console.log('[API] -->', method, url);
     const response = await fetch(url, { ...requestOptions, headers, signal });
 
     if (response.status === 204) return undefined as T;
@@ -119,7 +123,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       throw new ApiError(response.status, data ?? text);
     }
 
-    console.log('[API] OK', response.status, url);
+    if (__DEV__) console.log('[API] OK', response.status, url);
     return data as T;
   } catch (err) {
     if (err instanceof ApiError) throw err;

@@ -1,6 +1,7 @@
 import { Platform, StyleSheet } from 'react-native';
 import { colors } from '@/src/shared/constants/colors';
 import { spacing } from '@/src/shared/constants/spacing';
+import { typography } from '@/src/shared/constants/typography';
 
 // Shared geometry for every full-height glass card (screens AND modals) so they
 // all line up at the exact same position. Screens sit in layout flow below the
@@ -42,7 +43,7 @@ export const glassModalStyles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 32,
     color: colors.white,
     textAlign: 'center',
@@ -52,7 +53,7 @@ export const glassModalStyles = StyleSheet.create({
     }),
   },
   subtitle: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 15,
     color: colors.lightGray,
     marginTop: 2,
@@ -72,7 +73,7 @@ export const glassModalStyles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   emptyText: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 15,
     color: 'rgba(255,255,255,0.5)',
     textAlign: 'center',
@@ -96,18 +97,18 @@ export const glassModalStyles = StyleSheet.create({
     borderColor: 'rgba(255,120,120,0.20)',
   },
   rowTitle: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 18,
     color: colors.offWhite,
     marginBottom: 2,
   },
   rowSubtitle: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 13,
     color: 'rgba(255,255,255,0.72)',
   },
   rowMeta: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 12,
     color: 'rgba(255,255,255,0.48)',
     marginTop: 2,
@@ -134,7 +135,7 @@ const notificationsSpecific = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.18)',
   },
   tabText: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 20,
     color: 'rgba(255,255,255,0.5)',
   },
@@ -142,7 +143,7 @@ const notificationsSpecific = StyleSheet.create({
     color: colors.white,
   },
   sectionLabel: {
-    fontFamily: 'Montserrat_700Bold',
+    fontFamily: typography.families.bold,
     fontSize: 13,
     color: 'rgba(255,255,255,0.5)',
     letterSpacing: 1.5,
@@ -180,13 +181,13 @@ const notificationsSpecific = StyleSheet.create({
     justifyContent: 'center',
   },
   warnDate: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 13,
     color: 'rgba(255,255,255,0.45)',
     marginBottom: 1,
   },
   warnProduct: {
-    fontFamily: 'Montserrat_600SemiBold',
+    fontFamily: typography.families.semibold,
     fontSize: 22,
     color: colors.offWhite,
   },
@@ -194,13 +195,13 @@ const notificationsSpecific = StyleSheet.create({
     color: colors.white,
   },
   warnType: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 15,
     color: 'rgba(255,255,255,0.55)',
     marginTop: 1,
   },
   hintText: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 12,
     color: 'rgba(255,255,255,0.45)',
     marginBottom: spacing.md,
@@ -214,12 +215,12 @@ const notificationsSpecific = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.07)',
   },
   threshName: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 24,
     color: colors.lightGray,
   },
   threshInput: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 20,
     color: colors.white,
     backgroundColor: 'rgba(255,255,255,0.1)',
@@ -230,7 +231,7 @@ const notificationsSpecific = StyleSheet.create({
     textAlign: 'right',
   },
   threshUnit: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 16,
     color: 'rgba(255,255,255,0.5)',
     width: 20,
@@ -247,7 +248,7 @@ const inventorySpecific = StyleSheet.create({
     paddingBottom: spacing.xs,
   },
   columnHeaderText: {
-    fontFamily: 'Montserrat_400Regular',
+    fontFamily: typography.families.regular,
     fontSize: 20,
     color: '#E4E4E4',
   },
@@ -264,7 +265,7 @@ const inventorySpecific = StyleSheet.create({
     gap: spacing.xs,
   },
   rowName: {
-    fontFamily: 'Montserrat_500Medium',
+    fontFamily: typography.families.medium,
     fontSize: 20,
     color: '#E4E4E4',
   },

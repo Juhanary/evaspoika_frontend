@@ -64,6 +64,7 @@ export function SearchInput({
         />
         {hasText && (
           <Pressable
+            accessibilityLabel="Tyhjennä haku"
             hitSlop={6}
             onPress={handleClear}
             style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}

@@ -20,6 +20,7 @@ import { routes } from '@/src/shared/navigation/routes';
 import { components, screen } from '@/src/shared/styles/components';
 import { batchStyles } from '@/src/shared/styles/orders';
 import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
+import { EmptyState } from '@/src/shared/ui/EmptyState/EmptyState';
 import { ProductList } from '@/src/shared/ui/ProductList/ProductList';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { formatKg, parseWeightToGrams } from '@/src/shared/utils/weight';
@@ -247,7 +248,7 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
               <FlatList
                 data={filteredBatches}
                 keyExtractor={(batch) => String(batch.id)}
-                ListEmptyComponent={<Text style={batchStyles.blEmpty}>Ei eriä.</Text>}
+                ListEmptyComponent={<EmptyState message="Ei eriä." style={batchStyles.blEmpty} />}
                 ListFooterComponent={
                   filteredBatches.length > 0 ? (
                     <View style={batchStyles.blTotalRow}>
@@ -274,18 +275,21 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
                       ) : null}
                       <View style={batchStyles.blBtnGroup}>
                         <TouchableOpacity
+                          accessibilityLabel="Poista erä"
                           onPress={() => handleDelete(item)}
                           style={batchStyles.blAdjBtn}
                         >
                           <Ionicons color={colors.textOnDark} name="trash-outline" size={26} />
                         </TouchableOpacity>
                         <TouchableOpacity
+                          accessibilityLabel="Lisää painoa"
                           onPress={() => openAdjust(item.id, 'add')}
                           style={batchStyles.blAdjBtn}
                         >
                           <Ionicons color={colors.textOnDark} name="add" size={26} />
                         </TouchableOpacity>
                         <TouchableOpacity
+                          accessibilityLabel="Vähennä painoa"
                           onPress={() => openAdjust(item.id, 'sub')}
                           style={batchStyles.blAdjBtn}
                         >

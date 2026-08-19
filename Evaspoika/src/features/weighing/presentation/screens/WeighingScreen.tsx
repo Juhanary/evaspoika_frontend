@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   RefreshControl,
@@ -13,7 +14,9 @@ import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
 import { useBatchEvents } from '@/src/features/batchEvents/presentation/hooks/useBatchEvents';
 import { submitWeighing } from '../../infrastructure/weighingApi';
-import { layout, components } from '@/src/shared/styles/components';
+import { colors } from '@/src/shared/constants/colors';
+import { layout, components, screen } from '@/src/shared/styles/components';
+import { EmptyState } from '@/src/shared/ui/EmptyState/EmptyState';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { Product } from '@/src/features/products/domain/types';
 import { BatchLog } from '@/src/features/batchEvents/domain/types';
@@ -37,7 +40,7 @@ type WeighingMode =
   | { type: 'new' };
 
 export default function WeighingScreen() {
-  const { data: products } = useProducts();
+  const { data: products, isLoading: productsLoading } = useProducts();
   const { data: batches } = useBatches();
   // Vaakanäkymä on ainoa paikka jossa tapahtumat pitää nähdä heti kun vaaka
   // lähettää punnituksen — muualla loki haetaan ilman pollausta.
@@ -171,23 +174,29 @@ export default function WeighingScreen() {
       {/* Tuotelista — kun ei ole valintaa */}
       {mode.type === 'idle' ? (
         <View style={layout.screen}>
-          <FlatList
-            data={products?.filter((p) => !p.deleted_at) ?? []}
-            keyExtractor={(p) => String(p.id)}
-            keyboardShouldPersistTaps="handled"
-            ListHeaderComponent={
-              <TouchableOpacity style={components.newProductRow} onPress={startNewProduct}>
-                <Text style={components.newProductRowText}>+ Uusi tuote</Text>
-              </TouchableOpacity>
-            }
-            renderItem={({ item }) => (
-              <TouchableOpacity style={components.productRow} onPress={() => selectProduct(item)}>
-                <Text style={components.productName}>{item.name}</Text>
-              </TouchableOpacity>
-            )}
-            ListEmptyComponent={<Text style={components.textEmpty}>Ei tuotteita.</Text>}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          />
+          {productsLoading ? (
+            <View style={screen.centered}>
+              <ActivityIndicator color={colors.textOnDark} size="large" />
+            </View>
+          ) : (
+            <FlatList
+              data={products?.filter((p) => !p.deleted_at) ?? []}
+              keyExtractor={(p) => String(p.id)}
+              keyboardShouldPersistTaps="handled"
+              ListHeaderComponent={
+                <TouchableOpacity style={components.newProductRow} onPress={startNewProduct}>
+                  <Text style={components.newProductRowText}>+ Uusi tuote</Text>
+                </TouchableOpacity>
+              }
+              renderItem={({ item }) => (
+                <TouchableOpacity style={components.productRow} onPress={() => selectProduct(item)}>
+                  <Text style={components.productName}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={<EmptyState message="Ei tuotteita." style={components.textEmpty} />}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            />
+          )}
         </View>
       ) : (
 

@@ -3,6 +3,8 @@ import { formatKg } from '@/src/shared/utils/weight';
 
 const FALLBACK_LABEL = 'Tuntematon tuote';
 
+export const EMPTY_ORDER_SUMMARY_LABEL = 'Ei tuotteita vielä.';
+
 const getProductLabel = (line: OrderLine) =>
   line.Batch?.Product?.name?.trim() ||
   (line.Batch?.batch_number ? `Erä ${line.Batch.batch_number}` : FALLBACK_LABEL);
@@ -26,7 +28,7 @@ export function buildOrderLineSummary(
   );
 
   if (items.length === 0) {
-    return 'Ei tuotteita vielä.';
+    return EMPTY_ORDER_SUMMARY_LABEL;
   }
 
   const visible = items

@@ -1,156 +1,20 @@
-import { ViewStyle, TextStyle, ImageStyle, Platform, StyleSheet } from 'react-native';
+import { ViewStyle, TextStyle, ImageStyle, Platform } from 'react-native';
 import { colors } from '@/src/shared/constants/colors';
 import { spacing } from '@/src/shared/constants/spacing';
 import { typography } from '@/src/shared/constants/typography';
 import { radii } from '@/src/shared/constants/radii';
+import { base, button, text, container, input, glassActionSurface } from './styleFactory';
 
-// ===========================================================================
-// Style factory toolkit (composable parts + builders). Was factory.ts.
-// ===========================================================================
-export const base = {
-  row: { flexDirection: 'row', alignItems: 'center' } as ViewStyle,
-  center: { alignItems: 'center', justifyContent: 'center' } as ViewStyle,
-  flex1: { flex: 1 } as ViewStyle,
-  card: {
-    borderWidth: 1,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-  } as ViewStyle,
-} as const;
-
-export type ButtonVariant = 'primary' | 'secondary' | 'confirm' | 'cancel' | 'glass' | 'nav';
-export type Size = 'sm' | 'md' | 'lg' | 'xl';
-
-export const button = ({
-  variant = 'primary',
-  size = 'md',
-  disabled = false,
-}: {
-  variant?: ButtonVariant;
-  size?: Size;
-  disabled?: boolean;
-} = {}): ViewStyle[] => {
-  const styles: ViewStyle[] = [
-    base.center,
-    { borderRadius: radii.md, paddingVertical: spacing.md, paddingHorizontal: spacing.xl },
-  ];
-
-  if (variant === 'primary' || variant === 'secondary') {
-    styles.push({ backgroundColor: colors.darkCard });
-  }
-
-  if (variant === 'confirm') {
-    styles.push({ backgroundColor: colors.darkCard, borderRadius: radii.lg, padding: spacing.lg });
-  }
-
-  if (variant === 'glass') {
-    styles.push({ backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' });
-  }
-
-  if (variant === 'nav') {
-    styles.push({
-      backgroundColor: colors.darkCard,
-      borderRadius: 67,
-      paddingVertical: spacing.xl,
-      paddingHorizontal: 46,
-      opacity: disabled ? 0.5 : 0.8,
-    });
-  }
-
-  if (size === 'sm') styles.push({ paddingVertical: spacing.xs, paddingHorizontal: spacing.sm });
-  if (size === 'lg') styles.push({ paddingVertical: spacing.lg, paddingHorizontal: spacing.xxl });
-
-  if (disabled) styles.push({ opacity: 0.5 });
-
-  return styles;
-};
-
-export type TextVariant = 'body' | 'label' | 'title' | 'header' | 'button' | 'muted';
-export type FontWeight = 'regular' | 'medium' | 'semibold' | 'bold';
-
-export const text = ({
-  variant = 'body',
-  weight = 'regular',
-  size,
-  color,
-}: {
-  variant?: TextVariant;
-  weight?: FontWeight;
-  size?: keyof typeof typography.sizes;
-  color?: string;
-} = {}): TextStyle[] => {
-  const styles: TextStyle[] = [
-    {
-      fontSize: typography.sizes.md,
-      color: colors.textSecondary,
-      fontWeight: typography.weights[weight],
-    },
-  ];
-
-  if (variant === 'title') styles.push({ fontSize: typography.sizes['4xl'], color: colors.textOnDark });
-  if (variant === 'header') styles.push({ fontSize: typography.sizes['5xl'], color: colors.textOnDark, fontWeight: '700' });
-  if (variant === 'button') styles.push({ fontSize: typography.sizes.xl, color: colors.textOnDark, fontWeight: '700' });
-  if (variant === 'muted') styles.push({ color: colors.textOnDarkMuted });
-  if (variant === 'label') styles.push({ fontWeight: '700', letterSpacing: 2, fontSize: 11 });
-
-  if (size) styles.push({ fontSize: typography.sizes[size] });
-  if (color) styles.push({ color });
-
-  return styles;
-};
-
-export const container = ({
-  variant = 'screen',
-  gap,
-}: {
-  variant?: 'screen' | 'card' | 'row' | 'center' | 'section' | 'modal';
-  gap?: keyof typeof spacing;
-} = {}): ViewStyle[] => {
-  const styles: ViewStyle[] = [];
-
-  if (variant === 'screen') styles.push({ flex: 1, padding: spacing.xl });
-  if (variant === 'card') styles.push(base.card);
-  if (variant === 'row') styles.push(base.row);
-  if (variant === 'center') styles.push(base.center);
-  if (variant === 'section') styles.push({ marginBottom: spacing.lg });
-  if (variant === 'modal') styles.push({
-    backgroundColor: colors.white,
-    borderRadius: radii['3xl'],
-    padding: spacing.xl,
-  });
-
-  if (gap) styles.push({ gap: spacing[gap] });
-
-  return styles;
-};
-
-export const input = ({
-  variant = 'default',
-}: {
-  variant?: 'default' | 'search' | 'flat';
-} = {}): ViewStyle[] => {
-  const styles: ViewStyle[] = [{
-    borderWidth: 1,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderColor: colors.inputBorder,
-    backgroundColor: colors.white,
-  }];
-
-  if (variant === 'search') {
-    styles.push({
-      borderRadius: radii.full,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: 12,
-      backgroundColor: 'rgba(255,255,255,0.96)',
-    });
-  }
-
-  return styles;
-};
+// This file used to hold the whole shared style system in one place. It has
+// since been split into focused files (styleFactory.ts, screen.ts, dark.ts,
+// layout.ts, errorBoundary.ts) — re-exported below so every existing
+// `import { ... } from '@/src/shared/styles/components'` keeps working
+// unchanged.
+export * from './styleFactory';
+export * from './screen';
+export * from './dark';
+export * from './layout';
+export * from './errorBoundary';
 
 // Aliases kept so the `components` object below reads unchanged.
 const buttonFactory = button;
@@ -158,9 +22,19 @@ const textFactory = text;
 const containerFactory = container;
 const inputFactory = input;
 
-export const glassActionSurface = {
-  backgroundColor: colors.darkCard,
-} as const;
+// A handful of entries below were verbatim-identical under two or three
+// different names (confirmed by a value-level before/after diff). Shared
+// here so they stay identical by construction; still exported under every
+// original name so no consumer needs to change.
+const nameOrPriceInputStyle = [
+  ...inputFactory(),
+  { fontSize: typography.sizes.xl, marginBottom: spacing.sm },
+] as TextStyle[];
+const confirmButtonStyle = buttonFactory({ variant: 'confirm' });
+const confirmButtonTextStyle = textFactory({ variant: 'button' });
+const subtleSmallText = textFactory({ size: 'sm', color: colors.textSubtle });
+const invPillBoldDarkText3xl = textFactory({ weight: 'bold', color: colors.textDark, size: '3xl' });
+const invPillBoldWhiteText3xl = textFactory({ weight: 'bold', color: colors.white, size: '3xl' });
 
 export const components = {
   // Base utilities
@@ -177,14 +51,8 @@ export const components = {
 
   // Inputs
   input: inputFactory(),
-  nameInput: [
-    ...inputFactory(),
-    { fontSize: typography.sizes.xl, marginBottom: spacing.sm },
-  ] as TextStyle[],
-  priceInput: [
-    ...inputFactory(),
-    { fontSize: typography.sizes.xl, marginBottom: spacing.sm },
-  ] as TextStyle[],
+  nameInput: nameOrPriceInputStyle,
+  priceInput: nameOrPriceInputStyle,
 
   // Cards
   card: containerFactory({ variant: 'card' }),
@@ -218,7 +86,7 @@ export const components = {
 
   // Buttons
   buttonPrimary: buttonFactory({ variant: 'primary' }),
-  buttonConfirm: buttonFactory({ variant: 'confirm' }),
+  buttonConfirm: confirmButtonStyle,
   buttonModalCancel: [
     ...buttonFactory({ variant: 'primary' }),
     { marginTop: spacing.md, padding: spacing.md + 2 },
@@ -227,12 +95,12 @@ export const components = {
   buttonGlassNav: buttonFactory({ variant: 'nav' }),
 
   // Button text
-  buttonText: textFactory({ variant: 'button' }),
-  buttonTextConfirm: textFactory({ variant: 'button' }),
+  buttonText: confirmButtonTextStyle,
+  buttonTextConfirm: confirmButtonTextStyle,
   buttonTextModalCancel: textFactory({ weight: 'semibold', color: colors.textOnDark }),
   buttonTextGlassNav: [
     {
-      fontFamily: 'Montserrat_400Regular',
+      fontFamily: typography.families.regular,
       fontSize: 48,
       fontWeight: '400',
       color: colors.textOnDark,
@@ -292,10 +160,10 @@ export const components = {
   eventLeft: [{ flex: 1 }] as ViewStyle[],
   eventRight: [{ alignItems: 'flex-end' }] as ViewStyle[],
   eventCode: textFactory({ weight: 'bold' }),
-  eventDesc: textFactory({ size: 'sm', color: colors.textSubtle }),
+  eventDesc: subtleSmallText,
   eventWeight: textFactory({ weight: 'semibold' }),
   eventDate: textFactory({ size: 'xs', color: colors.textSubtle }),
-  
+
   newProductRow: [
     base.row,
     { padding: spacing.md, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
@@ -306,10 +174,10 @@ export const components = {
     { padding: spacing.md, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.borderLight },
   ] as ViewStyle[],
   productName: textFactory({ weight: 'semibold' }),
-  productEan: textFactory({ size: 'sm', color: colors.textSubtle }),
+  productEan: subtleSmallText,
 
   selectedName: textFactory({ size: 'xl', weight: 'bold' }),
-  batchStatus: textFactory({ size: 'sm', color: colors.textSubtle }),
+  batchStatus: subtleSmallText,
   changeBtn: [base.center, { padding: spacing.sm }] as ViewStyle[],
   changeBtnText: textFactory({ color: colors.accent, weight: 'semibold' }),
 
@@ -344,9 +212,9 @@ export const components = {
       justifyContent: 'space-between',
     },
   ] as ViewStyle[],
-  invPillLeftExpanded:[ {  borderTopRightRadius: radii['3xl'],  borderTopLeftRadius: radii['3xl'] , borderBottomLeftRadius: 0, borderBottomRightRadius: 0, },  
+  invPillLeftExpanded:[ {  borderTopRightRadius: radii['3xl'],  borderTopLeftRadius: radii['3xl'] , borderBottomLeftRadius: 0, borderBottomRightRadius: 0, },
 ] as ViewStyle[],
-  invPillLeftText: textFactory({ weight: 'bold', color: colors.textDark, size: '3xl' }),
+  invPillLeftText: invPillBoldDarkText3xl,
   invDropdown: [
     {
       backgroundColor: 'rgba(255,255,255,0.9)',
@@ -358,9 +226,9 @@ export const components = {
     },
   ] as ViewStyle[],
   invDropdownLabel: textFactory({ size: '3xl', color: colors.textSubtle }),
-  invDropdownLabelYhteensa: textFactory({ weight: 'bold', color: colors.textDark, size: '3xl' }),
+  invDropdownLabelYhteensa: invPillBoldDarkText3xl,
   invDropdownRow: [base.row, { justifyContent: 'space-between', paddingVertical: 10, paddingLeft: 20, paddingRight: 20 }] as ViewStyle[],
-  invDropdownWeight: textFactory({ weight: 'bold', color: colors.textDark, size: '3xl' }),
+  invDropdownWeight: invPillBoldDarkText3xl,
   invDropdownDivider: [
     { height: 1, backgroundColor: colors.borderMid, marginVertical: 8 },
   ] as ViewStyle[],
@@ -368,7 +236,7 @@ export const components = {
     base.center,
     { backgroundColor: colors.darkBg, borderRadius: radii['3xl'], paddingVertical: 10, margin: 20, },
   ] as ViewStyle[],
-  invDropdownBtnText: textFactory({ weight: 'bold', color: colors.white, size: '3xl' }),
+  invDropdownBtnText: invPillBoldWhiteText3xl,
   invPillRight: [
     base.row,
     {
@@ -380,9 +248,9 @@ export const components = {
       gap: 10,
     },
   ] as ViewStyle[],
-  invPillWeight: textFactory({ weight: 'bold', color: colors.white, size: '3xl' }),
+  invPillWeight: invPillBoldWhiteText3xl,
   invPillDivider: [{ width: 2, height: 20, backgroundColor: colors.borderMid }] as ViewStyle[],
-  invPillCount: textFactory({ weight: 'bold', color: colors.white, size: '3xl' }),
+  invPillCount: invPillBoldWhiteText3xl,
 
   // Button internals
   actionButtonContent: [{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm }] as ViewStyle[],
@@ -392,7 +260,7 @@ export const components = {
   screenCard: [{ flex: 1, marginHorizontal: spacing.lg, marginTop: spacing.sm, marginBottom: spacing.lg, padding: 0, borderRadius: 44 }] as ViewStyle[],
   screenPlain: [{ flex: 1 }] as ViewStyle[],
   screenBackBtn: [{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 4, alignSelf: 'flex-start' }] as ViewStyle[],
-  screenBackBtnText: [{ fontFamily: 'Montserrat_400Regular', fontSize: 16, color: 'rgba(255,255,255,0.7)', letterSpacing: 1 }] as TextStyle[],
+  screenBackBtnText: [{ fontFamily: typography.families.regular, fontSize: 16, color: 'rgba(255,255,255,0.7)', letterSpacing: 1 }] as TextStyle[],
   screenInlineSearch: [{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.sm, alignItems: 'center' }] as ViewStyle[],
   screenInlineSearchMax: [{ width: '100%', maxWidth: 720, marginBottom: 0 }] as ViewStyle[],
   screenCloseRow: [{ alignItems: 'flex-end' }] as ViewStyle[],
@@ -414,7 +282,7 @@ export const components = {
   searchField: [{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radii.full, paddingHorizontal: spacing.lg, paddingVertical: 12, shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 1 }] as ViewStyle[],
   searchFieldDark: [{ backgroundColor: 'rgba(12, 18, 28, 0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' }] as ViewStyle[],
   searchFieldLight: [{ backgroundColor: 'rgba(255,255,255,0.96)', borderWidth: 1, borderColor: colors.borderMid }] as ViewStyle[],
-  searchInput: [{ flex: 1, fontSize: typography.sizes.lg, fontFamily: 'Montserrat_400Regular' }] as TextStyle[],
+  searchInput: [{ flex: 1, fontSize: typography.sizes.lg, fontFamily: typography.families.regular }] as TextStyle[],
   searchInputDark: [{ color: colors.textOnDark }] as TextStyle[],
   searchInputLight: [{ color: colors.textSecondary }] as TextStyle[],
 
@@ -430,262 +298,10 @@ export const components = {
   tabButton: [{ flex: 1, paddingVertical: spacing.sm + 2, alignItems: 'center' }] as ViewStyle[],
   tabButtonActive: [{ borderBottomWidth: 2, borderBottomColor: colors.textOnDark }] as ViewStyle[],
   tabButtonPressed: [{ opacity: 0.7 }] as ViewStyle[],
-  tabText: [{ fontFamily: 'Montserrat_400Regular', fontSize: 13, color: 'rgba(255,255,255,0.55)', letterSpacing: 1 }] as TextStyle[],
+  tabText: [{ fontFamily: typography.families.regular, fontSize: 13, color: 'rgba(255,255,255,0.55)', letterSpacing: 1 }] as TextStyle[],
   tabTextActive: [{ color: colors.textOnDark, fontWeight: '600' }] as TextStyle[],
 
   // GlassCard
   glassCard: [{ borderRadius: 32, padding: 12, backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.50, shadowRadius: 1 }] as ViewStyle[],
   glassCardOverlay: [{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.06)',  }] as ViewStyle[],
 } as const;
-
-// ===========================================================================
-// Screen scaffold (inner padding, section titles, list rows). Was screen.ts.
-// ===========================================================================
-export const screen = StyleSheet.create({
-  inner: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 8,
-  },
-  innerSm: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  sectionTitle: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 35,
-    color: colors.offWhite,
-    marginBottom: 12,
-    ...Platform.select({
-      web: { textShadow: '0px 1px 4px rgba(0,0,0,0.38)' } as object,
-      default: { textShadowColor: 'rgba(0,0,0,0.38)', textShadowRadius: 1 },
-    }),
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.white,
-    marginBottom: 16,
-  },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    paddingVertical: 22,
-    gap: 12,
-  },
-  listRowContent: {
-    flex: 1,
-    gap: 6,
-  },
-  listRowName: {
-    fontFamily: 'Montserrat_300Light',
-    fontSize: 28,
-    color: colors.offWhite,
-  },
-  listRowSummary: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 15,
-    lineHeight: 22,
-    color: 'rgba(237,237,237,0.82)',
-  },
-  listRowMeta: {
-    minWidth: 84,
-    alignItems: 'flex-end',
-    gap: 4,
-    paddingTop: 4,
-  },
-  listRowMetaPrimary: {
-    fontFamily: 'Montserrat_500Medium',
-    fontSize: 13,
-    color: colors.offWhite,
-  },
-  listRowMetaSecondary: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 13,
-    color: 'rgba(237,237,237,0.72)',
-  },
-  rowDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-  },
-  muted: {
-    marginTop: 24,
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.5)',
-    textAlign: 'center',
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  columnHeaderRow: {
-    alignItems: 'flex-end',
-    paddingRight: 4,
-    marginBottom: 8,
-  },
-  columnHeaderText: {
-    fontFamily: 'Montserrat_500Medium',
-    fontSize: 20,
-    color: colors.offWhite,
-  },
-  logGroup: {
-    paddingVertical: 12,
-    gap: 4,
-  },
-  logGroupDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-  },
-  logDateHeader: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 24,
-    color: colors.white,
-    marginBottom: 6,
-  },
-  logEntry: {
-    paddingLeft: 8,
-    gap: 2,
-    marginBottom: 4,
-  },
-  logEntryText: {
-    fontFamily: 'Montserrat_400Regular',
-    fontSize: 20,
-    color: colors.white,
-  },
-});
-
-// ===========================================================================
-// Dark theme rows / labels. Was dark.ts.
-// ===========================================================================
-export const dark = {
-  screen: {
-    flex: 1,
-    backgroundColor: colors.darkBg,
-  } as ViewStyle,
-
-  sectionLabel: [
-    ...text({ size: 'xs', weight: 'semibold', color: colors.textOnDarkMuted }),
-    { letterSpacing: 2, marginBottom: spacing.md, marginLeft: spacing.md, marginTop: spacing.lg , marginRight: spacing.md},
-  ] as TextStyle[],
-
-  row: [
-    base.row,
-    {
-      paddingVertical: spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: 'rgba(255,255,255,0.07)',
-    },
-  ] as ViewStyle[],
-
-  rowTitle: [
-    ...text({ size: 'xl', weight: 'semibold', color: colors.textOnDark }),
-    { fontSize: 18 },
-  ] as TextStyle[],
-
-  rowSub: [
-    ...text({ size: 'sm', color: colors.textOnDarkMuted }),
-    { fontSize: 14, marginTop: spacing.xs / 2 },
-  ] as TextStyle[],
-
-  muted: [
-    ...text({ size: 'md', color: colors.muted }),
-    { paddingVertical: spacing.xs },
-  ] as TextStyle[],
-
-  pressed: {
-    opacity: 0.7,
-  } as ViewStyle,
-} as const;
-
-// ===========================================================================
-// Layout helpers. Was layout.ts.
-// ===========================================================================
-export const layout = {
-  screen: container({ variant: 'screen' }),
-  center: container({ variant: 'center' }),
-  section: container({ variant: 'section' }),
-
-  title: text({
-    variant: 'title',
-    weight: 'semibold',
-    size: '4xl',
-  }),
-
-  screenTitle: text({
-    variant: 'header',
-    weight: 'bold',
-    size: '5xl',
-  }),
-
-  listItem: [
-    {
-      paddingVertical: spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: 'rgba(255,255,255,0.07)',
-    },
-  ] as ViewStyle[],
-
-  listItemTitle: text({
-    size: 'xl',
-    color: colors.textOnDark,
-  }),
-
-  listItemSubtitle: text({
-    size: 'md',
-    color: colors.textOnDarkMuted,
-  }),
-
-  pressed: { opacity: 0.6 } as ViewStyle,
-  disabled: { opacity: 0.4 } as ViewStyle,
-
-  row: [
-    base.row,
-    {
-      justifyContent: 'space-between',
-      paddingVertical: spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: 'rgba(255,255,255,0.07)',
-    },
-  ] as ViewStyle[],
-} as const;
-
-// ===========================================================================
-// ErrorBoundary. Was errorBoundary.ts.
-// ===========================================================================
-export const errorBoundaryStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: spacing.xl,
-  },
-  title: {
-    fontSize: typography.sizes['4xl'],
-    fontFamily: 'Montserrat_600SemiBold',
-    color: colors.textDark,
-    marginBottom: spacing.md,
-    textAlign: 'center',
-  },
-  message: {
-    fontSize: typography.sizes.base,
-    fontFamily: 'Montserrat_400Regular',
-    color: colors.muted,
-    textAlign: 'center',
-  },
-  detail: {
-    marginTop: spacing.xl,
-    fontSize: typography.sizes.sm,
-    fontFamily: 'Montserrat_400Regular',
-    color: colors.danger,
-    textAlign: 'center',
-  },
-});
