@@ -9,10 +9,18 @@ export type BoxLookup = {
   batch_number: string;
   ProductId: number;
   productName: string;
+  /** Montako saman koodin laatikkoa on vielä hyllyssä tämän jälkeen. */
+  remaining_with_ean: number;
 };
 
-export function fetchBoxByEan(ean: string) {
-  return apiRequest<BoxLookup>(`${endpoints.boxes}/by-ean/${encodeURIComponent(ean)}`);
+// exclude: laatikot jotka ovat jo skannauslistassa mutta joita ei ole vielä
+// tallennettu tilaukselle. Samalla EAN-koodilla voi olla monta laatikkoa (painokoodi
+// yksilöi tuotteen ja painon, ei laatikkoa), ja ilman tätä haku palautti aina saman
+// rivin — jolloin kahdesta samanpainoisesta laatikosta vain ensimmäisen sai lisättyä.
+export function fetchBoxByEan(ean: string, exclude: number[] = []) {
+  return apiRequest<BoxLookup>(`${endpoints.boxes}/by-ean/${encodeURIComponent(ean)}`, {
+    query: exclude.length > 0 ? { exclude: exclude.join(',') } : undefined,
+  });
 }
 
 export type ParsedEan = {

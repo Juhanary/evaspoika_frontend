@@ -226,10 +226,17 @@ export default function OrderDetailScreen({ orderId }: Props) {
     setEanInput('');
 
     try {
-      const box = await fetchBoxByEan(normalizedEan);
+      // Jo listalla olevat pois hausta, jotta samanpainoisista laatikoista saadaan
+      // seuraava vapaa eikä aina samaa riviä. Backend kertoo 409:llä jos koodin
+      // kaikki laatikot ovat jo listalla.
+      const box = await fetchBoxByEan(
+        normalizedEan,
+        scannedBoxes
+          .map((scanned) => scanned.boxId)
+          .filter((id): id is number => id != null),
+      );
 
-      // Sama laatikko kahdesti samaan skannaukseen: backend hylkää sen 409:llä vasta
-      // tallennuksessa, mikä olisi turhauttavaa kymmenen laatikon jälkeen. Kerrotaan heti.
+      // Varmistus sen varalta että backend palauttaisi silti jo listalla olevan rivin.
       if (scannedBoxes.some((scanned) => scanned.boxId === box.id)) {
         Alert.alert('Jo skannattu', 'Tämä laatikko on jo tässä listassa.');
         return;
@@ -269,8 +276,13 @@ export default function OrderDetailScreen({ orderId }: Props) {
           pricePerKg: resolvedPricePerKg,
         },
       ]);
-    } catch {
-      Alert.alert('Boksia ei löydy', `Koodilla "${normalizedEan}" ei löydy varastosta bokseja.`);
+    } catch (err) {
+      // Backend erottaa toisistaan tuntemattoman koodin, jo myydyn laatikon ja
+      // tilanteen jossa koodin kaikki laatikot ovat jo listalla — näytetään se syy.
+      const message = err instanceof ApiError
+        ? String((err.payload as Record<string, unknown> | null)?.error ?? err.message)
+        : `Koodilla "${normalizedEan}" ei löydy varastosta bokseja.`;
+      Alert.alert('Skannaus ei onnistunut', message);
     } finally {
       scanLockRef.current = false;
       setTimeout(() => eanRef.current?.focus(), 50);

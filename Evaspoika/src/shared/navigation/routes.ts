@@ -12,7 +12,6 @@ export const routes = {
   weighing: '/weighing' as Href,
   splitBox: '/weighing/split' as Href,
   logs: '/logs' as Href,
-  more: '/more' as Href,
   moreCustomers: '/more/customers' as Href,
   moreLogs: '/more/logs' as Href,
   orderDetail(orderId: RouteParam) {

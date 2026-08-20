@@ -616,6 +616,13 @@ export default function ProductListScreen() {
               value={query}
               variant="dark"
             />
+            <Pressable
+              accessibilityLabel="Jaa laatikko"
+              onPress={() => router.push(routes.splitBox)}
+              style={({ pressed }) => [productStyles.filterBtn, pressed && screen.pressed]}
+            >
+              <Ionicons color="rgba(0,0,0,0.65)" name="cut-outline" size={22} />
+            </Pressable>
             <View ref={filterBtnRef}>
               <Pressable
                 accessibilityLabel="Suodata tuotteita"
