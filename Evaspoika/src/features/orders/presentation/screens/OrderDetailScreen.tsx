@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
@@ -19,7 +18,6 @@ import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { useOrder } from '../hooks/useOrders';
 import { fetchOrderLines, createOrderLine, deleteOrderLine } from '@/src/features/orderLines/infrastructure/orderLinesApi';
-import { deleteOrder } from '@/src/features/orders/infrastructure/ordersApi';
 import { fetchBoxByEan } from '@/src/features/boxes/infrastructure/boxesApi';
 import { OrderLine } from '@/src/features/orderLines/domain/types';
 import { useCustomers } from '@/src/features/customers/presentation/hooks/useCustomers';
@@ -92,7 +90,6 @@ export default function OrderDetailScreen({ orderId }: Props) {
   const [scannedBoxes, setScannedBoxes] = useState<BoxLineState[]>([]);
   const [batchPickerFor, setBatchPickerFor] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [deletingOrder, setDeletingOrder] = useState(false);
   const [deletingLineId, setDeletingLineId] = useState<number | null>(null);
   const eanRef = useRef<TextInput>(null);
   const eanValueRef = useRef('');
@@ -417,40 +414,6 @@ export default function OrderDetailScreen({ orderId }: Props) {
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleDeleteOrder = () => {
-    Alert.alert(
-      'Poista tilaus',
-      'Haluatko varmasti poistaa tämän tilauksen? Tätä toimintoa ei voi peruuttaa.',
-      [
-        { text: 'Peruuta', style: 'cancel' },
-        {
-          text: 'Poista',
-          style: 'destructive',
-          onPress: async () => {
-            setDeletingOrder(true);
-            try {
-              await deleteOrder(orderId!);
-              await queryClient.invalidateQueries({ queryKey: ['orders'] });
-              router.back();
-              Alert.alert('Tilaus poistettu', 'Tilaus on poistettu onnistuneesti.');
-            } catch (deleteError) {
-              const errMessage = (() => {
-                if (deleteError instanceof ApiError) {
-                  const p = deleteError.payload as Record<string, unknown> | null;
-                  return String(p?.details ?? p?.error ?? deleteError.message);
-                }
-                return deleteError instanceof Error ? deleteError.message : 'Poisto epäonnistui';
-              })();
-              Alert.alert('Poisto epäonnistui', errMessage);
-            } finally {
-              setDeletingOrder(false);
-            }
-          },
-        },
-      ],
-    );
   };
 
   const handleDeleteLine = (lineId: number) => {

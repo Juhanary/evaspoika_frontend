@@ -22,11 +22,10 @@ export function createOrder(input: CreateOrderInput) {
   });
 }
 
-export function deleteOrder(id: number) {
-  return apiRequest<unknown>(`${endpoints.orders}/${id}`, {
-    method: 'DELETE',
-  });
-}
+// There is deliberately no deleteOrder() here. The backend does expose
+// DELETE /api/orders/:id, but Netvisor is the system of record for orders and
+// deletions are made there by hand — so the tablet must not delete them. The
+// UI has no delete-order button either; a wrapper here would only invite one.
 
 export function syncOrdersFromNetvisor() {
   return apiRequest<{ total: number; imported: number; skipped: number; failed: number }>(

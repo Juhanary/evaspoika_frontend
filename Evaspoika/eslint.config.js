@@ -5,6 +5,8 @@ const expoConfig = require('eslint-config-expo/flat');
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ['dist/*'],
+    // _to_delete holds files staged for removal; they still reference modules
+    // that moved, so they are kept out of both lint and typecheck.
+    ignores: ['dist/*', '_to_delete/*'],
   },
 ]);

@@ -27,7 +27,7 @@ import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import { InventorySummaryModal } from '@/src/shared/ui/InventorySummaryModal/InventorySummaryModal';
 import { NotificationsModal } from '@/src/shared/ui/NotificationsModal/NotificationsModal';
 import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
-import { buildInventorySummary } from '@/src/shared/utils/inventory';
+import { buildInventorySummary, needsBoxCountFallback } from '@/src/shared/utils/inventory';
 import { useNotificationWarnings } from '@/src/shared/hooks/useNotificationWarnings';
 
 export type ScreenLayoutLeftAction = 'home' | 'back' | 'none';
@@ -63,13 +63,13 @@ export function ScreenLayout({
   const { data: products } = useProducts();
   const { data: batches } = useBatches();
   // Box counts inside the inventory modal are the only thing that needs the
-  // (potentially large) batch-events history, and that modal is opaque until
-  // opened — so skip the fetch until the user actually opens it instead of
-  // pulling it in on every single screen. Product/batch weights themselves
-  // don't depend on this (see buildInventorySummary).
+  // (potentially large) batch-events history, and then only as a fallback for a
+  // backend that doesn't send box_count. So: not until the modal is open, and
+  // not at all unless a batch actually lacks the field. Product/batch weights
+  // themselves don't depend on this (see buildInventorySummary).
   const { data: batchEvents } = useBatchEvents(
     { types: 'WEIGHING,CREATE', limit: 9999 },
-    { enabled: showInventory },
+    { enabled: showInventory && needsBoxCountFallback(batches) },
   );
   const { config: productConfig } = useProductConfig();
 

@@ -38,6 +38,7 @@ import { EmptyState } from '@/src/shared/ui/EmptyState/EmptyState';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
+import { needsBoxCountFallback } from '@/src/shared/utils/inventory';
 import { formatKg } from '@/src/shared/utils/weight';
 import { formatDateIso, parseFinnishDateStrict } from '@/src/shared/utils/date';
 import { patchProductCode } from '../../infrastructure/productsApi';
@@ -114,10 +115,13 @@ export default function ProductListScreen() {
   const router = useRouter();
   const { data: products, isLoading, error: productsError } = useProducts();
   const { data: batches, error: batchesError } = useBatches();
-  // Same query (types + limit) and cache key as ScreenLayout's inventory-modal
-  // fetch, so opening this screen and opening the inventory modal share one
-  // request instead of each firing their own 9999-row fetch.
-  const { data: batchEvents } = useBatchEvents({ types: 'WEIGHING,CREATE', limit: 9999 });
+  // Only fetched when a batch is missing box_count — see needsBoxCountFallback.
+  // Params (and therefore the cache key) match ScreenLayout's inventory-modal
+  // fetch, so when both want the data they share one request.
+  const { data: batchEvents } = useBatchEvents(
+    { types: 'WEIGHING,CREATE', limit: 9999 },
+    { enabled: needsBoxCountFallback(batches) },
+  );
   const {
     config,
     MAX_FAVORITES,

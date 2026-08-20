@@ -23,6 +23,18 @@ type BatchEventLike = {
   BatchId: number;
 };
 
+/**
+ * True when at least one batch is missing the backend-computed `box_count`.
+ *
+ * Box counts come from that field; the batch-event log is only a fallback for
+ * a backend old enough not to send it (see buildInventorySummary). Call sites
+ * gate the event fetch on this so a current backend never pays for a
+ * multi-thousand-row query whose result would go unused.
+ */
+export function needsBoxCountFallback(batches?: BatchLike[] | null) {
+  return (batches ?? []).some((batch) => batch.box_count == null);
+}
+
 export function buildInventorySummary(
   products?: ProductLike[] | null,
   batches?: BatchLike[] | null,

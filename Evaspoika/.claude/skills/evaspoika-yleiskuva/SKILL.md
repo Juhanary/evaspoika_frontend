@@ -5,7 +5,8 @@ description: Evaspoika-järjestelmän kokonaiskuva - toimiala, tietomalli, molem
 
 # Evaspoika – järjestelmän yleiskuva
 
-Kalanjalostamon (Evaspoika / Evasmiehet) varastonhallinta- ja tilausjärjestelmä.
+Makkaroita ja hampurilaispihvejä valmistavan elintarvikeyrityksen
+(Evaspoika / Evasmiehet) varastonhallinta- ja tilausjärjestelmä.
 Korvaa käsin tehdyn erä- ja painokirjanpidon ja automatisoi myyntitilausten
 siirron Netvisor-taloushallintoon.
 
