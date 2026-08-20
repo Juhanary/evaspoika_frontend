@@ -289,10 +289,6 @@ export const boxSplitStyles = StyleSheet.create({
   pickerScroll: {
     maxHeight: 320,
   },
-  pickerRowDisabled: {
-    opacity: 0.4,
-  },
-
   // --- Muistutuspalkki (ScreenLayout, näkyy joka näytöllä) ---
   banner: {
     flexDirection: 'row',

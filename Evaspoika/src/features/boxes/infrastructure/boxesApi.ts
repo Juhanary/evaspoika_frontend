@@ -54,11 +54,13 @@ export type BoxCandidate = {
   best_before: string | null;
   ProductId: number | null;
   productName: string | null;
-  on_order: boolean;
 };
 
+// Backend palauttaa vain hyllyssä olevat laatikot — myytyä tai hävikkiin kirjattua ei
+// voi jakaa. reason kertoo kumpi on kyseessä kun osumia ei ole, jotta koodi ei näytä
+// tuntemattomalta silloin kun laatikko on olemassa mutta poissa hyllyltä.
 export function fetchBoxCandidates(ean: string) {
-  return apiRequest<{ ean: string; matches: BoxCandidate[] }>(
+  return apiRequest<{ ean: string; matches: BoxCandidate[]; reason: string | null }>(
     `${endpoints.boxes}/candidates/${encodeURIComponent(ean)}`,
   );
 }

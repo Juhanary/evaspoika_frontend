@@ -81,8 +81,8 @@ export default function SplitBoxScreen() {
     !!draft && !busy,
   );
 
-  // Vaa'alta tulleet uudet laatikot listaan. Käsin poistettuja ei lisätä takaisin,
-  // eikä tilaukselle jo skannattuja lainkaan — niitä ei voi jakaa.
+  // Vaa'alta tulleet uudet laatikot listaan. Käsin poistettuja ei lisätä takaisin.
+  // Backend palauttaa vain hyllyssä olevat, joten myytyä ei voi päätyä jaon osaksi.
   useEffect(() => {
     if (!draft || !recent?.boxes?.length) return;
 
@@ -91,7 +91,7 @@ export default function SplitBoxScreen() {
       ...draft.parts.map((part) => part.id),
       ...draft.dismissedIds,
     ]);
-    const additions = recent.boxes.filter((box) => !known.has(box.id) && !box.on_order);
+    const additions = recent.boxes.filter((box) => !known.has(box.id));
     if (additions.length === 0) return;
 
     save({
@@ -165,14 +165,6 @@ export default function SplitBoxScreen() {
 
   const applySelection = useCallback(
     (box: BoxCandidate) => {
-      if (box.on_order) {
-        Alert.alert(
-          'Laatikko on tilauksella',
-          `${boxLabel(box)} on jo skannattu tilaukselle. Poista tilausrivi ensin tai valitse toinen laatikko.`,
-        );
-        return;
-      }
-
       if (!draft) {
         startSplit(box);
         return;
@@ -194,7 +186,7 @@ export default function SplitBoxScreen() {
       eanValueRef.current = '';
 
       try {
-        const { matches } = await fetchBoxCandidates(ean);
+        const { matches, reason } = await fetchBoxCandidates(ean);
 
         const chosenIds = new Set(
           draft ? [draft.original.id, ...draft.parts.map((part) => part.id)] : [],
@@ -202,11 +194,13 @@ export default function SplitBoxScreen() {
         const available = matches.filter((match) => !chosenIds.has(match.id));
 
         if (available.length === 0) {
+          // reason kertoo jos laatikko on olemassa mutta poissa hyllyltä — myyty tarra
+          // on eri asia kuin tuntematon koodi, ja työntekijän on tiedettävä kumpi.
           Alert.alert(
             'Laatikkoa ei löydy',
             matches.length > 0
               ? `Koodin "${ean}" laatikot on jo valittu.`
-              : `Koodilla "${ean}" ei löydy laatikkoa varastosta.`,
+              : reason ?? `Koodilla "${ean}" ei löydy laatikkoa varastosta.`,
           );
           return;
         }
@@ -336,21 +330,19 @@ export default function SplitBoxScreen() {
           <ScrollView showsVerticalScrollIndicator={false} style={styles.pickerScroll}>
             {(pickerMatches ?? []).map((match) => (
               <TouchableOpacity
-                disabled={match.on_order}
                 key={match.id}
                 onPress={() => {
                   setPickerMatches(null);
                   applySelection(match);
                 }}
-                style={[components.modalRow, match.on_order && styles.pickerRowDisabled]}
+                style={components.modalRow}
               >
                 <Text style={components.modalRowText}>
                   {match.batch_number ?? 'Ei erää'} — {match.productName ?? 'Tuntematon tuote'}
                 </Text>
                 <Text style={components.modalRowSubText}>
                   {(formatDateFi(match.production_date) ?? 'Ei päiväystä')
-                    + ` / ${formatKgLabel(match.weight)}`
-                    + (match.on_order ? ' / tilauksella' : '')}
+                    + ` / ${formatKgLabel(match.weight)}`}
                 </Text>
               </TouchableOpacity>
             ))}
