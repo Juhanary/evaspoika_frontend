@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { ImageBackground } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
@@ -29,6 +29,8 @@ import { NotificationsModal } from '@/src/shared/ui/NotificationsModal/Notificat
 import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
 import { buildInventorySummary, needsBoxCountFallback } from '@/src/shared/utils/inventory';
 import { useNotificationWarnings } from '@/src/shared/hooks/useNotificationWarnings';
+import { useSplitDraft } from '@/src/features/boxes/presentation/hooks/useSplitDraft';
+import { boxSplitStyles } from '@/src/shared/styles/boxSplit';
 
 export type ScreenLayoutLeftAction = 'home' | 'back' | 'none';
 
@@ -46,6 +48,9 @@ type Props = {
 
 const BG = require('@/src/assets/images/home_bg-50c5c1.webp');
 
+// Jakonäytöllä itsellään muistutuspalkkia ei tarvita.
+const SPLIT_PATH = '/weighing/split';
+
 export function ScreenLayout({
   title,
   leftAction = 'home',
@@ -60,6 +65,11 @@ export function ScreenLayout({
   const [showInventory, setShowInventory] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
+  // Kesken oleva laatikon jako näkyy joka näytöllä kunnes se on viety loppuun.
+  // Ilman tätä aloitettu jako unohtui, ja varastoon jäi kahdennettu paino.
+  const { draft: splitDraft } = useSplitDraft();
+  const showSplitBanner = !!splitDraft && pathname !== SPLIT_PATH;
   const { data: products } = useProducts();
   const { data: batches } = useBatches();
   // Box counts inside the inventory modal are the only thing that needs the
@@ -121,6 +131,20 @@ export function ScreenLayout({
         search={wrapInCard ? undefined : headerSearch}
         title={title}
       />
+
+      {showSplitBanner ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push(routes.splitBox)}
+          style={boxSplitStyles.banner}
+        >
+          <Ionicons color={colors.white} name="alert-circle" size={20} />
+          <Text numberOfLines={1} style={boxSplitStyles.bannerText}>
+            JAKO KESKEN — {splitDraft?.original.productName ?? 'laatikko'} · viimeistele
+          </Text>
+          <Ionicons color={colors.white} name="chevron-forward" size={20} />
+        </Pressable>
+      ) : null}
 
       <View style={[components.screenContent, { paddingBottom: insets.bottom }]}>
         {wrapInCard ? (

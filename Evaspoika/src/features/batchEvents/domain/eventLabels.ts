@@ -9,6 +9,9 @@ export const EVENT_LABELS: Record<string, string> = {
   SALE: 'Myynti',
   RETURN: 'Palautus',
   INVENTORY: 'Manuaalinen korjaus',
+  // Laatikosta otettiin osa pois: vanha laatikko purettiin ja osat siirtyivät
+  // tähän erään. Paino ei muutu, laatikoita tulee yksi lisää.
+  SPLIT: 'Laatikko jaettu',
   // Backend kirjaa ADJUSTMENTin kun painoa muutetaan ilman eventCodea.
   // PUT /batches/:id oletetaan nykyään INVENTORYksi, joten uusia ADJUSTMENT-
   // rivejä ei enää synny — vanhat rivit kannassa tarvitsevat silti otsikon.
@@ -23,7 +26,7 @@ export const eventLabel = (code: string) => EVENT_LABELS[code] ?? code;
 export const SALE_CODES = new Set(['SALE', 'RETURN']);
 
 // Käsin tehdyt painon korjaukset.
-export const CHANGE_CODES = new Set(['INVENTORY', 'ADJUSTMENT']);
+export const CHANGE_CODES = new Set(['INVENTORY', 'ADJUSTMENT', 'SPLIT']);
 
 // Tapahtumat joille modaali antaa oman värikorostuksen.
 export const EVENT_HIGHLIGHT: Record<string, 'create' | 'empty' | 'delete' | 'return'> = {

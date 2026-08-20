@@ -10,6 +10,7 @@ export const routes = {
   newOrder: '/orders/new' as Href,
   inventory: '/inventory' as Href,
   weighing: '/weighing' as Href,
+  splitBox: '/weighing/split' as Href,
   logs: '/logs' as Href,
   more: '/more' as Href,
   moreCustomers: '/more/customers' as Href,

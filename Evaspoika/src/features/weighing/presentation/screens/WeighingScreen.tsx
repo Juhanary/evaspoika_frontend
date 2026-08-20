@@ -22,6 +22,8 @@ import { Product } from '@/src/features/products/domain/types';
 import { BatchLog } from '@/src/features/batchEvents/domain/types';
 import { eventLabel } from '@/src/features/batchEvents/domain/eventLabels';
 import { formatKg } from '@/src/shared/utils/weight';
+import { useRouter } from 'expo-router';
+import { routes } from '@/src/shared/navigation/routes';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -40,6 +42,7 @@ type WeighingMode =
   | { type: 'new' };
 
 export default function WeighingScreen() {
+  const router = useRouter();
   const { data: products, isLoading: productsLoading } = useProducts();
   const { data: batches } = useBatches();
   // Vaakanäkymä on ainoa paikka jossa tapahtumat pitää nähdä heti kun vaaka
@@ -184,9 +187,21 @@ export default function WeighingScreen() {
               keyExtractor={(p) => String(p.id)}
               keyboardShouldPersistTaps="handled"
               ListHeaderComponent={
-                <TouchableOpacity style={components.newProductRow} onPress={startNewProduct}>
-                  <Text style={components.newProductRowText}>+ Uusi tuote</Text>
-                </TouchableOpacity>
+                <>
+                  <TouchableOpacity style={components.newProductRow} onPress={startNewProduct}>
+                    <Text style={components.newProductRowText}>+ Uusi tuote</Text>
+                  </TouchableOpacity>
+                  {/* Jako aloitetaan ENNEN punnitusta, joten sisäänkäynnin on oltava
+                      täällä missä työntekijä on vaa'an vieressä — ei valikon takana. */}
+                  <TouchableOpacity
+                    style={components.newProductRow}
+                    onPress={() => router.push(routes.splitBox)}
+                  >
+                    <Text style={components.newProductRowText}>
+                      ✂ Ota laatikosta osa pois
+                    </Text>
+                  </TouchableOpacity>
+                </>
               }
               renderItem={({ item }) => (
                 <TouchableOpacity style={components.productRow} onPress={() => selectProduct(item)}>
