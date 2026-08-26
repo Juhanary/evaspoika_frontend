@@ -23,6 +23,12 @@ export type SplitDraft = {
   /** Laatikkojuoksun lähtöpiste: tämän jälkeen tulleet punnitukset ovat jaon osia. */
   baselineBoxId: number;
   startedAt: string;
+  /**
+   * Työntekijä on kuitannut vaihtaneensa oikean erän vaa'alle. Vaaka ei tiedä
+   * mitään laatikoista tai jaosta, joten tabletti ei voi tarkistaa tätä — vain
+   * muistuttaa ja odottaa kuittausta ennen kuin punnitukseen voi edetä.
+   */
+  scaleConfirmed: boolean;
 };
 
 export type SplitBalanceState = 'waiting' | 'short' | 'balanced' | 'over';
@@ -69,7 +75,12 @@ export const readSplitDraft = async (): Promise<SplitDraft | null> => {
     // Vaillinainen luonnos on pahempi kuin ei luonnosta: se jäisi roikkumaan
     // banneriin ilman että sitä voi viedä loppuun.
     if (!parsed?.original?.id || !Array.isArray(parsed.parts)) return null;
-    return { ...parsed, dismissedIds: parsed.dismissedIds ?? [] };
+    return {
+      ...parsed,
+      dismissedIds: parsed.dismissedIds ?? [],
+      // Vanha luonnos ennen tätä kenttää: kuittaus puuttuu, kysytään se.
+      scaleConfirmed: parsed.scaleConfirmed ?? false,
+    };
   } catch {
     return null;
   }

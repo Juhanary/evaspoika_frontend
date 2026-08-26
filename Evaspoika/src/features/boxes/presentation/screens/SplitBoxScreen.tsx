@@ -17,6 +17,7 @@ import { colors } from '@/src/shared/constants/colors';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
 import { Button } from '@/src/shared/ui/Button/ActionButton';
+import { goBackOrHome } from '@/src/shared/navigation/goBackOrHome';
 import { useRefreshAll } from '@/src/shared/hooks/useRefreshAll';
 import { formatKgLabel } from '@/src/shared/utils/weight';
 import { formatDateFi } from '@/src/shared/utils/date';
@@ -39,11 +40,13 @@ import { useNewBoxes } from '../hooks/useNewBoxes';
 // tallentamassa jaon jälkikäteen. Tämä näyttö poistaa muistamisen tarpeen:
 //
 //   1. Jako aloitetaan skannaamalla vanha tarra ENNEN punnitusta.
-//   2. Sen jälkeen vaa'alta tulevat punnitukset poimitaan listaan automaattisesti
+//   2. Työntekijä vaihtaa oikean erän vaa'alle ja kuittaa sen "VAIHDETTU"-napilla.
+//      Vaaka ei tiedä jaosta mitään, joten tabletti ei voi tarkistaa tätä itse.
+//   3. Sen jälkeen vaa'alta tulevat punnitukset poimitaan listaan automaattisesti
 //      (GET /boxes/recent, lähtöpisteenä jaon alkuhetken viimeisin laatikko).
-//   3. Aloitettu jako säilyy laitteella ja näkyy muistutuspalkkina joka näytöllä,
+//   4. Aloitettu jako säilyy laitteella ja näkyy muistutuspalkkina joka näytöllä,
 //      kunnes se on viety loppuun tai peruttu tietoisesti.
-//   4. Tallennus aukeaa vasta kun painot täsmäävät — tai kun ero on erikseen
+//   5. Tallennus aukeaa vasta kun painot täsmäävät — tai kun ero on erikseen
 //      vahvistettu hävikiksi.
 
 const errorMessage = (err: unknown, fallback: string) => {
@@ -117,6 +120,7 @@ export default function SplitBoxScreen() {
           dismissedIds: [],
           baselineBoxId: Math.max(latest_box_id, box.id),
           startedAt: new Date().toISOString(),
+          scaleConfirmed: false,
         });
         setLossConfirmedAt(null);
       } catch (err) {
@@ -223,8 +227,16 @@ export default function SplitBoxScreen() {
     [applySelection, draft],
   );
 
-  const handleCancel = () => {
-    if (!draft) return;
+  // Yksi ruksi oikeassa yläkulmassa hoitaa sekä poistumisen että perumisen:
+  // ennen skannausta ei ole mitään perua, joten ruksi vain sulkee näytön.
+  // Skannauksen jälkeen sama ruksi perii jaon — käyttäjän ei tarvitse etsiä
+  // erillistä nappia sillä hetkellä kun laatikko odottaa punnitusta.
+  const handleClose = () => {
+    if (busy) return;
+    if (!draft) {
+      goBackOrHome();
+      return;
+    }
     Alert.alert(
       'Peru jako',
       'Aloitettu jako perutaan eikä mitään tallenneta. Jos olet jo punninnut osat, '
@@ -235,12 +247,20 @@ export default function SplitBoxScreen() {
           text: 'Peru jako',
           style: 'destructive',
           onPress: () => {
+            // Vain paikallinen luonnos poistuu — mitään ei ole vielä lähetetty
+            // backendiin, joten perumisesta ei voi jäädä ristiriitaista dataa.
             clear();
             setLossConfirmedAt(null);
           },
         },
       ],
     );
+  };
+
+  const closeAction = {
+    icon: 'close' as const,
+    onPress: handleClose,
+    accessibilityLabel: draft ? 'Peru jako' : 'Sulje',
   };
 
   const handleSave = () => {
@@ -356,7 +376,7 @@ export default function SplitBoxScreen() {
 
   if (loading) {
     return (
-      <ScreenLayout leftAction="back" title="JAA LAATIKKO">
+      <ScreenLayout rightActions={[closeAction]} title="JAA LAATIKKO">
         <View style={styles.centered}>
           <ActivityIndicator color={colors.textOnDark} size="large" />
         </View>
@@ -367,17 +387,14 @@ export default function SplitBoxScreen() {
   // --- Vaihe 1: jakoa ei ole aloitettu -------------------------------------
   if (!draft || !balance) {
     return (
-      <ScreenLayout leftAction="back" title="JAA LAATIKKO">
+      <ScreenLayout rightActions={[closeAction]} title="JAA LAATIKKO">
         {scanInput}
 
         <View style={styles.startBlock}>
           <View style={styles.stepBadge}>
-            <Text style={styles.stepBadgeText}>1 / 3</Text>
+            <Text style={styles.stepBadgeText}>1 / 4</Text>
           </View>
-          <Text style={styles.startTitle}>Skannaa laatikon nykyinen tarra</Text>
-          <Text style={styles.startBody}>
-            Se laatikko josta aiot ottaa osan pois.
-          </Text>
+          <Text style={styles.startTitle}>SKANNAA LAATIKKO, ÄLÄ VIELÄ KÄYTÄ VAAKAA</Text>
 
           <Pressable onPress={() => eanRef.current?.focus()} style={styles.scanBar}>
             {busy ? (
@@ -393,8 +410,7 @@ export default function SplitBoxScreen() {
           <View style={styles.hintBox}>
             <Ionicons color={colors.warning} name="alert-circle-outline" size={20} />
             <Text style={styles.hintText}>
-              Tee tämä ennen punnitusta. Tabletti poimii vaa&apos;an punnitukset
-              itsestään, joten uusia tarroja ei tarvitse skannata.
+              Älä käytä vielä vaakaa.
             </Text>
           </View>
         </View>
@@ -404,7 +420,36 @@ export default function SplitBoxScreen() {
     );
   }
 
-  // --- Vaihe 2–3: jako on kesken -------------------------------------------
+  // --- Vaihe 2: vaihda erä vaa'alle -----------------------------------------
+  // Vaaka ei tiedä jaosta mitään, joten tabletti ei voi tarkistaa mikä erä
+  // vaa'alle on valittu — työntekijä vain kuittaa tehneensä sen ennen kuin
+  // punnitukseen voi edetä.
+  if (!draft.scaleConfirmed && balance.state === 'waiting') {
+    return (
+      <ScreenLayout rightActions={[closeAction]} title="JAA LAATIKKO">
+        <View style={styles.startBlock}>
+          <View style={styles.stepBadge}>
+            <Text style={styles.stepBadgeText}>2 / 4</Text>
+          </View>
+          <Text style={styles.startTitle}>VAIHDA OIKEA ERÄ VAA&apos;ALLE</Text>
+          <Text style={styles.startBody}>
+            Valitse vaa&apos;alta {draft.original.productName
+              ? `tuote "${draft.original.productName}"`
+              : 'oikea tuote'}, ennen kuin punnitset mitään.
+          </Text>
+
+          <TouchableOpacity
+            onPress={() => save({ ...draft, scaleConfirmed: true })}
+            style={[styles.saveBtn, { alignSelf: 'center' }]}
+          >
+            <Text style={styles.saveBtnText}>VAIHDETTU</Text>
+          </TouchableOpacity>
+        </View>
+      </ScreenLayout>
+    );
+  }
+
+  // --- Vaihe 3–4: jako on kesken -------------------------------------------
   const saveBlocked =
     balance.state === 'waiting'
     || balance.state === 'over'
@@ -420,13 +465,7 @@ export default function SplitBoxScreen() {
           : '';
 
   return (
-    <ScreenLayout
-      leftAction="back"
-      rightActions={[
-        { icon: 'trash-outline', onPress: handleCancel, accessibilityLabel: 'Peru jako' },
-      ]}
-      title="JAA LAATIKKO"
-    >
+    <ScreenLayout rightActions={[closeAction]} title="JAA LAATIKKO">
       {scanInput}
 
       <View style={styles.originalCard}>
@@ -453,7 +492,7 @@ export default function SplitBoxScreen() {
         <View style={styles.balanceHeader}>
           <View style={styles.stepBadge}>
             <Text style={styles.stepBadgeText}>
-              {balance.state === 'waiting' ? '2 / 3' : '3 / 3'}
+              {balance.state === 'waiting' ? '3 / 4' : '4 / 4'}
             </Text>
           </View>
           <Text style={styles.balanceNumbers}>
@@ -476,8 +515,11 @@ export default function SplitBoxScreen() {
           <View style={styles.waitingRow}>
             <ActivityIndicator color={colors.textOnDark} size="small" />
             <Text style={styles.waitingText}>
-              Punnitse osat vaa&apos;alla — myös jäljelle jäävä laatikko. Punnitukset
-              ilmestyvät tähän itsestään.
+              Nyt punnitse uudet laatikot ja jäljelle jäävä laatikko. Punnitukset
+              ilmestyvät tähän itsestään pienellä viiveellä.
+            </Text>
+            <Text style={styles.hintText}>
+              Uusia tarroja ei tarvitse skannata.
             </Text>
           </View>
         ) : balance.state === 'balanced' ? (
