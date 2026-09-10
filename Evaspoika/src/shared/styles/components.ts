@@ -264,6 +264,10 @@ export const components = {
   screenInlineSearch: [{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.sm, alignItems: 'center' }] as ViewStyle[],
   screenInlineSearchMax: [{ width: '100%', maxWidth: 720, marginBottom: 0 }] as ViewStyle[],
   screenCloseRow: [{ alignItems: 'flex-end' }] as ViewStyle[],
+  // Yhteyspalkki. Sama muoto kuin jakomuistutuksella mutta eri väri, jottei
+  // näitä kahta sekoita: jako on tekemätön työ, tämä on pelkkä tilatieto.
+  offlineBanner: [{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.info, borderRadius: radii.full, paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, marginHorizontal: spacing.lg, marginBottom: spacing.sm }] as ViewStyle[],
+  offlineBannerText: [{ flex: 1, fontFamily: typography.families.bold, fontSize: typography.sizes.base, letterSpacing: 0.5, color: colors.white }] as TextStyle[],
 
   // AppHeader
   appHeader: [{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: 14, backgroundColor: 'transparent' }] as ViewStyle[],

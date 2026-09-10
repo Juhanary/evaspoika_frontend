@@ -23,6 +23,7 @@ import { ApiError } from '@/src/infrastructure/api/error';
 import { useRefreshAll } from '@/src/shared/hooks/useRefreshAll';
 import { routes } from '@/src/shared/navigation/routes';
 import { dark } from '@/src/shared/styles/components';
+import { s } from '@/src/shared/styles/scale';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import { Button } from '@/src/shared/ui/Button/ActionButton';
 import { EmptyState } from '@/src/shared/ui/EmptyState/EmptyState';
@@ -161,15 +162,18 @@ export default function HomeScreen() {
     const map = new Map<number, string>();
     recentOrders.forEach((order, index) => {
       const q = orderLineQueries[index];
-      if (!q || q.isLoading || q.isPending) {
-        map.set(order.id, 'Ladataan tuotteita...');
+      // Välimuistista palautunut data voittaa virheen. Verkon ulkopuolella
+      // taustapäivitys epäonnistuu ja asettaa errorin, vaikka rivillä on
+      // täysin kelvollista vanhaa dataa. ScreenLayoutin palkki kertoo iän.
+      if (q?.data) {
+        map.set(order.id, buildOrderLineSummary(q.data));
         return;
       }
-      if (q.error) {
+      if (q?.error) {
         map.set(order.id, 'Tuotteita ei voitu ladata.');
         return;
       }
-      map.set(order.id, buildOrderLineSummary(q.data));
+      map.set(order.id, 'Ladataan tuotteita...');
     });
     return map;
   }, [orderLineQueries, recentOrders]);
@@ -357,16 +361,34 @@ export default function HomeScreen() {
                   <Ionicons
                     color="rgba(255,255,255,0.85)"
                     name="cloud-download-outline"
-                    size={20}
+                    size={s(20)}
                   />
                 </Pressable>
               </View>
 
               <View style={homeStyles.topArea}>
                 <View style={homeStyles.btnGroup}>
-                  <Button label="TILAUS" onPress={() => router.push(routes.orders)} variant="glassNav" />
-                  <Button label="VARASTO" onPress={() => router.push(routes.inventory)} variant="glassNav" />
-                  <Button label="LOKI" onPress={() => router.push(routes.logs)} variant="glassNav" />
+                  <Button
+                    contentStyle={homeStyles.navButton}
+                    label="TILAUS"
+                    labelStyle={homeStyles.navButtonLabel}
+                    onPress={() => router.push(routes.orders)}
+                    variant="glassNav"
+                  />
+                  <Button
+                    contentStyle={homeStyles.navButton}
+                    label="VARASTO"
+                    labelStyle={homeStyles.navButtonLabel}
+                    onPress={() => router.push(routes.inventory)}
+                    variant="glassNav"
+                  />
+                  <Button
+                    contentStyle={homeStyles.navButton}
+                    label="LOKI"
+                    labelStyle={homeStyles.navButtonLabel}
+                    onPress={() => router.push(routes.logs)}
+                    variant="glassNav"
+                  />
                 </View>
               </View>
             </>

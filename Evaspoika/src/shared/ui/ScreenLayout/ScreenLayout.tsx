@@ -29,6 +29,9 @@ import { NotificationsModal } from '@/src/shared/ui/NotificationsModal/Notificat
 import { SearchInput } from '@/src/shared/ui/SearchInput/SearchInput';
 import { buildInventorySummary, needsBoxCountFallback } from '@/src/shared/utils/inventory';
 import { useNotificationWarnings } from '@/src/shared/hooks/useNotificationWarnings';
+import { useRefreshAll } from '@/src/shared/hooks/useRefreshAll';
+import { useSyncStatus } from '@/src/shared/hooks/useSyncStatus';
+import { formatDateFi, formatTimeFi } from '@/src/shared/utils/date';
 import { useSplitDraft } from '@/src/features/boxes/presentation/hooks/useSplitDraft';
 import { boxSplitStyles } from '@/src/shared/styles/boxSplit';
 
@@ -83,6 +86,21 @@ export function ScreenLayout({
   );
   const { config: productConfig } = useProductConfig();
 
+  // Verkon ulkopuolella näytetään viimeksi haettu data sellaisenaan; palkki
+  // kertoo ettei se ole tuoretta. Ilman kellonaikaa käyttäjä ei tietäisi
+  // katsooko tämän päivän vai eilisen tilannetta.
+  const sync = useSyncStatus();
+  const { refreshing, onRefresh } = useRefreshAll();
+  const lastUpdatedLabel = useMemo(() => {
+    if (!sync.lastUpdatedAt) return null;
+    const at = new Date(sync.lastUpdatedAt);
+    const iso = at.toISOString();
+    const time = formatTimeFi(iso);
+    if (!time) return null;
+    const sameDay = at.toDateString() === new Date().toDateString();
+    return sameDay ? `klo ${time}` : `${formatDateFi(iso)} klo ${time}`;
+  }, [sync.lastUpdatedAt]);
+
   const notif = useNotificationWarnings(batches ?? [], products ?? []);
 
   const thresholdProducts = useMemo(
@@ -131,6 +149,22 @@ export function ScreenLayout({
         search={wrapInCard ? undefined : headerSearch}
         title={title}
       />
+
+      {!sync.canRefresh ? (
+        <Pressable
+          accessibilityLabel="Yritä päivittää uudelleen"
+          accessibilityRole="button"
+          disabled={refreshing}
+          onPress={onRefresh}
+          style={components.offlineBanner}
+        >
+          <Ionicons color={colors.white} name="cloud-offline" size={20} />
+          <Text numberOfLines={1} style={components.offlineBannerText}>
+            EI VOI PÄIVITTÄÄ{lastUpdatedLabel ? ` — tiedot ${lastUpdatedLabel}` : ''}
+          </Text>
+          <Ionicons color={colors.white} name="refresh" size={20} />
+        </Pressable>
+      ) : null}
 
       {showSplitBanner ? (
         <Pressable

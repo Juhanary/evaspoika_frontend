@@ -119,17 +119,20 @@ export default function OrderScreen() {
     rows.forEach((row, index) => {
       const query = orderLineQueries[index];
 
-      if (!query || query.isPending || query.isLoading) {
-        map.set(row.order.id, 'Ladataan tuotteita...');
+      // Välimuistista palautunut data voittaa virheen. Verkon ulkopuolella
+      // taustapäivitys epäonnistuu ja asettaa errorin, vaikka rivillä on
+      // täysin kelvollista vanhaa dataa. ScreenLayoutin palkki kertoo iän.
+      if (query?.data) {
+        map.set(row.order.id, buildOrderLineSummary(query.data));
         return;
       }
 
-      if (query.error) {
+      if (query?.error) {
         map.set(row.order.id, 'Tuotteita ei voitu ladata.');
         return;
       }
 
-      map.set(row.order.id, buildOrderLineSummary(query.data));
+      map.set(row.order.id, 'Ladataan tuotteita...');
     });
 
     return map;
