@@ -11,13 +11,21 @@ export type SyncStatus = {
 
 /**
  * Kuinka kauan epäonnistumisen on jatkuttava yhtäjaksoisesti ennen kuin katko
- * julistetaan. Varaston verkko on ajoittain huono, ja yksittäisiä epäonnistuneita
- * hakuja sattuu jatkuvasti myös silloin kun yhteys on käytännössä kunnossa – yksi
- * epäonnistuminen edustaa jo noin 7 sekuntia yrittämistä (React Queryn kolme
- * uudelleenyritystä 1 s + 2 s + 4 s viiveellä). Vasta yhtäjaksoinen putki ilman
- * yhtäkään onnistumista on luotettava merkki katkosta.
+ * julistetaan. Palkin on tarkoitus syttyä vasta kun verkosta on oikeasti
+ * poistuttu pidemmäksi aikaa – ei varaston ajoittaisista notkahduksista.
+ *
+ * Mittakaava: yksi epäonnistunut haku edustaa jo noin 7 sekuntia yrittämistä
+ * (React Queryn kolme uudelleenyritystä 1 s + 2 s + 4 s viiveellä), joten kolmen
+ * minuutin yhtäjaksoinen putki tarkoittaa kymmeniä peräkkäisiä epäonnistuneita
+ * kierroksia ilman ainuttakaan onnistumista. Yksikään hetkellinen katkos ei
+ * riitä; vain verkon ulkopuolelle siirtyminen riittää.
+ *
+ * Hinta on se, että puhelimella verkon ulkopuolella data näyttää tuoreelta
+ * kolmen minuutin ajan. Se on tietoinen valinta: väärä hälytys varastossa on
+ * haitallisempi kuin hetken viive ilmoituksessa, ja palkki kertoo joka
+ * tapauksessa datan kellonajan kun se syttyy.
  */
-const OFFLINE_GRACE_MS = 45_000;
+const OFFLINE_GRACE_MS = 3 * 60 * 1000;
 
 /** Kuinka usein yhteyttä kokeillaan uudelleen kun katko on jo julistettu. */
 const RETRY_INTERVAL_MS = 20_000;
@@ -103,16 +111,20 @@ export function useSyncStatus(): SyncStatus {
 
   // Sovellus on jo edustalla, joten focus- tai mount-tapahtumaa ei tule eikä
   // mikään laukaisisi uutta hakua verkon palatessa. Ilman tätä palkki jäisi
-  // näkyviin – eli valehtelisi – kunnes käyttäjä painaa sitä itse. Vain
-  // julistetun katkon aikana, jottei pysyvästi virheellinen kysely (esim. 4xx)
-  // jää hakkaamaan backendiä ikuisesti.
+  // näkyviin – eli valehtelisi – kunnes käyttäjä painaa sitä itse.
+  //
+  // Yritys käynnistyy heti putken alkaessa eikä vasta palkin syttyessä: muuten
+  // kolmen minuutin odotus kuluisi umpeen vaikka verkko olisi palannut jo
+  // minuutin kohdalla, ja palkki syttyisi turhaan. Pysyvästi virheellinen
+  // kysely (esim. 4xx) ei jää hakkaamaan backendiä, koska yhdenkin muun
+  // kyselyn onnistuminen nollaa putken ja pysäyttää tämän.
   useEffect(() => {
-    if (!offline) return;
+    if (failureSince === null) return;
     const id = setInterval(() => {
       void queryClient.refetchQueries({ type: 'active' });
     }, RETRY_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [offline, queryClient]);
+  }, [failureSince, queryClient]);
 
   return {
     canRefresh: !offline,
