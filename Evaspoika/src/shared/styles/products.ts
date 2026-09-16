@@ -137,6 +137,62 @@ export const productStyles = StyleSheet.create({
   invDropdownBoxCountText: { minWidth: 48, textAlign: 'right' as const },
   invDropdownBatchWeightText: { minWidth: 80, textAlign: 'right' as const },
 
+  // --- ProductListScreen batch box list ---
+  invBatchChevron: { marginRight: 6 },
+  invBoxList: { paddingLeft: 34, paddingRight: 20, paddingBottom: 8 },
+  invBoxRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: spacing.sm,
+    paddingVertical: 6,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.08)' as const,
+  },
+  invBoxOrdinal: {
+    minWidth: 28,
+    fontSize: typography.sizes.xl,
+    fontFamily: typography.families.regular,
+    color: colors.textTertiary,
+    textAlign: 'right' as const,
+  },
+  invBoxEan: {
+    flex: 1,
+    fontSize: typography.sizes['3xl'],
+    fontFamily: typography.families.semibold,
+    color: colors.textSubtle,
+  },
+  invBoxPacked: {
+    fontSize: typography.sizes.lg,
+    fontFamily: typography.families.regular,
+    color: colors.textTertiary,
+  },
+  invBoxWeight: {
+    minWidth: 96,
+    fontSize: typography.sizes['3xl'],
+    fontFamily: typography.families.semibold,
+    color: colors.textDark,
+    textAlign: 'right' as const,
+  },
+  invBoxOriginal: {
+    minWidth: 118,
+    fontSize: typography.sizes.base,
+    fontFamily: typography.families.regular,
+    color: colors.warning,
+    textAlign: 'right' as const,
+  },
+  invBoxHint: {
+    paddingVertical: 6,
+    fontSize: typography.sizes.xl,
+    fontFamily: typography.families.regular,
+    color: colors.textTertiary,
+  },
+  invBoxError: {
+    paddingVertical: 6,
+    fontSize: typography.sizes.xl,
+    fontFamily: typography.families.regular,
+    color: colors.dangerDarkonWhite,
+  },
+
   // --- ProductListScreen list layout ---
   invListContent: { paddingBottom: 8 },
   addBoxPickerScroll: { maxHeight: 300 },

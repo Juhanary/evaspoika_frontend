@@ -1,6 +1,6 @@
 import { apiRequest } from '@/src/infrastructure/api/client';
 import { endpoints } from '@/src/infrastructure/api/endpoints';
-import { Batch, CreateBatchInput } from '../domain/types';
+import { Batch, BatchBox, CreateBatchInput } from '../domain/types';
 
 export function fetchBatches() {
   return apiRequest<Batch[]>(endpoints.batches);
@@ -8,6 +8,10 @@ export function fetchBatches() {
 
 export function fetchBatch(id: number) {
   return apiRequest<Batch>(`${endpoints.batches}/${id}`);
+}
+
+export function fetchBatchBoxes(id: number) {
+  return apiRequest<BatchBox[]>(`${endpoints.batches}/${id}/boxes`);
 }
 
 export function fetchDeletedBatches() {

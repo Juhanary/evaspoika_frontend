@@ -15,6 +15,23 @@ export type Batch = {
   expiry_date?: string | null;
 };
 
+/**
+ * Yksittäinen laatikko erässä — GET /batches/:id/boxes.
+ *
+ * `weight` on tarraan punnittu paino, `remaining_weight` se mitä laatikossa on
+ * nyt jäljellä. Ne eroavat kun erän painoa on korjattu käsin tai laatikkoa on
+ * syöty osittain, ja juuri se erotus selittää miksi hyllysaldo ei vastaa tarraa.
+ * Molemmat ovat kokonaislukuja grammoina, kuten kaikki painot.
+ */
+export type BatchBox = {
+  id: number;
+  ean: string | null;
+  weight: number;
+  remaining_weight: number;
+  packed_at: string | null;
+  status: string | null;
+};
+
 export type CreateBatchInput = {
   batch_number: string;
   production_date?: string | null;

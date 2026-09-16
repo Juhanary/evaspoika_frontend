@@ -25,6 +25,7 @@ import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
 import { Batch } from '@/src/features/batches/domain/types';
+import { BatchRow } from '@/src/features/batches/presentation/components/BatchRow';
 import { useBatchEvents } from '@/src/features/batchEvents/presentation/hooks/useBatchEvents';
 import { parseBoxEan } from '@/src/features/boxes/infrastructure/boxesApi';
 import { submitWeighing } from '@/src/features/weighing/infrastructure/weighingApi';
@@ -453,34 +454,13 @@ export default function ProductListScreen() {
                 <EmptyState message="Ei eriä." style={components.invDropdownLabel} />
               ) : (
                 <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} style={productStyles.invBatchScrollView}>
-                  {productBatches.map((batch) => {
-                    const batchBoxCount = boxesByBatchId.get(batch.id) ?? 0;
-                    const daysLeft = batch.days_until_expiry ?? null;
-                    const expiring = daysLeft !== null && daysLeft <= 100;
-                    return (
-                      <View key={batch.id}>
-                        <View style={components.invDropdownRow}>
-                          <Text style={[components.invDropdownLabel, { flex: 1 }]}>
-                            {batch.batch_number}
-                          </Text>
-                          {expiring ? (
-                            <Ionicons
-                              color={daysLeft <= 50 ? colors.danger50pvonWhite : colors.danger100pvonWhite}
-                              name="warning-outline"
-                              size={20}
-                              style={productStyles.invWarnIconGap}
-                            />
-                          ) : null}
-                          <Text style={[components.invDropdownLabel, productStyles.invDropdownBoxCountText]}>
-                            {batchBoxCount} laatikkoa
-                          </Text>
-                          <Text style={[components.invDropdownWeight, productStyles.invDropdownBatchWeightText]}>
-                            {formatKg(batch.current_weight)} kg
-                          </Text>
-                        </View>
-                      </View>
-                    );
-                  })}
+                  {productBatches.map((batch) => (
+                    <BatchRow
+                      batch={batch}
+                      boxCount={boxesByBatchId.get(batch.id) ?? 0}
+                      key={batch.id}
+                    />
+                  ))}
                 </ScrollView>
               )}
               <View style={components.invDropdownDivider} />
