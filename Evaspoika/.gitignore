@@ -36,9 +36,13 @@ yarn-error.*
 *.mcp.json
 .mcp.json
 # local env files
-.env*.local
-
-*.env
+#
+# .env* kattaa kaikki variantit. Aiemmin tassa oli .env*.local ja *.env, jotka
+# eivat osuneet .env.productioniin — juuri siihen tiedostoon jonka Expo lukee
+# julkaisua rakennettaessa. EXPO_PUBLIC_API_WRITE_TOKEN on koko API:n
+# kirjoitusoikeus, joten sellainen ei saa paatya GitHubiin.
+.env*
+!.env.example
 
 
 

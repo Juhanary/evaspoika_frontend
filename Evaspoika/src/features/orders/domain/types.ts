@@ -1,5 +1,17 @@
+/**
+ * Tilausrivin asiakas. GET /orders sisällyttää tämän aina
+ * (routes/orderRoute.js: customerInclude), mutta tyyppi ei tuntenut kenttää,
+ * joten näyttö ei nähnyt jo haettua asiakasta ilman erillistä hakua.
+ */
+export type OrderCustomer = {
+  id: number;
+  name: string;
+  netvisor_code?: string | null;
+};
+
 export type Order = {
   id: number;
+  Customer?: OrderCustomer | null;
   order_date?: string | null;
   status?: string | null;
   customer_id?: number | null;
