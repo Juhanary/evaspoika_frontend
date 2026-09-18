@@ -78,16 +78,25 @@ export default function SplitBoxScreen() {
   const balance = draft ? splitBalance(draft) : null;
   const lossConfirmed = !!balance && lossConfirmedAt === balance.collected;
 
+  // Pollaus vasta kun työntekijä on kuitannut vaihtaneensa erän vaa'alle. Ennen sitä
+  // vaa'alta tuleva laatikko on jonkun muun punnitsema, ei tämän jaon osa.
   const { data: recent } = useNewBoxes(
     draft?.original.ProductId,
     draft?.baselineBoxId,
-    !!draft && !busy,
+    !!draft && draft.scaleConfirmed && !busy,
   );
 
   // Vaa'alta tulleet uudet laatikot listaan. Käsin poistettuja ei lisätä takaisin.
   // Backend palauttaa vain hyllyssä olevat, joten myytyä ei voi päätyä jaon osaksi.
+  //
+  // scaleConfirmed on ehtona myös täällä eikä vain pollauksessa: ilman sitä vanhan
+  // tarran skannauksen ja "VAIHDETTU"-napin välissä punnittu SAMAN TUOTTEEN laatikko
+  // poimittiin jaon osaksi. Backendin boxSplitter ei nappaa sitä — se hylkää eri
+  // tuotteen ja ennen jaettavaa punnitun, muttei saman tuotteen laatikkoa joka on
+  // punnittu jaon alkamisen jälkeen — joten tallennus olisi siirtänyt vieraan
+  // laatikon jaettavan erään ja rikkonut kahden erän saldon hiljaa.
   useEffect(() => {
-    if (!draft || !recent?.boxes?.length) return;
+    if (!draft || !draft.scaleConfirmed || !recent?.boxes?.length) return;
 
     const known = new Set([
       draft.original.id,
@@ -424,7 +433,11 @@ export default function SplitBoxScreen() {
   // Vaaka ei tiedä jaosta mitään, joten tabletti ei voi tarkistaa mikä erä
   // vaa'alle on valittu — työntekijä vain kuittaa tehneensä sen ennen kuin
   // punnitukseen voi edetä.
-  if (!draft.scaleConfirmed && balance.state === 'waiting') {
+  // Ehtona on pelkkä kuittaus, ei enää myös balance.state === 'waiting'. Jälkimmäinen
+  // teki vaiheesta itsensä ohittavan: jos yksikin laatikko ehti listaan ennen
+  // kuittausta, tila ei ollut enää 'waiting' eikä "VAIHDA OIKEA ERÄ VAA'ALLE" näkynyt
+  // lainkaan — juuri silloin kun se olisi ollut tarpeen.
+  if (!draft.scaleConfirmed) {
     return (
       <ScreenLayout rightActions={[closeAction]} title="JAA LAATIKKO">
         <View style={styles.startBlock}>
