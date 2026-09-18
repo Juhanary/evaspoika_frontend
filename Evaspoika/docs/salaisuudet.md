@@ -84,7 +84,14 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 Järjestys on tärkeä — backend ensin, muuten tabletit lakkaavat toimimasta
 väärässä järjestyksessä:
 
-1. Pi: uudet arvot `evaspoika_backend/.env`-tiedostoon, `sudo systemctl restart evaspoika`
+1. Pi: uudet arvot **`/etc/evaspoika/secrets`**-tiedostoon (`sudo nano`, oikeudet
+   `600 root:evasmiehet`), sitten `sudo systemctl restart evaspoika`.
+
+   > **Älä kirjoita niitä `evaspoika_backend/.env`-tiedostoon.** Tuotannossa
+   > `NODE_ENV=production`, ja `index.js` sekä `db.js` lataavat dotenvin vain kun
+   > `NODE_ENV !== 'production'`. `.env` Pi:llä ei siis vaikuta mihinkään: backend
+   > jäisi vanhoihin, vuotaneisiin tokeneihin samalla kun tabletit saavat uudet,
+   > ja rotaatio näyttäisi onnistuneen. Ks. skill `pi-julkaisu`.
 2. Frontend: `Evaspoika/.env.local` (neljä tokenia — **ei** `API_ADMIN_TOKEN`)
 3. EAS: `eas env:create --environment production --name … --value …`
 4. Uusi build ja asennus tableteille
@@ -95,7 +102,9 @@ ja tilausrivit pysyvästi.
 
 ## Suojaukset repositoriossa
 
-- `.gitignore` kattaa `.env*.local` ja `*.env`
+- `.gitignore` kattaa `.env*` (poikkeuksena `!.env.example`). Aiempi
+  `.env*.local` + `*.env` ei osunut `.env.production`iin – juuri siihen
+  tiedostoon jonka Expo lukee.
 - `.githooks/pre-commit` estää tunnisteen näköisten merkkijonojen commitoinnin.
   Ota käyttöön joka kloonissa kerran:
 

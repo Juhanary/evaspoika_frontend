@@ -1,7 +1,8 @@
 # Evaspoika – frontend
 
-Makkaroita ja hampurilaispihvejä valmistavan elintarvikeyrityksen varastonhallinta- ja tilausjärjestelmä. Tämä on **frontend**:
-Expo / React Native -sovellus, joka ajetaan tabletilla varastossa.
+Makkaroita ja hampurilaispihvejä valmistavan lihajalostamon varastonhallinta- ja
+tilausjärjestelmä. Tämä on **frontend**: Expo / React Native -sovellus, joka
+ajetaan tabletilla varastossa.
 Järjestelmä koostuu kahdesta erillisestä git-repositoriosta:
 
 | Projekti | Polku | Mitä |
@@ -20,7 +21,12 @@ paitsi missä ympäröivä koodi tekee toisin.
 Lataa tarvittaessa `.claude/skills/`-hakemistosta:
 
 - **evaspoika-yleiskuva** – koko järjestelmä, toimialue, tietovirrat, molemmat repot
-- **frontend-arkkitehtuuri** – feature-rakenne, API-kerros, React Query, navigointi, UI-konventiot
+- **frontend-arkkitehtuuri** – feature-rakenne, API-kerros, React Query ja
+  levyvälimuisti, navigointi, UI-konventiot, laatikon jaon luonnos
+
+Salaisuudet ja tokenit: [docs/salaisuudet.md](docs/salaisuudet.md). **Lue se ennen
+kuin kosket tokeneihin tai Netvisorin tuotantotunnuksiin** – rotaatio on yhä
+tekemättä.
 
 ## Pikakelaus
 
@@ -40,8 +46,8 @@ app/                        expo-router, vain reititys – näytöt importataan 
 src/
   config/env.ts             ympäristömuuttujien luku ja validointi
   infrastructure/api/       client.ts (fetch + auth), endpoints.ts, error.ts
-  providers/QueryProvider   React Query -asetukset
-  features/<nimi>/          domain/ · infrastructure/ · presentation/{hooks,screens}
+  providers/QueryProvider   React Query + AsyncStorage-välimuisti
+  features/<nimi>/          domain/ · infrastructure/ · presentation/{hooks,screens,components}
   shared/                   ui/ · styles/ · constants/ · hooks/ · navigation/ · utils/
   assets/
 ```
@@ -60,11 +66,17 @@ src/
   Ei värejä eikä välejä kovakoodattuna komponentteihin – käytä `colors`, `spacing`,
   `radii`, `typography` ja `components`/`dark`-tyylejä.
 - **Näyttö kääritään `ScreenLayout`iin** – se tuo taustan, `AppHeader`in,
-  lasikortin, varastosaldo- ja ilmoitusmodaalit.
+  lasikortin, varastosaldo- ja ilmoitusmodaalit sekä offline- ja
+  laatikkojakopalkin. Älä toteuta noita palkkeja uudelleen näytöissä.
 - **Navigointi `routes`-objektin kautta** (`src/shared/navigation/routes.ts`),
   ei literaaleja polkuja.
 - **Paino on grammoja (kokonaisluku)** kaikessa API-liikenteessä, kuten backendissä.
   Muunnos näytettävään muotoon `src/shared/utils/weight.ts`.
+- **Uusi backend-kysely, jonka on näyttävä myös verkon ulkopuolella, lisätään
+  `src/shared/constants/queryKeys.ts`:n `BACKEND_QUERY_KEYS`-listaan.** Pelkästään
+  laitteelta lukevaa kyselyä **ei** lisätä sinne – muuten offline-palkki valehtelee.
+- **`app.json`:n `extra.apiBaseUrl` on kuollutta konfiguraatiota.** Mikään koodi ei
+  lue sitä. Osoite muutetaan vain `.env.local`-tiedostossa.
 
 ## Kun backend muuttuu
 
