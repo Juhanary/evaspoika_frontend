@@ -95,6 +95,10 @@ export default function SplitBoxScreen() {
   // tuotteen ja ennen jaettavaa punnitun, muttei saman tuotteen laatikkoa joka on
   // punnittu jaon alkamisen jälkeen — joten tallennus olisi siirtänyt vieraan
   // laatikon jaettavan erään ja rikkonut kahden erän saldon hiljaa.
+  //
+  // Pelkkä portti ei kuitenkaan riitä, koska lähtöpiste on skannaushetkeltä ja
+  // vieras laatikko on sen yläpuolella. Siksi confirmScale hakee lähtöpisteen
+  // uudelleen kuittauksessa — vasta ne kaksi yhdessä sulkevat aukon.
   useEffect(() => {
     if (!draft || !draft.scaleConfirmed || !recent?.boxes?.length) return;
 
@@ -141,6 +145,31 @@ export default function SplitBoxScreen() {
     },
     [save],
   );
+
+  // Lähtöpiste haetaan uudelleen kuittaushetkellä, ei vain jaon alussa. Ilman tätä
+  // skannauksen ja kuittauksen välissä punnittu saman tuotteen laatikko jäisi
+  // lähtöpisteen yläpuolelle ja päätyisi listaan heti ensimmäisellä pollauksella —
+  // eli portti vain viivyttäisi virhettä sen sijaan että estäisi sen.
+  const confirmScale = useCallback(async () => {
+    if (!draft?.original.ProductId) return;
+
+    setBusy(true);
+    try {
+      const { latest_box_id } = await fetchRecentBoxes(draft.original.ProductId);
+      await save({
+        ...draft,
+        // Math.max varmistaa ettei lähtöpiste voi liikkua taaksepäin.
+        baselineBoxId: Math.max(latest_box_id, draft.baselineBoxId),
+        scaleConfirmed: true,
+      });
+    } catch (err) {
+      // Kuittaus jää tekemättä tarkoituksella: ilman tuoretta lähtöpistettä poiminta
+      // olisi juuri se virhe jota tässä vältetään, eikä jako etene ilman backendiä.
+      Alert.alert('Virhe', errorMessage(err, 'Erän vaihdon kuittaus epäonnistui'));
+    } finally {
+      setBusy(false);
+    }
+  }, [draft, save]);
 
   const addPart = useCallback(
     (box: BoxCandidate) => {
@@ -452,8 +481,9 @@ export default function SplitBoxScreen() {
           </Text>
 
           <TouchableOpacity
-            onPress={() => save({ ...draft, scaleConfirmed: true })}
-            style={[styles.saveBtn, { alignSelf: 'center' }]}
+            disabled={busy}
+            onPress={confirmScale}
+            style={[styles.saveBtn, { alignSelf: 'center' }, busy && styles.disabled]}
           >
             <Text style={styles.saveBtnText}>VAIHDETTU</Text>
           </TouchableOpacity>

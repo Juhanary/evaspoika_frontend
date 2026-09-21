@@ -78,8 +78,10 @@ export const readSplitDraft = async (): Promise<SplitDraft | null> => {
     return {
       ...parsed,
       dismissedIds: parsed.dismissedIds ?? [],
-      // Vanha luonnos ennen tätä kenttää: kuittaus puuttuu, kysytään se.
-      scaleConfirmed: parsed.scaleConfirmed ?? false,
+      // Vanha luonnos ennen tätä kenttää. Osia ei voi olla ilman että erä on jo
+      // vaa'alla, joten niiden olemassaolo on kuittaus: muuten sovelluspäivityksen
+      // yli säilynyt jako palaisi vaiheeseen 2 ja menettäisi osalistansa näkyvistä.
+      scaleConfirmed: parsed.scaleConfirmed ?? parsed.parts.length > 0,
     };
   } catch {
     return null;
