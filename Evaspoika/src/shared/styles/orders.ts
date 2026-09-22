@@ -71,6 +71,14 @@ export const orderStyles = StyleSheet.create({
     fontSize: 24,
     color: colors.textOnDark,
   },
+  netvisorSyncButton: {
+    alignSelf: 'center' as const,
+    width: '100%',
+    maxWidth: 560,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    borderRadius: 36,
+  },
 
   // --- Order create screen ---
   customerRow: {

@@ -56,6 +56,9 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
   const [expandedBatchId, setExpandedBatchId] = useState<number | null>(null);
 
   const [adjusting, setAdjusting] = useState<AdjustState>(null);
+  const [deletingBatch, setDeletingBatch] = useState<Batch | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteSaving, setDeleteSaving] = useState(false);
   const [adjKg, setAdjKg] = useState('');
   const [adjReason, setAdjReason] = useState('');
   const [adjSaving, setAdjSaving] = useState(false);
@@ -76,22 +79,35 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
   const totalWeight = filteredBatches.reduce((sum, batch) => sum + batch.current_weight, 0);
 
   const handleDelete = (batch: Batch) => {
-    const label = toFinnishDate(batch.production_date) ?? batch.batch_number;
-    Alert.alert('Poista erä', `Poistetaanko koko erä ${label}?`, [
-      { text: 'Peruuta', style: 'cancel' },
-      {
-        text: 'Poista',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteBatch(batch.id);
-            await queryClient.invalidateQueries({ queryKey: ['batches'] });
-          } catch (e) {
-            Alert.alert('Virhe', e instanceof Error ? e.message : 'Poisto epäonnistui');
-          }
-        },
-      },
-    ]);
+    setDeleteReason('');
+    setDeletingBatch(batch);
+  };
+
+  const closeDelete = () => {
+    if (deleteSaving) return;
+    setDeletingBatch(null);
+    setDeleteReason('');
+  };
+
+  const confirmDelete = async () => {
+    const reason = deleteReason.trim();
+    if (!deletingBatch) return;
+    if (!reason) {
+      Alert.alert('Syy puuttuu', 'Kirjoita syy erän poistamiselle.');
+      return;
+    }
+
+    setDeleteSaving(true);
+    try {
+      await deleteBatch(deletingBatch.id, reason);
+      await queryClient.invalidateQueries({ queryKey: ['batches'] });
+      setDeleteSaving(false);
+      closeDelete();
+    } catch (e) {
+      Alert.alert('Virhe', e instanceof Error ? e.message : 'Poisto epäonnistui');
+    } finally {
+      setDeleteSaving(false);
+    }
   };
 
   const openAdjust = (batchId: number, mode: 'add' | 'sub') => {
@@ -426,6 +442,48 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
                 <Text style={batchStyles.blAdjSaveBtnText}>
                   {adjusting?.mode === 'add' ? 'Lisää' : 'Vähennä'}
                 </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </AppModal>
+
+      <AppModal animationType="slide" onClose={closeDelete} visible={deletingBatch !== null}>
+        <View style={batchStyles.blAdjOverlay}>
+          <View style={batchStyles.blAdjCard}>
+            <View style={batchStyles.blDeleteHeader}>
+              <Text style={batchStyles.blAdjTitle}>Poista erä</Text>
+              <Pressable accessibilityLabel="Sulje" disabled={deleteSaving} hitSlop={10} onPress={closeDelete}>
+                <Ionicons color={colors.iconOnLightStrong} name="close" size={24} />
+              </Pressable>
+            </View>
+            <Text style={batchStyles.blAdjCurrentWeight}>
+              {deletingBatch ? `Erä ${deletingBatch.batch_number}` : ''}
+            </Text>
+            <TextInput
+              autoFocus
+              editable={!deleteSaving}
+              multiline
+              onChangeText={setDeleteReason}
+              placeholder="Syy poistolle (pakollinen)"
+              placeholderTextColor="rgba(0,0,0,0.35)"
+              style={batchStyles.blDeleteReasonInput}
+              value={deleteReason}
+            />
+            <View style={batchStyles.blAdjBtnRow}>
+              <Pressable
+                disabled={deleteSaving}
+                onPress={closeDelete}
+                style={({ pressed }) => [batchStyles.blAdjCancelBtn, pressed && screen.pressed]}
+              >
+                <Text style={batchStyles.blAdjCancelBtnText}>Peruuta</Text>
+              </Pressable>
+              <Pressable
+                disabled={deleteSaving}
+                onPress={() => void confirmDelete()}
+                style={({ pressed }) => [batchStyles.blAdjSaveBtn, pressed && screen.pressed]}
+              >
+                <Text style={batchStyles.blAdjSaveBtnText}>{deleteSaving ? 'Poistetaan...' : 'Poista'}</Text>
               </Pressable>
             </View>
           </View>

@@ -34,7 +34,12 @@ export const button = ({
 } = {}): ViewStyle[] => {
   const styles: ViewStyle[] = [
     base.center,
-    { borderRadius: radii.md, paddingVertical: spacing.md, paddingHorizontal: spacing.xl },
+    {
+      minHeight: 52,
+      borderRadius: radii.lg,
+      paddingVertical: spacing.md + 2,
+      paddingHorizontal: spacing.xl,
+    },
   ];
 
   if (variant === 'primary' || variant === 'secondary') {

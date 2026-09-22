@@ -34,8 +34,9 @@ export function updateBatch(id: number, input: Partial<CreateBatchInput>) {
   });
 }
 
-export function deleteBatch(id: number) {
+export function deleteBatch(id: number, reason: string) {
   return apiRequest<void>(`${endpoints.batches}/${id}`, {
     method: 'DELETE',
+    body: JSON.stringify({ reason }),
   });
 }

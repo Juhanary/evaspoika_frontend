@@ -516,7 +516,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
       setEanInput('');
       setScannedBoxes([]);
       setShowScanModal(false);
-      Alert.alert('Tallennettu', 'Skannaukset tallennettu tilaukseen onnistuneesti.');
+      Alert.alert('Tallennettu', 'Lisäys tallennettu tilaukseen onnistuneesti.');
     } catch (saveError) {
       if (saveError instanceof ApiError && saveError.status === 502) {
         setShowScanModal(false);

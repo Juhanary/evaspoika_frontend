@@ -69,6 +69,7 @@ export default function OrderScreen() {
   const { data: orders, isLoading: ordersLoading } = useOrders();
   const [query, setQuery] = useState('');
 
+
   const rows = useMemo<OrderRow[]>(() => {
     const customerNameById = new Map<number, string>();
     const normalizedQuery = query.trim().toLowerCase();

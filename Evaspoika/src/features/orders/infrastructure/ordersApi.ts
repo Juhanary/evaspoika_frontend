@@ -43,7 +43,13 @@ export function createOrder(input: CreateOrderInput) {
 // UI has no delete-order button either; a wrapper here would only invite one.
 
 export function syncOrdersFromNetvisor() {
-  return apiRequest<{ total: number; imported: number; skipped: number; failed: number }>(
+  return apiRequest<{
+    total: number;
+    imported: number;
+    updated: number;
+    skipped: number;
+    failed: number;
+  }>(
     `${endpoints.netvisor}/sync-orders`,
     { method: 'POST', auth: 'netvisorWrite' },
   );
