@@ -243,6 +243,89 @@ export const orderStyles = StyleSheet.create({
     padding: 6,
   },
   odSkannaaBtn: scanActionBtn,
+  odCompleteCompositionBtn: {
+    ...scanActionBtn,
+    backgroundColor: colors.actionGreen,
+    marginTop: 0,
+  },
+  odCompleteCompositionBtnDisabled: {
+    opacity: 0.45,
+  },
+  odCompleteCompositionText: {
+    fontFamily: typography.families.semibold,
+    fontSize: 22,
+    color: 'rgba(0,0,0,0.82)',
+  },
+  odNetvisorCard: {
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: radii.lg,
+    borderWidth: 2,
+    borderColor: colors.warning,
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  odNetvisorHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
+    gap: spacing.md,
+  },
+  odNetvisorHeaderText: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  odNetvisorTitle: {
+    fontFamily: typography.families.semibold,
+    fontSize: typography.sizes.lg,
+    color: colors.textDark,
+  },
+  odNetvisorHint: {
+    fontFamily: typography.families.regular,
+    fontSize: typography.sizes.sm,
+    color: colors.textSubtle,
+  },
+  odNetvisorMuted: {
+    color: colors.muted,
+    fontFamily: typography.families.regular,
+    fontSize: typography.sizes.md,
+  },
+  odNetvisorError: {
+    color: colors.dangerDarkonWhite,
+    fontFamily: typography.families.regular,
+    fontSize: typography.sizes.md,
+  },
+  odNetvisorLine: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+    gap: spacing.md,
+  },
+  odNetvisorLineMain: {
+    flex: 1,
+    gap: spacing.xs / 2,
+  },
+  odNetvisorProduct: {
+    color: colors.textDark,
+    fontFamily: typography.families.semibold,
+    fontSize: typography.sizes.md,
+  },
+  odNetvisorBatch: {
+    color: colors.textSubtle,
+    fontFamily: typography.families.regular,
+    fontSize: typography.sizes.sm,
+  },
+  odNetvisorWeight: {
+    color: colors.textDark,
+    fontFamily: typography.families.semibold,
+    fontSize: typography.sizes.md,
+  },
+  odNetvisorFooterText: {
+    color: colors.warning,
+    fontFamily: typography.families.regular,
+    fontSize: typography.sizes.sm,
+    marginTop: spacing.xs,
+  },
   odVirtualScanBtn: scanActionBtn,
   odVirtualScanBtnText: {
     fontFamily: typography.families.regular,
@@ -292,6 +375,26 @@ export const orderStyles = StyleSheet.create({
     fontSize: typography.sizes.xs,
     color: colors.warning,
     marginTop: spacing.xs / 2,
+  },
+  netvisorPendingRow: {
+    backgroundColor: colors.warning + '18',
+    borderWidth: 1,
+    borderColor: colors.warning + '75',
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+  },
+  netvisorPendingBadge: {
+    alignSelf: 'flex-start' as const,
+    backgroundColor: colors.warning,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs / 2,
+    marginTop: spacing.xs,
+  },
+  netvisorPendingBadgeText: {
+    color: colors.white,
+    fontFamily: typography.families.semibold,
+    fontSize: typography.sizes.xs,
   },
 
   // --- Scan modal (sm*) ---
@@ -428,6 +531,96 @@ export const orderStyles = StyleSheet.create({
     textAlign: 'center' as const,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
+  },
+  // Rivin alla kulkeva huomautus: tarran ja laatikon sisällön ero.
+  smRowNote: {
+    fontFamily: typography.families.regular,
+    fontSize: 13,
+    color: colors.warning,
+  },
+  // Hakukenttä modaalin valkoisella paneelilla (erän lisäys, laatikon valinta).
+  smSearchInput: {
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontFamily: typography.families.regular,
+    fontSize: 18,
+    color: colors.textDark,
+  },
+  // Skannauksen rinnalla kulkeva käsivalinta: tarraton laatikko ei tule koskaan
+  // lukijan kautta, joten sille on oltava oma tie samassa näkymässä.
+  smManualAddBtn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: spacing.xs,
+    marginBottom: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderStyle: 'dashed' as const,
+    borderColor: 'rgba(0,0,0,0.22)',
+  },
+  smManualAddBtnText: {
+    fontFamily: typography.families.semibold,
+    fontSize: 16,
+    color: 'rgba(0,0,0,0.7)',
+  },
+  smManualWeightHint: {
+    color: colors.textSubtle,
+    fontFamily: typography.families.regular,
+    fontSize: typography.sizes.md,
+    marginBottom: spacing.md,
+  },
+  smManualWeightLabel: {
+    color: colors.muted,
+    fontFamily: typography.families.semibold,
+    fontSize: typography.sizes.xs,
+    marginTop: spacing.sm,
+  },
+  smManualWeightChoices: {
+    maxHeight: 52,
+    marginVertical: spacing.xs,
+  },
+  smManualWeightChoice: {
+    borderWidth: 1,
+    borderColor: colors.borderMid,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginRight: spacing.sm,
+  },
+  smManualWeightChoiceSelected: {
+    backgroundColor: colors.successLight,
+    borderColor: colors.success,
+  },
+  smManualWeightChoiceText: {
+    color: colors.textDark,
+    fontFamily: typography.families.regular,
+    fontSize: typography.sizes.sm,
+  },
+  smManualWeightBatchList: {
+    maxHeight: 180,
+    marginBottom: spacing.sm,
+  },
+  smManualWeightBatchSelected: {
+    backgroundColor: colors.successLight,
+  },
+  smManualWeightInput: {
+    ...darkThinInputText,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginVertical: spacing.sm,
+  },
+  smManualWeightActions: {
+    flexDirection: 'row' as const,
+    gap: spacing.md,
+    justifyContent: 'flex-end' as const,
   },
   smScanningText: {
     textAlign: 'center' as const,

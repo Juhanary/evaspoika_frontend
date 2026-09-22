@@ -3,7 +3,15 @@ import { colors } from '@/src/shared/constants/colors';
 import { spacing } from '@/src/shared/constants/spacing';
 import { typography } from '@/src/shared/constants/typography';
 import { radii } from '@/src/shared/constants/radii';
-import { base, button, text, container, input, glassActionSurface } from './styleFactory';
+import { base, button, text, container, input } from './styleFactory';
+import { s } from './scale';
+
+// Figma (Eväsmiehet 4, Frame 52): yläreunan pyöreä nappi on 79 dp ja sen
+// ikoni 48 dp 1024 dp:n kanvaasilla. Nappi käännetään laitteen leveydelle
+// s():llä ja ikoni lasketaan napin koosta, jotta suhde säilyy myös jos
+// nappia kasvatetaan tai kavennetaan.
+export const glassIconButtonSize = s(79);
+export const glassIconGlyphRatio = 48 / 79;
 
 // This file used to hold the whole shared style system in one place. It has
 // since been split into focused files (styleFactory.ts, screen.ts, dark.ts,
@@ -91,7 +99,10 @@ export const components = {
     ...buttonFactory({ variant: 'primary' }),
     { marginTop: spacing.md, padding: spacing.md + 2 },
   ] as ViewStyle[],
-  buttonGlassIcon: [glassActionSurface, { overflow: 'hidden' }] as ViewStyle[],
+  // Yläreunan pyöreät napit ovat GlassCardin päällä: sumennus tulee sieltä,
+  // täältä vain reunus ja tiivis padding. Reunus on kirkkaampi kuin korteissa,
+  // jotta nappi piirtyy irti taustakuvasta (Figma: Eväsmiehet 4, Frame 52).
+  buttonGlassIcon: [{ padding: 0, borderColor: 'rgba(255,255,255,0.35)' }] as ViewStyle[],
   buttonGlassNav: buttonFactory({ variant: 'nav' }),
 
   // Button text
@@ -271,7 +282,7 @@ export const components = {
 
   // AppHeader
   appHeader: [{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: 14, backgroundColor: 'transparent' }] as ViewStyle[],
-  appHeaderSide: [{ minWidth: 58, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingTop: 6 }] as ViewStyle[],
+  appHeaderSide: [{ minWidth: glassIconButtonSize, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingTop: 6 }] as ViewStyle[],
   appHeaderSideRight: [{ justifyContent: 'flex-end' }] as ViewStyle[],
   appHeaderCenter: [{ flex: 1, alignItems: 'center' }] as ViewStyle[],
   appHeaderLogo: [{ width: 120, height: 40 }] as ImageStyle[],

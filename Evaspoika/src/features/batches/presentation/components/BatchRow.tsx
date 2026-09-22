@@ -4,11 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/shared/constants/colors';
 import { components, screen } from '@/src/shared/styles/components';
 import { productStyles } from '@/src/shared/styles/products';
-import { EmptyState } from '@/src/shared/ui/EmptyState/EmptyState';
-import { formatDateFi, formatTimeFi } from '@/src/shared/utils/date';
-import { formatKg, formatKgLabel } from '@/src/shared/utils/weight';
-import { Batch, BatchBox } from '../../domain/types';
-import { useBatchBoxes } from '../hooks/useBatches';
+import { formatKg } from '@/src/shared/utils/weight';
+import { Batch } from '../../domain/types';
+import { BatchBoxList } from './BatchBoxList';
 
 const EXPIRY_WARNING_DAYS = 100;
 const EXPIRY_CRITICAL_DAYS = 50;
@@ -24,36 +22,13 @@ type BatchRowProps = {
   boxCount: number;
 };
 
-const packedLabel = (packedAt: string | null) => {
-  const date = formatDateFi(packedAt);
-  if (!date) return '—';
-  const time = formatTimeFi(packedAt);
-  return time ? `${date} ${time}` : date;
-};
-
-const BoxRow = ({ box, index }: { box: BatchBox; index: number }) => (
-  <View style={productStyles.invBoxRow}>
-    <Text style={productStyles.invBoxOrdinal}>{index + 1}.</Text>
-    <Text numberOfLines={1} style={productStyles.invBoxEan}>
-      {box.ean ?? 'ei tarraa'}
-    </Text>
-    <Text style={productStyles.invBoxPacked}>{packedLabel(box.packed_at)}</Text>
-    <Text style={productStyles.invBoxWeight}>{formatKgLabel(box.remaining_weight)}</Text>
-    {/* A partly consumed box: the label says one thing, the shelf another. */}
-    {box.remaining_weight !== box.weight ? (
-      <Text style={productStyles.invBoxOriginal}>tarrassa {formatKg(box.weight)} kg</Text>
-    ) : null}
-  </View>
-);
-
 /**
  * One batch inside the product dropdown. Tapping it opens the batch's boxes
- * with their weights — the only place in the app where an operator can see
- * what a single box weighs without scanning its label.
+ * with their weights — the same list the MUOKKAA ERIÄ screen opens, rendered by
+ * BatchBoxList.
  */
 export function BatchRow({ batch, boxCount }: BatchRowProps) {
   const [open, setOpen] = useState(false);
-  const { data: boxes, isLoading, error } = useBatchBoxes(batch.id, open);
 
   const daysLeft = batch.days_until_expiry ?? null;
   const expiring = daysLeft !== null && daysLeft <= EXPIRY_WARNING_DAYS;
@@ -96,24 +71,7 @@ export function BatchRow({ batch, boxCount }: BatchRowProps) {
         </Text>
       </Pressable>
 
-      {open ? (
-        <View style={productStyles.invBoxList}>
-          {isLoading ? (
-            <Text style={productStyles.invBoxHint}>Ladataan laatikoita...</Text>
-          ) : error ? (
-            <Text style={productStyles.invBoxError}>
-              Laatikoiden haku epäonnistui
-              {error instanceof Error ? `: ${error.message}` : ''}
-            </Text>
-          ) : (boxes ?? []).length === 0 ? (
-            <EmptyState message="Ei laatikoita hyllyllä." style={productStyles.invBoxHint} />
-          ) : (
-            (boxes ?? []).map((box, index) => (
-              <BoxRow box={box} index={index} key={box.id} />
-            ))
-          )}
-        </View>
-      ) : null}
+      {open ? <BatchBoxList batchId={batch.id} enabled={open} variant="light" /> : null}
     </View>
   );
 }

@@ -267,8 +267,9 @@ export default function SplitBoxScreen() {
 
   // Yksi ruksi oikeassa yläkulmassa hoitaa sekä poistumisen että perumisen:
   // ennen skannausta ei ole mitään perua, joten ruksi vain sulkee näytön.
-  // Skannauksen jälkeen sama ruksi perii jaon — käyttäjän ei tarvitse etsiä
-  // erillistä nappia sillä hetkellä kun laatikko odottaa punnitusta.
+  // Sama poistumisnappi kortin yläkulmassa perii jaon skannauksen jälkeen —
+  // käyttäjän ei tarvitse etsiä erillistä nappia sillä hetkellä kun laatikko
+  // odottaa punnitusta.
   const handleClose = () => {
     if (busy) return;
     if (!draft) {
@@ -295,10 +296,15 @@ export default function SplitBoxScreen() {
     );
   };
 
-  const closeAction = {
-    icon: 'close' as const,
-    onPress: handleClose,
-    accessibilityLabel: draft ? 'Peru jako' : 'Sulje',
+  // Poistuminen on kortin yläkulmassa TAKAISIN-napin paikalla, ei yläpalkissa:
+  // siellä ruksi oli logon vieressä globaalien nappien seassa, vaikka se koskee
+  // vain tätä näyttöä.
+  const layoutProps = {
+    backIcon: 'close' as const,
+    backLabel: draft ? 'PERU JAKO' : 'SULJE',
+    leftAction: 'back' as const,
+    onBack: handleClose,
+    title: 'JAA LAATIKKO',
   };
 
   const handleSave = () => {
@@ -414,7 +420,7 @@ export default function SplitBoxScreen() {
 
   if (loading) {
     return (
-      <ScreenLayout rightActions={[closeAction]} title="JAA LAATIKKO">
+      <ScreenLayout {...layoutProps}>
         <View style={styles.centered}>
           <ActivityIndicator color={colors.textOnDark} size="large" />
         </View>
@@ -425,7 +431,7 @@ export default function SplitBoxScreen() {
   // --- Vaihe 1: jakoa ei ole aloitettu -------------------------------------
   if (!draft || !balance) {
     return (
-      <ScreenLayout rightActions={[closeAction]} title="JAA LAATIKKO">
+      <ScreenLayout {...layoutProps}>
         {scanInput}
 
         <View style={styles.startBlock}>
@@ -468,7 +474,7 @@ export default function SplitBoxScreen() {
   // lainkaan — juuri silloin kun se olisi ollut tarpeen.
   if (!draft.scaleConfirmed) {
     return (
-      <ScreenLayout rightActions={[closeAction]} title="JAA LAATIKKO">
+      <ScreenLayout {...layoutProps}>
         <View style={styles.startBlock}>
           <View style={styles.stepBadge}>
             <Text style={styles.stepBadgeText}>2 / 4</Text>
@@ -508,7 +514,7 @@ export default function SplitBoxScreen() {
           : '';
 
   return (
-    <ScreenLayout rightActions={[closeAction]} title="JAA LAATIKKO">
+    <ScreenLayout {...layoutProps}>
       {scanInput}
 
       <View style={styles.originalCard}>

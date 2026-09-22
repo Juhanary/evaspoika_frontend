@@ -22,6 +22,12 @@ export const colors = {
   borderLight: '#F3F4F6',
   borderMid: '#D1D5DB',
   inputBorder: '#CCCCCC',
+  // Syöttökentän vihjeteksti. Ei tekstiväri vaan oma sävynsä: vihjeen on erotuttava
+  // kirjoitetusta arvosta myös varaston valaistuksessa.
+  inputPlaceholder: 'rgba(0,0,0,0.35)',
+  // Ikonit vaalealla pinnalla: rivin toissijainen toiminto ja korostettu nappi.
+  iconOnLight: 'rgba(0,0,0,0.45)',
+  iconOnLightStrong: 'rgba(0,0,0,0.7)',
 
   // Success (green)
   success: '#16A34A',

@@ -17,6 +17,18 @@ export type WeighingResult = {
 
 export type WeighingInput = {
   ean?: string;
+  /**
+   * Tuotteen tunniste. Vaaka tunnistaa tuotteen nimestä, mutta listasta valittu
+   * tuote lähetetään id:llä — nimihaku kaatuisi jos tuote on nimetty Netvisorissa
+   * uudelleen sen jälkeen kun tuotelista haettiin tabletille.
+   */
+  productId?: number;
+  /**
+   * Laatikolle ei tulosteta tarraa lainkaan, joten backend ei myöskään keksi sille
+   * EAN-koodia. Vaikuttaa vain kun `ean` on tyhjä. Tällainen laatikko ei ole
+   * skannattavissa: se lisätään tilaukselle käsin varastosta valitsemalla.
+   */
+  noEan?: boolean;
   name?: string;
   pricePerKg?: number;
   weightKg: number;

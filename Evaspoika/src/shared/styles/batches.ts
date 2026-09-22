@@ -8,10 +8,12 @@ import { glassActionSurface } from './styleFactory';
 // BatchListScreen styles.
 // ===========================================================================
 export const batchStyles = StyleSheet.create({
+  // Lasikortilla on padding: 0 ja 44 px:n kulmapyöristys, joten tämä otsikko on
+  // kortin ensimmäisenä lapsena aivan vasemmassa yläkulmassa ellei se tee itse tilaa.
   blColHeader: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 4,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
     fontSize: 30,
     color: '#E5E5E5',
     fontWeight: '500' as const,
@@ -151,5 +153,236 @@ export const batchStyles = StyleSheet.create({
     fontFamily: typography.families.semibold,
     fontSize: 17,
     color: 'rgba(0,0,0,0.82)',
+  },
+
+  // --- BatchListScreen: erän laatikot (tumma variantti) ---
+  blChevron: { marginRight: 8 },
+  blBoxList: {
+    paddingLeft: 34,
+    paddingRight: 16,
+    paddingBottom: spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  blBoxRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(229,229,229,0.28)',
+  },
+  blBoxOrdinal: {
+    minWidth: 28,
+    fontSize: 18,
+    fontFamily: typography.families.regular,
+    color: colors.textOnDarkMuted,
+    textAlign: 'right' as const,
+  },
+  blBoxEan: {
+    flex: 1,
+    fontSize: 22,
+    fontFamily: typography.families.semibold,
+    color: '#E5E5E5',
+  },
+  blBoxPacked: {
+    fontSize: 16,
+    fontFamily: typography.families.regular,
+    color: colors.textOnDarkMuted,
+  },
+  blBoxWeight: {
+    minWidth: 96,
+    fontSize: 22,
+    fontFamily: typography.families.semibold,
+    color: '#E5E5E5',
+    textAlign: 'right' as const,
+  },
+  blBoxOriginal: {
+    minWidth: 118,
+    fontSize: 14,
+    fontFamily: typography.families.regular,
+    color: colors.danger100pvonWhite,
+    textAlign: 'right' as const,
+  },
+  blBoxHint: {
+    paddingVertical: spacing.sm,
+    fontSize: 18,
+    fontFamily: typography.families.regular,
+    color: colors.textOnDarkMuted,
+  },
+  blBoxError: {
+    paddingVertical: spacing.sm,
+    fontSize: 18,
+    fontFamily: typography.families.regular,
+    color: colors.deletedText,
+  },
+  // Rivin napit ovat listan molemmissa varianteissa samankokoiset: kosketusalue on
+  // sama riippumatta siitä kummalla näytöllä lista on auki.
+  blBoxActionBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+
+  // --- Erätason painonkorjaus laatikkolistan alla ---
+  // Toissijainen ja nimetty: painoa muutetaan laatikoittain, mutta hävikkiin kirjattu
+  // laatikko ei ole enää listalla eikä sen painoa voi palauttaa laatikon kautta.
+  blBatchAdjRow: {
+    paddingHorizontal: 34,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  blBatchAdjText: {
+    fontFamily: typography.families.regular,
+    fontSize: 16,
+    color: colors.textOnDarkMuted,
+  },
+  blBatchAdjBtnRow: {
+    flexDirection: 'row' as const,
+    gap: spacing.sm,
+  },
+
+  // --- Laatikon poisto -modaali (jaettu molempien varianttien kesken) ---
+  blBoxDelOverlay: {
+    flex: 1,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    padding: spacing.xl,
+  },
+  blBoxDelCard: {
+    width: '100%',
+    maxWidth: 520,
+    backgroundColor: colors.white,
+    borderRadius: 28,
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  blBoxDelTitle: {
+    fontFamily: typography.families.semibold,
+    fontSize: 22,
+    color: colors.textDark,
+  },
+  blBoxDelDetail: {
+    fontFamily: typography.families.regular,
+    fontSize: 17,
+    color: colors.textSubtle,
+  },
+  blBoxDelWarning: {
+    fontFamily: typography.families.regular,
+    fontSize: 15,
+    color: colors.warning,
+  },
+  blBoxDelInput: {
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontFamily: typography.families.regular,
+    fontSize: 18,
+    color: colors.textDark,
+  },
+  blBoxDelBtnRow: {
+    flexDirection: 'row' as const,
+    gap: spacing.md,
+    marginTop: spacing.xs,
+  },
+  blBoxDelCancelBtn: {
+    flex: 1,
+    borderRadius: 50,
+    paddingVertical: 13,
+    alignItems: 'center' as const,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.18)',
+  },
+  blBoxDelCancelBtnText: {
+    fontFamily: typography.families.regular,
+    fontSize: 17,
+    color: 'rgba(0,0,0,0.6)',
+  },
+  blBoxDelConfirmBtn: {
+    flex: 1,
+    borderRadius: 50,
+    paddingVertical: 13,
+    alignItems: 'center' as const,
+    backgroundColor: colors.deleteRed,
+  },
+  blBoxDelConfirmBtnText: {
+    fontFamily: typography.families.semibold,
+    fontSize: 17,
+    color: colors.white,
+  },
+  // Painon muutos ei ole tuhoava toimenpide, joten se ei käytä poiston punaista.
+  blBoxSaveBtn: {
+    flex: 1,
+    borderRadius: 50,
+    paddingVertical: 13,
+    alignItems: 'center' as const,
+    backgroundColor: colors.actionGreen,
+  },
+  blBoxSaveBtnText: {
+    fontFamily: typography.families.semibold,
+    fontSize: 17,
+    color: 'rgba(0,0,0,0.82)',
+  },
+
+  // --- AddBatchModal: erän lisäys ilman vaakaa ---
+  // Kuori (smShell, smPanel, smTableRow…) tulee orderStyles-tiedostosta, jotta
+  // modaali näyttää samalta kuin LISÄÄ LAATIKOITA sen vieressä. Vain tämän
+  // modaalin omat kentät ovat täällä.
+  abmSelectText: {
+    flex: 1,
+    fontFamily: typography.families.semibold,
+    fontSize: 18,
+    color: 'rgba(0,0,0,0.82)',
+  },
+  abmSelectPlaceholder: { color: 'rgba(0,0,0,0.42)' },
+  abmOrdinalCell: {
+    width: 28,
+    fontFamily: typography.families.regular,
+    fontSize: 16,
+    color: 'rgba(0,0,0,0.46)',
+  },
+  abmEanInput: {
+    flex: 1,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.sm,
+    fontFamily: typography.families.regular,
+    fontSize: 16,
+    color: 'rgba(0,0,0,0.82)',
+  },
+  abmAddBoxBtn: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderStyle: 'dashed' as const,
+    borderColor: 'rgba(0,0,0,0.22)',
+  },
+  abmAddBoxBtnText: {
+    fontFamily: typography.families.semibold,
+    fontSize: 17,
+    color: 'rgba(0,0,0,0.7)',
+  },
+  abmHint: {
+    fontFamily: typography.families.regular,
+    fontSize: 14,
+    color: 'rgba(0,0,0,0.5)',
+    paddingTop: spacing.xs,
+  },
+  abmPickerScroll: { maxHeight: 320 },
+  // Huomautus joka muuttaa sen mitä nappi tekee — ei sama asia kuin ohjeteksti.
+  abmNotice: {
+    fontFamily: typography.families.semibold,
+    fontSize: 15,
+    color: colors.warning,
+    paddingBottom: spacing.sm,
   },
 });

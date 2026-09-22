@@ -18,9 +18,23 @@ export type Order = {
   CustomerId?: number | null;
   netvisor_invoice_id?: string | null;
   netvisor_status?: string | null;
+  manual_composition_required?: boolean;
   deleted_at?: string | null;
   deleted_by_user_id?: number | null;
   created_by?: string | null;
+};
+
+export type NetvisorOrderLinePreview = {
+  productName: string | null;
+  productNetvisorKey: string | null;
+  quantityGrams: number;
+  quantityKg: number;
+  batchNumber: string | null;
+};
+
+export type NetvisorOrderLinesResponse = {
+  orderId: number;
+  lines: NetvisorOrderLinePreview[];
 };
 
 export type CreateOrderInput = {

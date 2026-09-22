@@ -1,6 +1,10 @@
 import { apiRequest } from '@/src/infrastructure/api/client';
 import { endpoints } from '@/src/infrastructure/api/endpoints';
-import { CreateOrderInput, Order } from '../domain/types';
+import {
+  CreateOrderInput,
+  NetvisorOrderLinesResponse,
+  Order,
+} from '../domain/types';
 
 export function fetchOrders() {
   return apiRequest<Order[]>(endpoints.orders);
@@ -12,6 +16,17 @@ export function fetchClosedOrders() {
 
 export function fetchOrder(id: number) {
   return apiRequest<Order>(`${endpoints.orders}/${id}`);
+}
+
+export function fetchNetvisorOrderLines(id: number) {
+  return apiRequest<NetvisorOrderLinesResponse>(`${endpoints.orders}/${id}/netvisor-lines`);
+}
+
+export function completeManualOrderComposition(id: number) {
+  return apiRequest<{ netvisorKey: string; status: string; manual_composition_required: false }>(
+    `${endpoints.orders}/${id}/complete-composition`,
+    { method: 'POST', auth: 'netvisorWrite' },
+  );
 }
 
 export function createOrder(input: CreateOrderInput) {

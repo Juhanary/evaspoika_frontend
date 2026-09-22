@@ -25,6 +25,7 @@ import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useBatches } from '@/src/features/batches/presentation/hooks/useBatches';
 import { Batch } from '@/src/features/batches/domain/types';
+import { AddBatchModal } from '@/src/features/batches/presentation/components/AddBatchModal';
 import { BatchRow } from '@/src/features/batches/presentation/components/BatchRow';
 import { useBatchEvents } from '@/src/features/batchEvents/presentation/hooks/useBatchEvents';
 import { parseBoxEan } from '@/src/features/boxes/infrastructure/boxesApi';
@@ -137,6 +138,7 @@ export default function ProductListScreen() {
   const [favExpandedId, setFavExpandedId] = useState<number | null>(null);
   const [catExpandedId, setCatExpandedId] = useState<number | null>(null);
   const [showAddBoxesModal, setShowAddBoxesModal] = useState(false);
+  const [showAddBatchModal, setShowAddBatchModal] = useState(false);
   const [showHiddenModal, setShowHiddenModal] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [dropdownY, setDropdownY] = useState(200);
@@ -597,11 +599,18 @@ export default function ProductListScreen() {
               variant="dark"
             />
             <Pressable
-              accessibilityLabel="Jaa laatikko"
-              onPress={() => router.push(routes.splitBox)}
+              accessibilityLabel="Lisää laatikoita"
+              onPress={() => setShowAddBoxesModal(true)}
               style={({ pressed }) => [productStyles.filterBtn, pressed && screen.pressed]}
             >
-              <Ionicons color="rgba(0,0,0,0.65)" name="cut-outline" size={22} />
+              <Ionicons color="rgba(0,0,0,0.65)" name="add-circle-outline" size={22} />
+            </Pressable>
+            <Pressable
+              accessibilityLabel="Lisää erä"
+              onPress={() => setShowAddBatchModal(true)}
+              style={({ pressed }) => [productStyles.filterBtn, pressed && screen.pressed]}
+            >
+              <Ionicons color="rgba(0,0,0,0.65)" name="layers-outline" size={22} />
             </Pressable>
             <View ref={filterBtnRef}>
               <Pressable
@@ -681,11 +690,11 @@ export default function ProductListScreen() {
             ))}
             <View style={productStyles.filterDropdownDivider} />
             <Pressable
-              onPress={() => { setShowAddBoxesModal(true); setShowFilterDropdown(false); }}
+              onPress={() => { setShowFilterDropdown(false); router.push(routes.splitBox); }}
               style={productStyles.filterDropdownItem}
             >
-              <Ionicons color="rgba(0,0,0,0.65)" name="add-circle-outline" size={18} />
-              <Text style={productStyles.filterDropdownItemText}>Lisää laatikoita</Text>
+              <Ionicons color="rgba(0,0,0,0.65)" name="cut-outline" size={18} />
+              <Text style={productStyles.filterDropdownItemText}>Jaa laatikko</Text>
             </Pressable>
             <Pressable
               onPress={() => { setShowHiddenModal(true); setShowFilterDropdown(false); }}
@@ -702,6 +711,10 @@ export default function ProductListScreen() {
 
       <AppModal animationType="fade" visible={showAddBoxesModal}>
         <AddBoxesModal onClose={() => setShowAddBoxesModal(false)} products={products ?? []} />
+      </AppModal>
+
+      <AppModal animationType="fade" visible={showAddBatchModal}>
+        <AddBatchModal onClose={() => setShowAddBatchModal(false)} products={products ?? []} />
       </AppModal>
 
       <AppModal

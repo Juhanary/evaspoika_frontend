@@ -4,7 +4,14 @@ import { endpoints } from '@/src/infrastructure/api/endpoints';
 export type BoxLookup = {
   id: number;
   ean: string;
+  /** Tarran paino. Ei muutu vaikka laatikosta olisi syöty osa — tarraa ei tulosteta uudelleen. */
   weight_kg: number;
+  /**
+   * Mitä laatikossa on nyt jäljellä. Tämä on se mitä asiakkaalle lähtee, joten
+   * tilausrivin paino lasketaan tästä. Eroaa tarrasta kun laatikko on syöty osittain
+   * (Netvisorin kilomyynti tai käsin tehty painonkorjaus).
+   */
+  remaining_weight_kg: number;
   BatchId: number;
   batch_number: string;
   ProductId: number;
@@ -95,5 +102,52 @@ export function splitBox(boxId: number, newBoxIds: number[]) {
   return apiRequest<SplitBoxResult>(`${endpoints.boxes}/${boxId}/split`, {
     method: 'POST',
     body: JSON.stringify({ newBoxIds }),
+  });
+}
+
+export type AdjustBoxWeightResult = {
+  id: number;
+  ean: string | null;
+  BatchId: number;
+  /** Muutos grammoina, etumerkki mukana. */
+  delta: number;
+  weight: number;
+  remaining_weight: number;
+  status: string | null;
+  batch_current_weight: number;
+};
+
+// Yhden laatikon painon korjaus grammoina, etumerkillä.
+//
+// Erän painon korjaus (PUT /batches/:id) kohdistuu erään: lisätty paino valuu
+// uusimpaan laatikkoon ja vähennetty syö vanhinta, joten työntekijä ei tiedä mihin
+// korjaus osui. Tämä osuu siihen laatikkoon joka on käsissä, ja backend siirtää erän
+// painon perässä samassa transaktiossa. Syy on pakollinen ja päätyy tapahtumalokiin.
+export function adjustBoxWeight(boxId: number, delta: number, reason: string) {
+  return apiRequest<AdjustBoxWeightResult>(`${endpoints.boxes}/${boxId}/weight`, {
+    method: 'PATCH',
+    body: JSON.stringify({ delta, reason }),
+  });
+}
+
+export type DeleteBoxResult = {
+  id: number;
+  ean: string | null;
+  BatchId: number;
+  /** Erästä vähennetty paino — laatikon jäljellä ollut paino, ei tarran paino. */
+  removed_grams: number;
+  batch_current_weight: number;
+};
+
+// Yksittäinen laatikko pois hyllyltä: kadonnut, pilaantunut tai väärin kirjattu.
+//
+// Backend merkitsee laatikon hävikiksi ja vähentää sen painon erästä samassa
+// transaktiossa — erän painoa ei siis korjata erikseen tämän jälkeen. Laatikko ei
+// katoa kannasta, joten tarra löytyy yhä jäljityksestä. Syy on pakollinen ja päätyy
+// erän tapahtumalokiin.
+export function deleteBox(boxId: number, reason: string) {
+  return apiRequest<DeleteBoxResult>(`${endpoints.boxes}/${boxId}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ reason }),
   });
 }

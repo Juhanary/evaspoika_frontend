@@ -176,7 +176,11 @@ export default function OrderScreen() {
             ItemSeparatorComponent={() => <View style={screen.rowDivider} />}
             renderItem={({ item }) => (
               <Pressable
-                style={({ pressed }) => [screen.listRow, pressed && screen.pressed]}
+                style={({ pressed }) => [
+                  screen.listRow,
+                  item.order.manual_composition_required && orderStyles.netvisorPendingRow,
+                  pressed && screen.pressed,
+                ]}
                 onPress={() => router.push(routes.orderDetail(item.order.id))}
               >
                 <View style={screen.listRowContent}>
@@ -209,6 +213,11 @@ export default function OrderScreen() {
                     <Text style={orderStyles.statusWarningText}>
                       Ei Netvisorissa koska ei vielä tilausrivejä
                     </Text>
+                  ) : null}
+                  {item.order.manual_composition_required ? (
+                    <View style={orderStyles.netvisorPendingBadge}>
+                      <Text style={orderStyles.netvisorPendingBadgeText}>KOOSTETTAVA</Text>
+                    </View>
                   ) : null}
                 </View>
               </Pressable>

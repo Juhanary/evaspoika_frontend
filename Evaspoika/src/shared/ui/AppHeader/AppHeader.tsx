@@ -18,7 +18,6 @@ export type AppHeaderAction = {
 export type AppHeaderSearch = {
   value: string;
   onChangeText: (text: string) => void;
-  onfocus?: () => void; 
   placeholder?: string;
 };
 
@@ -46,7 +45,6 @@ export function AppHeader({
           <Button
             accessibilityLabel={leftAction.accessibilityLabel}
             icon={leftAction.icon}
-            iconSize={26}
             onPress={leftAction.onPress}
             variant="glassIcon"
           />
@@ -89,7 +87,6 @@ export function AppHeader({
             accessibilityLabel={action.accessibilityLabel}
             icon={action.icon}
             iconColor={action.iconColor}
-            iconSize={26}
             onPress={action.onPress}
             variant="glassIcon"
           />

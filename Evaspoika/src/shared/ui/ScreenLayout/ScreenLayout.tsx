@@ -41,9 +41,9 @@ type Props = {
   title?: string;
   leftAction?: ScreenLayoutLeftAction;
   onBack?: () => void;
-  rightActions?: AppHeaderAction[];
+  backIcon?: React.ComponentProps<typeof Ionicons>['name'];
+  backLabel?: string;
   headerSearch?: AppHeaderSearch;
-  showInventoryAction?: boolean;
   wrapInCard?: boolean;
   cardStyle?: StyleProp<ViewStyle>;
   children: React.ReactNode;
@@ -58,9 +58,9 @@ export function ScreenLayout({
   title,
   leftAction = 'home',
   onBack,
-  rightActions = [],
+  backIcon = 'arrow-back',
+  backLabel = 'TAKAISIN',
   headerSearch,
-  showInventoryAction = true,
   wrapInCard = true,
   cardStyle,
   children,
@@ -115,6 +115,23 @@ export function ScreenLayout({
 
   const inlineSearch = wrapInCard ? headerSearch : undefined;
 
+  // Kortin yläkulman poistumisnappi. Oletuksena TAKAISIN, mutta näyttö voi
+  // vaihtaa ikonin ja tekstin — esim. jaon peruminen on oma ruksinsa. Paikka on
+  // silti tämä eikä yläpalkki, jossa se sekoittuisi globaaleihin nappeihin.
+  const backButton =
+    leftAction === 'back' ? (
+      <Pressable
+        accessibilityLabel={backLabel}
+        accessibilityRole="button"
+        hitSlop={8}
+        onPress={onBack ?? goBackOrHome}
+        style={components.screenBackBtn}
+      >
+        <Ionicons color="rgba(255,255,255,0.7)" name={backIcon} size={20} />
+        <Text style={components.screenBackBtnText}>{backLabel}</Text>
+      </Pressable>
+    ) : null;
+
   const headerLeftAction: AppHeaderAction | null =
     leftAction !== 'none'
       ? {
@@ -124,22 +141,19 @@ export function ScreenLayout({
         }
       : null;
 
-  const headerRightActions: AppHeaderAction[] = showInventoryAction
-    ? [
-        ...rightActions,
-        {
-          icon: notif.hasUnread ? 'notifications' : 'notifications-outline',
-          iconColor: notif.hasUnread ? colors.warning : undefined,
-          onPress: () => setShowNotifications(true),
-          accessibilityLabel: 'Ilmoitukset',
-        },
-        {
-          icon: 'server-outline',
-          onPress: () => setShowInventory(true),
-          accessibilityLabel: 'Varastosaldo',
-        },
-      ]
-    : rightActions;
+  const headerRightActions: AppHeaderAction[] = [
+    {
+      icon: notif.hasUnread ? 'notifications' : 'notifications-outline',
+      iconColor: notif.hasUnread ? colors.warning : undefined,
+      onPress: () => setShowNotifications(true),
+      accessibilityLabel: 'Ilmoitukset',
+    },
+    {
+      icon: 'server-outline',
+      onPress: () => setShowInventory(true),
+      accessibilityLabel: 'Varastosaldo',
+    },
+  ];
 
   return (
     <ImageBackground cachePolicy="memory-disk" contentFit="cover" source={BG} style={dark.screen}>
@@ -183,18 +197,7 @@ export function ScreenLayout({
       <View style={[components.screenContent, { paddingBottom: insets.bottom }]}>
         {wrapInCard ? (
           <GlassCard blurRadius={18} style={[components.screenCard, cardStyle]}>
-            {leftAction === 'back' ? (
-              <Pressable
-                accessibilityLabel="Takaisin"
-                accessibilityRole="button"
-                hitSlop={8}
-                onPress={onBack ?? goBackOrHome}
-                style={components.screenBackBtn}
-              >
-                <Ionicons color="rgba(255,255,255,0.7)" name="arrow-back" size={20} />
-                <Text style={components.screenBackBtnText}>TAKAISIN</Text>
-              </Pressable>
-            ) : null}
+            {backButton}
             {inlineSearch ? (
               <View style={components.screenInlineSearch}>
                 <SearchInput
@@ -210,18 +213,7 @@ export function ScreenLayout({
           </GlassCard>
         ) : (
           <View style={components.screenPlain}>
-            {leftAction === 'back' ? (
-              <Pressable
-                accessibilityLabel="Takaisin"
-                accessibilityRole="button"
-                hitSlop={8}
-                onPress={onBack ?? goBackOrHome}
-                style={components.screenBackBtn}
-              >
-                <Ionicons color="rgba(255,255,255,0.7)" name="arrow-back" size={20} />
-                <Text style={components.screenBackBtnText}>TAKAISIN</Text>
-              </Pressable>
-            ) : null}
+            {backButton}
             {children}
           </View>
         )}

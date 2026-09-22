@@ -10,7 +10,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/shared/constants/colors';
-import { components, glassActionSurface } from '@/src/shared/styles/components';
+import {
+  components,
+  glassActionSurface,
+  glassIconButtonSize,
+  glassIconGlyphRatio,
+} from '@/src/shared/styles/components';
+import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 
 type ButtonVariant = 'primary' | 'glass' | 'glassIcon' | 'glassNav' | 'cancel';
 
@@ -51,7 +57,7 @@ export function Button({
   label,
   icon,
   variant = 'primary',
-  size = 58,
+  size = glassIconButtonSize,
   disabled = false,
   style,
   contentStyle,
@@ -74,8 +80,6 @@ export function Button({
         return components.buttonPrimary;
       case 'glass':
         return [glassActionSurface];
-      case 'glassIcon':
-        return [{ backgroundColor: colors.darkCard, borderRadius: size / 2, width: size, height: size }];
       case 'glassNav':
         return components.buttonGlassNav;
       case 'cancel':
@@ -111,7 +115,7 @@ export function Button({
   const getDefaultIconSize = () => {
     switch (variant) {
       case 'glassIcon':
-        return 48;
+        return Math.round(size * glassIconGlyphRatio);
       default:
         return iconSize;
     }
@@ -145,6 +149,28 @@ export function Button({
     }
   };
 
+  const content = (
+    <>
+      {icon ? (
+        <Ionicons
+          color={iconColor ?? getDefaultIconColor()}
+          name={icon}
+          size={iconSize ?? getDefaultIconSize()}
+        />
+      ) : null}
+      {hasVisibleLabel ? (
+        <Text
+          adjustsFontSizeToFit={labelAdjustsFontSizeToFit}
+          minimumFontScale={labelMinimumFontScale}
+          numberOfLines={labelNumberOfLines}
+          style={[getDefaultLabelStyle(), labelStyle]}
+        >
+          {label}
+        </Text>
+      ) : null}
+    </>
+  );
+
   return (
     <Pressable
       accessibilityLabel={accessibilityLabel ?? label}
@@ -167,25 +193,26 @@ export function Button({
         ];
       }}
     >
-      <View style={[components.actionButtonContent, getDefaultContentStyle(), contentStyle]}>
-        {icon ? (
-          <Ionicons
-            color={iconColor ?? getDefaultIconColor()}
-            name={icon}
-            size={iconSize ?? getDefaultIconSize()}
-          />
-        ) : null}
-        {hasVisibleLabel ? (
-          <Text
-            adjustsFontSizeToFit={labelAdjustsFontSizeToFit}
-            minimumFontScale={labelMinimumFontScale}
-            numberOfLines={labelNumberOfLines}
-            style={[getDefaultLabelStyle(), labelStyle]}
-          >
-            {label}
-          </Text>
-        ) : null}
-      </View>
+      {variant === 'glassIcon' ? (
+        // Pelkällä läpikuultavalla täytöllä taustakuva kuulsi napin läpi ja nappi
+        // näytti haalealta. Sumennettu tausta tekee siitä umpinaisen lasilevyn
+        // kuten Figmassa (Eväsmiehet 4, Frame 52).
+        <GlassCard
+          blurRadius={18}
+          style={[
+            components.actionButtonContent,
+            components.buttonGlassIcon,
+            { width: size, height: size, borderRadius: size / 2 },
+            contentStyle,
+          ]}
+        >
+          {content}
+        </GlassCard>
+      ) : (
+        <View style={[components.actionButtonContent, getDefaultContentStyle(), contentStyle]}>
+          {content}
+        </View>
+      )}
     </Pressable>
   );
 }

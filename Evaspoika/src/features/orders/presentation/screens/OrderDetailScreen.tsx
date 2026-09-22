@@ -10,13 +10,17 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
 import { Button } from '@/src/shared/ui/Button/ActionButton';
 import { GlassCard } from '@/src/shared/ui/GlassCard/GlassCard';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
-import { useOrder } from '../hooks/useOrders';
+import { useNetvisorOrderLines, useOrder } from '../hooks/useOrders';
+import {
+  completeManualOrderComposition,
+} from '../../infrastructure/ordersApi';
+import { ManualBoxPicker, type ManualBoxSelection } from '../components/ManualBoxPicker';
 import { fetchOrderLines, createOrderLine, deleteOrderLine } from '@/src/features/orderLines/infrastructure/orderLinesApi';
 import { fetchBoxByEan } from '@/src/features/boxes/infrastructure/boxesApi';
 import { OrderLine } from '@/src/features/orderLines/domain/types';
@@ -29,6 +33,7 @@ import { formatDateFi } from '@/src/shared/utils/date';
 import { ApiError } from '@/src/infrastructure/api/error';
 import { components, screen } from '@/src/shared/styles/components';
 import { orderStyles } from '@/src/shared/styles/orders';
+import type { NetvisorOrderLinePreview } from '../../domain/types';
 
 type Props = { orderId?: number };
 
@@ -40,7 +45,14 @@ type BoxLineState = {
   boxId: number | null;
   productId: number | null;
   productName: string;
+  /** Rivin paino kiloina. Esitäyttyy siitä mitä laatikossa on jäljellä, ei tarrasta. */
   weightKg: string;
+  /**
+   * Tarran paino kiloina silloin kun se eroaa jäljellä olevasta — osittain syöty
+   * laatikko. Näytetään rivillä, jottei esitäytön ja tarran ero jää huomaamatta.
+   * null kun tarra vastaa sisältöä tai laatikolla ei ole tarraa.
+   */
+  labelWeightKg: number | null;
   weightEdited: boolean;
   selectedBatchId: number | null;
   selectedBatchNumber: string | null;
@@ -71,11 +83,20 @@ type ProductLineGroup = {
   batches: ProductBatchSummary[];
 };
 
+type ManualWeightState = {
+  productId: number | null;
+  batchId: number | null;
+  weightKg: string;
+};
+
 
 
 export default function OrderDetailScreen({ orderId }: Props) {
   const queryClient = useQueryClient();
   const { data: order, isLoading, error } = useOrder(orderId);
+  const isManualComposition = order?.manual_composition_required === true;
+  const { data: netvisorLines, isLoading: netvisorLinesLoading, error: netvisorLinesError } =
+    useNetvisorOrderLines(orderId, isManualComposition);
   const { data: orderLines } = useQuery({
     queryKey: ['orderLines', orderId],
     queryFn: () => fetchOrderLines(orderId!),
@@ -89,12 +110,44 @@ export default function OrderDetailScreen({ orderId }: Props) {
   const [eanInput, setEanInput] = useState('');
   const [scannedBoxes, setScannedBoxes] = useState<BoxLineState[]>([]);
   const [batchPickerFor, setBatchPickerFor] = useState<string | null>(null);
+  const [showManualPicker, setShowManualPicker] = useState(false);
+  const [showManualWeight, setShowManualWeight] = useState(false);
+  const [manualWeight, setManualWeight] = useState<ManualWeightState>({
+    productId: null,
+    batchId: null,
+    weightKg: '',
+  });
   const [saving, setSaving] = useState(false);
   const [deletingLineId, setDeletingLineId] = useState<number | null>(null);
   const eanRef = useRef<TextInput>(null);
   const eanValueRef = useRef('');
   const nextScannedRowId = useRef(1);
   const scanLockRef = useRef(false);
+
+  const completeCompositionMutation = useMutation({
+    mutationFn: () => completeManualOrderComposition(orderId!),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['orders'] }),
+        queryClient.invalidateQueries({ queryKey: ['orders', orderId] }),
+        queryClient.invalidateQueries({ queryKey: ['orderLines', orderId] }),
+      ]);
+      Alert.alert('Koostumus lähetetty', 'Tilaus on päivitetty Netvisoriin.');
+    },
+    onError: (compositionError) => {
+      const message = compositionError instanceof ApiError
+        ? String((compositionError.payload as Record<string, unknown> | null)?.details ??
+            (compositionError.payload as Record<string, unknown> | null)?.error ??
+            compositionError.message)
+        : compositionError instanceof Error
+          ? compositionError.message
+          : 'Netvisor-päivitys epäonnistui';
+      Alert.alert(
+        'Koosteen lähetys epäonnistui',
+        `${message}\n\nKoostetta ei tyhjennetty. Tarkista yhteys ja yritä uudelleen.`,
+      );
+    },
+  });
 
   const customerName = useMemo(() => {
     if (!order || !customers) return null;
@@ -160,6 +213,51 @@ export default function OrderDetailScreen({ orderId }: Props) {
       );
   }, [activeLines]);
 
+  const netvisorLineProgress = useMemo(() => {
+    const localByBatch = new Map<string, number>();
+    activeLines.forEach((line) => {
+      const batchNumber = line.Batch?.batch_number;
+      if (batchNumber) {
+        localByBatch.set(
+          batchNumber,
+          (localByBatch.get(batchNumber) ?? 0) + Number(line.sold_weight || 0),
+        );
+      }
+    });
+
+    const grouped = new Map<string, NetvisorOrderLinePreview>();
+    (netvisorLines?.lines ?? []).forEach((line) => {
+      const key = `${line.productNetvisorKey ?? line.productName ?? 'product'}|${line.batchNumber ?? 'no-batch'}`;
+      const previous = grouped.get(key);
+      grouped.set(key, previous
+        ? { ...previous, quantityGrams: previous.quantityGrams + line.quantityGrams, quantityKg: (previous.quantityGrams + line.quantityGrams) / 1000 }
+        : { ...line });
+    });
+
+    return [...grouped.values()].map((line) => ({
+      line,
+      addedGrams: line.batchNumber ? localByBatch.get(line.batchNumber) ?? 0 : 0,
+    }));
+  }, [activeLines, netvisorLines]);
+
+  const manualBatchOptions = useMemo(
+    () => (batches ?? [])
+      .filter((batch) =>
+        !batch.deleted_at &&
+        (batch.current_weight ?? 0) > 0 &&
+        (manualWeight.productId == null || batch.ProductId === manualWeight.productId),
+      )
+      .map((batch) => {
+        const product = (products ?? []).find((item) => item.id === batch.ProductId);
+        return {
+          batch,
+          productName: product?.name ?? 'Tuntematon tuote',
+          pricePerKg: product?.price_per_kg ?? 0,
+        };
+      }),
+    [batches, manualWeight.productId, products],
+  );
+
   const batchPickerRow = useMemo(
     () => scannedBoxes.find((box) => box.id === batchPickerFor) ?? null,
     [batchPickerFor, scannedBoxes],
@@ -204,6 +302,14 @@ export default function OrderDetailScreen({ orderId }: Props) {
       });
   }, [batchPickerRow, batches, products]);
 
+  // Listalla jo olevat laatikot. Sama lista kelpaa sekä skannauksen poissulkuun että
+  // käsivalinnan suodatukseen; muistissa siksi, ettei käsivalitsin suodata laatikoitaan
+  // uudelleen joka näppäinpainalluksella ja joka erälistan pollauksella.
+  const listedBoxIds = useMemo(
+    () => scannedBoxes.map((row) => row.boxId).filter((id): id is number => id != null),
+    [scannedBoxes],
+  );
+
   const scanTotalWeight = useMemo(
     () =>
       scannedBoxes.reduce((sum, box) => {
@@ -229,12 +335,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
       // Jo listalla olevat pois hausta, jotta samanpainoisista laatikoista saadaan
       // seuraava vapaa eikä aina samaa riviä. Backend kertoo 409:llä jos koodin
       // kaikki laatikot ovat jo listalla.
-      const box = await fetchBoxByEan(
-        normalizedEan,
-        scannedBoxes
-          .map((scanned) => scanned.boxId)
-          .filter((id): id is number => id != null),
-      );
+      const box = await fetchBoxByEan(normalizedEan, listedBoxIds);
 
       // Varmistus sen varalta että backend palauttaisi silti jo listalla olevan rivin.
       if (scannedBoxes.some((scanned) => scanned.boxId === box.id)) {
@@ -267,7 +368,12 @@ export default function OrderDetailScreen({ orderId }: Props) {
           boxId: box.id,
           productId: resolvedProductId,
           productName: resolvedProductName,
-          weightKg: box.weight_kg.toFixed(3),
+          // Paino siitä mitä laatikossa on jäljellä, ei tarrasta: osittain syödystä
+          // laatikosta lähtee asiakkaalle vain jäännös, ja tarran paino laskuttaisi
+          // lihaa jota laatikossa ei ole. Tarran paino jää riville näkyviin.
+          weightKg: box.remaining_weight_kg.toFixed(3),
+          labelWeightKg:
+            box.remaining_weight_kg !== box.weight_kg ? box.weight_kg : null,
           weightEdited: false,
           // When the product was overridden the old batch belongs to the wrong product,
           // so clear it and let the user pick a batch from the correct product.
@@ -287,6 +393,29 @@ export default function OrderDetailScreen({ orderId }: Props) {
       scanLockRef.current = false;
       setTimeout(() => eanRef.current?.focus(), 50);
     }
+  };
+
+  // Varastosta käsin valittu laatikko tuottaa saman rivin kuin skannaus: paino tulee
+  // siitä mitä laatikossa on jäljellä, ja erä on tiedossa suoraan, joten riville ei
+  // jää valittavaa. Tarraton laatikko ei tule koskaan lukijan kautta.
+  const handleManualSelect = ({ box, batch, product }: ManualBoxSelection) => {
+    setScannedBoxes((previous) => [
+      ...previous,
+      {
+        id: String(nextScannedRowId.current++),
+        ean: box.ean ?? '',
+        boxId: box.id,
+        productId: product?.id ?? batch.ProductId ?? null,
+        productName: product?.name ?? 'Tuntematon',
+        weightKg: (box.remaining_weight / 1000).toFixed(3),
+        labelWeightKg:
+          box.ean && box.remaining_weight !== box.weight ? box.weight / 1000 : null,
+        weightEdited: false,
+        selectedBatchId: batch.id,
+        selectedBatchNumber: batch.batch_number,
+        pricePerKg: product?.price_per_kg ?? 0,
+      },
+    ]);
   };
 
   const handleSelectBatch = (option: BatchPickerOption) => {
@@ -317,6 +446,63 @@ export default function OrderDetailScreen({ orderId }: Props) {
     if (batchPickerFor === rowId) {
       setBatchPickerFor(null);
     }
+  };
+
+  const resetManualWeight = () => {
+    setManualWeight({ productId: null, batchId: null, weightKg: '' });
+    setShowManualWeight(false);
+  };
+
+  const handleAddManualWeight = () => {
+    const grams = parseWeightToGrams(manualWeight.weightKg);
+    const batch = (batches ?? []).find((item) => item.id === manualWeight.batchId);
+    const product = batch ? (products ?? []).find((item) => item.id === batch.ProductId) : null;
+
+    if (!batch || !product) {
+      Alert.alert('Erä puuttuu', 'Valitse tuote ja erä.');
+      return;
+    }
+    if (!Number.isFinite(grams) || grams <= 0) {
+      Alert.alert('Virheellinen paino', 'Syötä lisättävä paino.');
+      return;
+    }
+
+    setScannedBoxes((previous) => [
+      ...previous,
+      {
+        id: String(nextScannedRowId.current++),
+        ean: '',
+        boxId: null,
+        productId: product.id,
+        productName: product.name,
+        weightKg: (grams / 1000).toFixed(3),
+        labelWeightKg: null,
+        weightEdited: true,
+        selectedBatchId: batch.id,
+        selectedBatchNumber: batch.batch_number,
+        pricePerKg: product.price_per_kg ?? 0,
+      },
+    ]);
+    resetManualWeight();
+  };
+
+  const handleCompleteComposition = () => {
+    if (activeLines.length === 0) {
+      Alert.alert('Koostumus puuttuu', 'Lisää tilaukselle vähintään yksi rivi.');
+      return;
+    }
+
+    Alert.alert(
+      'Viimeistele koostumus',
+      'Netvisorin alkuperäiset rivit korvataan tällä koostella. Jatketaanko?',
+      [
+        { text: 'Peruuta', style: 'cancel' },
+        {
+          text: 'Lähetä Netvisoriin',
+          onPress: () => completeCompositionMutation.mutate(),
+        },
+      ],
+    );
   };
 
   const handleSave = async () => {
@@ -496,6 +682,52 @@ export default function OrderDetailScreen({ orderId }: Props) {
           {dateLabel ? <Text style={orderStyles.odDateText}>{dateLabel}</Text> : null}
         </View>
 
+        {isManualComposition ? (
+          <View style={orderStyles.odNetvisorCard}>
+            <View style={orderStyles.odNetvisorHeader}>
+              <View style={orderStyles.odNetvisorHeaderText}>
+                <Text style={orderStyles.odNetvisorTitle}>NETVISORIN TILAUS</Text>
+                <Text style={orderStyles.odNetvisorHint}>
+                  Lisää alla näkyvät tuotteet ja erät skannaamalla tai käsin.
+                </Text>
+              </View>
+              <View style={orderStyles.netvisorPendingBadge}>
+                <Text style={orderStyles.netvisorPendingBadgeText}>KOOSTETTAVA</Text>
+              </View>
+            </View>
+
+            {netvisorLinesLoading ? (
+              <Text style={orderStyles.odNetvisorMuted}>Haetaan Netvisorin rivejä...</Text>
+            ) : netvisorLinesError ? (
+              <Text style={orderStyles.odNetvisorError}>
+                Netvisorin rivejä ei voitu hakea. Yritä päivittää näkymä.
+              </Text>
+            ) : netvisorLineProgress.length === 0 ? (
+              <Text style={orderStyles.odNetvisorMuted}>Netvisorissa ei ole näytettäviä rivejä.</Text>
+            ) : (
+              netvisorLineProgress.map(({ line, addedGrams }, index) => (
+                <View key={`${line.productNetvisorKey ?? line.productName ?? 'line'}-${index}`} style={orderStyles.odNetvisorLine}>
+                  <View style={orderStyles.odNetvisorLineMain}>
+                    <Text style={orderStyles.odNetvisorProduct}>
+                      {line.productName ?? 'Tuote'}
+                    </Text>
+                    <Text style={orderStyles.odNetvisorBatch}>
+                      Erä {line.batchNumber ?? 'ei ilmoitettu'}
+                    </Text>
+                  </View>
+                  <Text style={orderStyles.odNetvisorWeight}>
+                    {formatKg(addedGrams)} / {formatKg(line.quantityGrams)} kg
+                  </Text>
+                </View>
+              ))
+            )}
+
+            <Text style={orderStyles.odNetvisorFooterText}>
+              Koostetta ei lähetetä ennen kuin painat “Koostumus valmis”.
+            </Text>
+          </View>
+        ) : null}
+
         {groupedLines.length === 0 ? (
           <Text style={orderStyles.odTableEmptyText}>Ei tilausrivejä vielä.</Text>
         ) : (
@@ -551,6 +783,23 @@ export default function OrderDetailScreen({ orderId }: Props) {
           <Text style={orderStyles.odVirtualScanBtnText}>SKANNAA</Text>
         </Pressable>
 
+        {isManualComposition ? (
+          <Pressable
+            disabled={activeLines.length === 0 || completeCompositionMutation.isPending}
+            onPress={handleCompleteComposition}
+            style={({ pressed }) => [
+              orderStyles.odCompleteCompositionBtn,
+              (activeLines.length === 0 || completeCompositionMutation.isPending) &&
+                orderStyles.odCompleteCompositionBtnDisabled,
+              pressed && screen.pressed,
+            ]}
+          >
+            <Text style={orderStyles.odCompleteCompositionText}>
+              {completeCompositionMutation.isPending ? 'LÄHETETÄÄN...' : 'KOOSTUMUS VALMIS'}
+            </Text>
+          </Pressable>
+        ) : null}
+
       </ScrollView>
 
 
@@ -581,7 +830,10 @@ export default function OrderDetailScreen({ orderId }: Props) {
                 caretHidden
                 keyboardType="numeric"
                 onBlur={() => {
-                  if (batchPickerFor === null && !saving) {
+                  // Jokainen päällä avautuva modaali on lueteltava tässä: ilman sitä
+                  // kenttä vetää fokuksen takaisin 80 ms:n päästä, ja modaalin omaan
+                  // hakukenttään kirjoitetut merkit valuvat piilotettuun EAN-kenttään.
+                  if (batchPickerFor === null && !showManualPicker && !saving) {
                     setTimeout(() => eanRef.current?.focus(), 80);
                   }
                 }}
@@ -601,6 +853,26 @@ export default function OrderDetailScreen({ orderId }: Props) {
                 <Text style={orderStyles.smScanStatusBarText}>ALOITA SKANNAAMINEN</Text>
               </Pressable>
 
+              <Pressable
+                accessibilityLabel="Lisää laatikko varastosta ilman skannausta"
+                disabled={saving}
+                onPress={() => setShowManualPicker(true)}
+                style={orderStyles.smManualAddBtn}
+              >
+                <Ionicons color={colors.iconOnLightStrong} name="cube-outline" size={20} />
+                <Text style={orderStyles.smManualAddBtnText}>LISÄÄ LAATIKKO VARASTOSTA</Text>
+              </Pressable>
+
+              <Pressable
+                accessibilityLabel="Lisää paino ilman laatikon tunnistetta"
+                disabled={saving}
+                onPress={() => setShowManualWeight(true)}
+                style={orderStyles.smManualAddBtn}
+              >
+                <Ionicons color={colors.iconOnLightStrong} name="create-outline" size={20} />
+                <Text style={orderStyles.smManualAddBtnText}>LISÄÄ PAINO KÄSIN</Text>
+              </Pressable>
+
               <View style={orderStyles.smTableHeader}>
                 <View style={orderStyles.smDeleteCell} />
                 <Text style={[orderStyles.smTableHeaderText, orderStyles.smProductCell]}>
@@ -617,7 +889,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
                 keyExtractor={(item) => item.id}
                 ListEmptyComponent={
                   <Text style={orderStyles.smScanEmpty}>
-                    Skannaa viivakoodeja, valitse erä jokaiselle riville ja tarkista painot.
+                    Skannaa laatikoita tai lisää paino käsin. Tarkista erä ja paino ennen tallennusta.
                   </Text>
                 }
                 renderItem={({ item }) => (
@@ -632,12 +904,20 @@ export default function OrderDetailScreen({ orderId }: Props) {
                       <Ionicons color="rgba(0,0,0,0.54)" name="close" size={22} />
                     </TouchableOpacity>
 
-                    <Text
-                      numberOfLines={1}
-                      style={[orderStyles.smTableRowText, orderStyles.smProductCell]}
-                    >
-                      {item.productName}
-                    </Text>
+                    <View style={orderStyles.smProductCell}>
+                      <Text numberOfLines={1} style={orderStyles.smTableRowText}>
+                        {item.productName}
+                      </Text>
+                      {/* Osittain syöty laatikko: tarra lupaa enemmän kuin laatikossa on.
+                          Rivin paino on jäännös, joten ero on kerrottava — muuten
+                          työntekijä luulee esitäytön olevan väärä ja korjaa sen tarran
+                          mukaiseksi. */}
+                      {item.labelWeightKg != null ? (
+                        <Text style={orderStyles.smRowNote}>
+                          tarrassa {item.labelWeightKg.toFixed(3)} kg
+                        </Text>
+                      ) : null}
+                    </View>
 
                     <TouchableOpacity
                       accessibilityRole="button"
@@ -696,6 +976,84 @@ export default function OrderDetailScreen({ orderId }: Props) {
             </View>
           </GlassCard>
           </View>
+
+        <ManualBoxPicker
+          batches={batches ?? []}
+          excludeBoxIds={listedBoxIds}
+          onClose={() => setShowManualPicker(false)}
+          onSelect={handleManualSelect}
+          products={products ?? []}
+          visible={showManualPicker}
+        />
+
+        <AppModal
+          animationType="slide"
+          onClose={resetManualWeight}
+          visible={showManualWeight}
+        >
+          <View style={components.modalOverlay}>
+            <View style={components.modalCard}>
+              <Text style={components.modalTitle}>Lisää paino käsin</Text>
+              <Text style={orderStyles.smManualWeightHint}>
+                Käytä tätä, jos laatikon tarra ei ole luettavissa. Paino vähennetään valitusta erästä ilman laatikkoliitosta.
+              </Text>
+
+              <Text style={orderStyles.smManualWeightLabel}>TUOTE</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={orderStyles.smManualWeightChoices}>
+                {(products ?? []).filter((product) => !product.deleted_at).map((product) => (
+                  <TouchableOpacity
+                    key={product.id}
+                    onPress={() => setManualWeight({ productId: product.id, batchId: null, weightKg: manualWeight.weightKg })}
+                    style={[
+                      orderStyles.smManualWeightChoice,
+                      manualWeight.productId === product.id && orderStyles.smManualWeightChoiceSelected,
+                    ]}
+                  >
+                    <Text style={orderStyles.smManualWeightChoiceText}>{product.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <Text style={orderStyles.smManualWeightLabel}>ERÄ</Text>
+              <ScrollView style={orderStyles.smManualWeightBatchList} showsVerticalScrollIndicator={false}>
+                {manualBatchOptions.map(({ batch, productName }) => (
+                  <TouchableOpacity
+                    key={batch.id}
+                    onPress={() => setManualWeight((previous) => ({ ...previous, batchId: batch.id }))}
+                    style={[
+                      components.modalRow,
+                      manualWeight.batchId === batch.id && orderStyles.smManualWeightBatchSelected,
+                    ]}
+                  >
+                    <Text style={components.modalRowText}>{batch.batch_number}</Text>
+                    <Text style={components.modalRowSubText}>
+                      {productName} / {formatKg(batch.current_weight)} kg jäljellä
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <TextInput
+                keyboardType="decimal-pad"
+                onChangeText={(weightKg) => setManualWeight((previous) => ({ ...previous, weightKg }))}
+                placeholder="Paino kiloina"
+                placeholderTextColor={colors.inputPlaceholder}
+                selectTextOnFocus
+                style={orderStyles.smManualWeightInput}
+                value={manualWeight.weightKg}
+              />
+              <View style={orderStyles.smManualWeightActions}>
+                <Button label="Peruuta" onPress={resetManualWeight} variant="cancel" />
+                <Button
+                  disabled={!manualWeight.batchId || !manualWeight.weightKg}
+                  label="Lisää paino"
+                  onPress={handleAddManualWeight}
+                  variant="primary"
+                />
+              </View>
+            </View>
+          </View>
+        </AppModal>
 
         <AppModal
           animationType="slide"

@@ -13,6 +13,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { fetchBatch, updateBatch, deleteBatch } from '../../infrastructure/batchesApi';
 import { Batch } from '../../domain/types';
+import { BatchBoxList } from '../components/BatchBoxList';
 import { useBatches } from '../hooks/useBatches';
 import { useProducts } from '@/src/features/products/presentation/hooks/useProducts';
 import { colors } from '@/src/shared/constants/colors';
@@ -49,6 +50,10 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
   const { data: batches, isLoading: batchesLoading, error: batchesError } = useBatches();
   const { data: products, isLoading: productsLoading, error: productsError } = useProducts();
   const [productQuery, setProductQuery] = useState('');
+
+  // Avoinna oleva erä: vain yksi kerrallaan, jotta laatikkolistoja ei jää
+  // pollaamaan taustalle sitä mukaa kun eriä avataan (useBatchBoxes hakee 10 s välein).
+  const [expandedBatchId, setExpandedBatchId] = useState<number | null>(null);
 
   const [adjusting, setAdjusting] = useState<AdjustState>(null);
   const [adjKg, setAdjKg] = useState('');
@@ -261,44 +266,91 @@ export default function BatchListScreen({ productId }: BatchListScreenProps) {
                   const dateLabel = toFinnishDate(item.production_date) ?? item.batch_number;
                   const daysLeft = item.days_until_expiry ?? null;
                   const expiring = daysLeft !== null && daysLeft <= 100;
+                  const isOpen = expandedBatchId === item.id;
 
                   return (
-                    <View style={batchStyles.blRow}>
-                      <Text style={batchStyles.blDateText}>{dateLabel}</Text>
-                      {expiring ? (
+                    <View>
+                      <Pressable
+                        accessibilityLabel={`Erä ${dateLabel}, näytä laatikot`}
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: isOpen }}
+                        onPress={() =>
+                          setExpandedBatchId((prev) => (prev === item.id ? null : item.id))
+                        }
+                        style={({ pressed }) => [batchStyles.blRow, pressed && screen.pressed]}
+                      >
                         <Ionicons
-                          color={daysLeft <= 50 ? colors.danger50pvonWhite : colors.danger100pvonWhite}
-                          name="warning-outline"
-                          size={50}
-                          style={batchStyles.blWarnIcon}
+                          color={colors.textOnDark}
+                          name={isOpen ? 'chevron-down' : 'chevron-forward'}
+                          size={22}
+                          style={batchStyles.blChevron}
                         />
+                        <Text style={batchStyles.blDateText}>{dateLabel}</Text>
+                        {expiring ? (
+                          <Ionicons
+                            color={daysLeft <= 50 ? colors.danger50pvonWhite : colors.danger100pvonWhite}
+                            name="warning-outline"
+                            size={50}
+                            style={batchStyles.blWarnIcon}
+                          />
+                        ) : null}
+                        {/* Painoa lisätään ja vähennetään laatikoittain rivin sisältä:
+                            erätason korjaus ei kertonut mihin laatikkoon muutos osui.
+                            Koko erän poisto jää tänne. */}
+                        <View style={batchStyles.blBtnGroup}>
+                          <TouchableOpacity
+                            accessibilityLabel="Poista erä"
+                            onPress={() => handleDelete(item)}
+                            style={batchStyles.blAdjBtn}
+                          >
+                            <Ionicons color={colors.textOnDark} name="trash-outline" size={26} />
+                          </TouchableOpacity>
+                        </View>
+                        <Text style={batchStyles.blWeightText}>
+                          {formatKg(item.current_weight)} kg
+                        </Text>
+                      </Pressable>
+
+                      {isOpen ? (
+                        <>
+                          <BatchBoxList
+                            batchId={item.id}
+                            editable
+                            enabled={isOpen}
+                            variant="dark"
+                          />
+
+                          {/* Erätason korjaus laatikkolistan alla, toissijaisena ja
+                              nimettynä. Sitä tarvitaan kahteen tilanteeseen joihin
+                              laatikkokohtainen muutos ei yllä: erä jolla on painoa
+                              mutta ei laatikoita (vanhaa dataa, saldon ajautumista),
+                              ja hävikkiin kirjattu laatikko — se ei ole enää listalla,
+                              ja backend palauttaa sen vain erälle lisätyllä painolla. */}
+                          <View style={batchStyles.blBatchAdjRow}>
+                            <Text style={batchStyles.blBatchAdjText}>
+                              {item.box_count === 0
+                                ? 'Ei laatikoita hyllyllä. Korjaa koko erän painoa:'
+                                : 'Koko erän paino (esim. poistetun laatikon palautus):'}
+                            </Text>
+                            <View style={batchStyles.blBatchAdjBtnRow}>
+                              <TouchableOpacity
+                                accessibilityLabel="Lisää painoa erälle"
+                                onPress={() => openAdjust(item.id, 'add')}
+                                style={batchStyles.blAdjBtn}
+                              >
+                                <Ionicons color={colors.textOnDark} name="add" size={26} />
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                accessibilityLabel="Vähennä painoa erältä"
+                                onPress={() => openAdjust(item.id, 'sub')}
+                                style={batchStyles.blAdjBtn}
+                              >
+                                <Ionicons color={colors.textOnDark} name="remove" size={26} />
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        </>
                       ) : null}
-                      <View style={batchStyles.blBtnGroup}>
-                        <TouchableOpacity
-                          accessibilityLabel="Poista erä"
-                          onPress={() => handleDelete(item)}
-                          style={batchStyles.blAdjBtn}
-                        >
-                          <Ionicons color={colors.textOnDark} name="trash-outline" size={26} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          accessibilityLabel="Lisää painoa"
-                          onPress={() => openAdjust(item.id, 'add')}
-                          style={batchStyles.blAdjBtn}
-                        >
-                          <Ionicons color={colors.textOnDark} name="add" size={26} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          accessibilityLabel="Vähennä painoa"
-                          onPress={() => openAdjust(item.id, 'sub')}
-                          style={batchStyles.blAdjBtn}
-                        >
-                          <Ionicons color={colors.textOnDark} name="remove" size={26} />
-                        </TouchableOpacity>
-                      </View>
-                      <Text style={batchStyles.blWeightText}>
-                        {formatKg(item.current_weight)} kg
-                      </Text>
                     </View>
                   );
                 }}

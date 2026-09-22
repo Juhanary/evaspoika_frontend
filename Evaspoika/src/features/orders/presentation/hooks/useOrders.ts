@@ -1,5 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchOrder, fetchClosedOrders, fetchOrders } from '../../infrastructure/ordersApi';
+import {
+  fetchNetvisorOrderLines,
+  fetchOrder,
+  fetchClosedOrders,
+  fetchOrders,
+} from '../../infrastructure/ordersApi';
 
 export function useOrders() {
   return useQuery({
@@ -20,5 +25,13 @@ export function useOrder(orderId?: number) {
     queryKey: ['orders', orderId ?? null],
     queryFn: () => fetchOrder(orderId as number),
     enabled: typeof orderId === 'number',
+  });
+}
+
+export function useNetvisorOrderLines(orderId?: number, enabled = true) {
+  return useQuery({
+    queryKey: ['orders', orderId ?? null, 'netvisor-lines'],
+    queryFn: () => fetchNetvisorOrderLines(orderId as number),
+    enabled: enabled && typeof orderId === 'number',
   });
 }
