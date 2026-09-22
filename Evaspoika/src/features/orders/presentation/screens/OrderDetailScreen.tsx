@@ -83,14 +83,6 @@ type ProductLineGroup = {
   batches: ProductBatchSummary[];
 };
 
-type ManualWeightState = {
-  productId: number | null;
-  batchId: number | null;
-  weightKg: string;
-};
-
-
-
 export default function OrderDetailScreen({ orderId }: Props) {
   const queryClient = useQueryClient();
   const { data: order, isLoading, error } = useOrder(orderId);
@@ -111,12 +103,6 @@ export default function OrderDetailScreen({ orderId }: Props) {
   const [scannedBoxes, setScannedBoxes] = useState<BoxLineState[]>([]);
   const [batchPickerFor, setBatchPickerFor] = useState<string | null>(null);
   const [showManualPicker, setShowManualPicker] = useState(false);
-  const [showManualWeight, setShowManualWeight] = useState(false);
-  const [manualWeight, setManualWeight] = useState<ManualWeightState>({
-    productId: null,
-    batchId: null,
-    weightKg: '',
-  });
   const [saving, setSaving] = useState(false);
   const [deletingLineId, setDeletingLineId] = useState<number | null>(null);
   const eanRef = useRef<TextInput>(null);
@@ -239,24 +225,6 @@ export default function OrderDetailScreen({ orderId }: Props) {
       addedGrams: line.batchNumber ? localByBatch.get(line.batchNumber) ?? 0 : 0,
     }));
   }, [activeLines, netvisorLines]);
-
-  const manualBatchOptions = useMemo(
-    () => (batches ?? [])
-      .filter((batch) =>
-        !batch.deleted_at &&
-        (batch.current_weight ?? 0) > 0 &&
-        (manualWeight.productId == null || batch.ProductId === manualWeight.productId),
-      )
-      .map((batch) => {
-        const product = (products ?? []).find((item) => item.id === batch.ProductId);
-        return {
-          batch,
-          productName: product?.name ?? 'Tuntematon tuote',
-          pricePerKg: product?.price_per_kg ?? 0,
-        };
-      }),
-    [batches, manualWeight.productId, products],
-  );
 
   const batchPickerRow = useMemo(
     () => scannedBoxes.find((box) => box.id === batchPickerFor) ?? null,
@@ -446,44 +414,6 @@ export default function OrderDetailScreen({ orderId }: Props) {
     if (batchPickerFor === rowId) {
       setBatchPickerFor(null);
     }
-  };
-
-  const resetManualWeight = () => {
-    setManualWeight({ productId: null, batchId: null, weightKg: '' });
-    setShowManualWeight(false);
-  };
-
-  const handleAddManualWeight = () => {
-    const grams = parseWeightToGrams(manualWeight.weightKg);
-    const batch = (batches ?? []).find((item) => item.id === manualWeight.batchId);
-    const product = batch ? (products ?? []).find((item) => item.id === batch.ProductId) : null;
-
-    if (!batch || !product) {
-      Alert.alert('Erä puuttuu', 'Valitse tuote ja erä.');
-      return;
-    }
-    if (!Number.isFinite(grams) || grams <= 0) {
-      Alert.alert('Virheellinen paino', 'Syötä lisättävä paino.');
-      return;
-    }
-
-    setScannedBoxes((previous) => [
-      ...previous,
-      {
-        id: String(nextScannedRowId.current++),
-        ean: '',
-        boxId: null,
-        productId: product.id,
-        productName: product.name,
-        weightKg: (grams / 1000).toFixed(3),
-        labelWeightKg: null,
-        weightEdited: true,
-        selectedBatchId: batch.id,
-        selectedBatchNumber: batch.batch_number,
-        pricePerKg: product.price_per_kg ?? 0,
-      },
-    ]);
-    resetManualWeight();
   };
 
   const handleCompleteComposition = () => {
@@ -780,7 +710,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
           onPress={() => setShowScanModal(true)}
           style={({ pressed }) => [orderStyles.odSkannaaBtn, pressed && screen.pressed]}
         >
-          <Text style={orderStyles.odVirtualScanBtnText}>SKANNAA</Text>
+          <Text style={orderStyles.odVirtualScanBtnText}>LISÄÄ LAATIKKO</Text>
         </Pressable>
 
         {isManualComposition ? (
@@ -863,16 +793,6 @@ export default function OrderDetailScreen({ orderId }: Props) {
                 <Text style={orderStyles.smManualAddBtnText}>LISÄÄ LAATIKKO VARASTOSTA</Text>
               </Pressable>
 
-              <Pressable
-                accessibilityLabel="Lisää paino ilman laatikon tunnistetta"
-                disabled={saving}
-                onPress={() => setShowManualWeight(true)}
-                style={orderStyles.smManualAddBtn}
-              >
-                <Ionicons color={colors.iconOnLightStrong} name="create-outline" size={20} />
-                <Text style={orderStyles.smManualAddBtnText}>LISÄÄ PAINO KÄSIN</Text>
-              </Pressable>
-
               <View style={orderStyles.smTableHeader}>
                 <View style={orderStyles.smDeleteCell} />
                 <Text style={[orderStyles.smTableHeaderText, orderStyles.smProductCell]}>
@@ -889,7 +809,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
                 keyExtractor={(item) => item.id}
                 ListEmptyComponent={
                   <Text style={orderStyles.smScanEmpty}>
-                    Skannaa laatikoita tai lisää paino käsin. Tarkista erä ja paino ennen tallennusta.
+                    Skannaa laatikoita tai valitse laatikko varastosta. Tarkista erä ja paino ennen tallennusta.
                   </Text>
                 }
                 renderItem={({ item }) => (
@@ -985,75 +905,6 @@ export default function OrderDetailScreen({ orderId }: Props) {
           products={products ?? []}
           visible={showManualPicker}
         />
-
-        <AppModal
-          animationType="slide"
-          onClose={resetManualWeight}
-          visible={showManualWeight}
-        >
-          <View style={components.modalOverlay}>
-            <View style={components.modalCard}>
-              <Text style={components.modalTitle}>Lisää paino käsin</Text>
-              <Text style={orderStyles.smManualWeightHint}>
-                Käytä tätä, jos laatikon tarra ei ole luettavissa. Paino vähennetään valitusta erästä ilman laatikkoliitosta.
-              </Text>
-
-              <Text style={orderStyles.smManualWeightLabel}>TUOTE</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={orderStyles.smManualWeightChoices}>
-                {(products ?? []).filter((product) => !product.deleted_at).map((product) => (
-                  <TouchableOpacity
-                    key={product.id}
-                    onPress={() => setManualWeight({ productId: product.id, batchId: null, weightKg: manualWeight.weightKg })}
-                    style={[
-                      orderStyles.smManualWeightChoice,
-                      manualWeight.productId === product.id && orderStyles.smManualWeightChoiceSelected,
-                    ]}
-                  >
-                    <Text style={orderStyles.smManualWeightChoiceText}>{product.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              <Text style={orderStyles.smManualWeightLabel}>ERÄ</Text>
-              <ScrollView style={orderStyles.smManualWeightBatchList} showsVerticalScrollIndicator={false}>
-                {manualBatchOptions.map(({ batch, productName }) => (
-                  <TouchableOpacity
-                    key={batch.id}
-                    onPress={() => setManualWeight((previous) => ({ ...previous, batchId: batch.id }))}
-                    style={[
-                      components.modalRow,
-                      manualWeight.batchId === batch.id && orderStyles.smManualWeightBatchSelected,
-                    ]}
-                  >
-                    <Text style={components.modalRowText}>{batch.batch_number}</Text>
-                    <Text style={components.modalRowSubText}>
-                      {productName} / {formatKg(batch.current_weight)} kg jäljellä
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              <TextInput
-                keyboardType="decimal-pad"
-                onChangeText={(weightKg) => setManualWeight((previous) => ({ ...previous, weightKg }))}
-                placeholder="Paino kiloina"
-                placeholderTextColor={colors.inputPlaceholder}
-                selectTextOnFocus
-                style={orderStyles.smManualWeightInput}
-                value={manualWeight.weightKg}
-              />
-              <View style={orderStyles.smManualWeightActions}>
-                <Button label="Peruuta" onPress={resetManualWeight} variant="cancel" />
-                <Button
-                  disabled={!manualWeight.batchId || !manualWeight.weightKg}
-                  label="Lisää paino"
-                  onPress={handleAddManualWeight}
-                  variant="primary"
-                />
-              </View>
-            </View>
-          </View>
-        </AppModal>
 
         <AppModal
           animationType="slide"

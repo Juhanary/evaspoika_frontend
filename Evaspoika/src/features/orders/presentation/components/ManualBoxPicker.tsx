@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Batch, BatchBox } from '@/src/features/batches/domain/types';
 import { useBatchBoxes } from '@/src/features/batches/presentation/hooks/useBatches';
 import { Product } from '@/src/features/products/domain/types';
@@ -104,9 +105,32 @@ export function ManualBoxPicker({
     <AppModal animationType="slide" onClose={close} visible={visible}>
       <View style={components.modalOverlay}>
         <View style={components.modalCard}>
-          <Text style={components.modalTitle}>
-            {selected ? `Valitse laatikko — ${selected.productName}` : 'Valitse erä'}
-          </Text>
+          <View style={orderStyles.manualBoxPickerHeader}>
+            {selected ? (
+              <Pressable
+                accessibilityLabel="Takaisin erälistaan"
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => setSelected(null)}
+                style={orderStyles.manualBoxPickerBack}
+              >
+                <Ionicons color={colors.iconOnLightStrong} name="arrow-back" size={22} />
+                <Text style={orderStyles.manualBoxPickerBackText}>Takaisin</Text>
+              </Pressable>
+            ) : <View style={orderStyles.manualBoxPickerHeaderSpacer} />}
+            <Text numberOfLines={1} style={components.modalTitle}>
+              {selected ? `Valitse laatikko — ${selected.productName}` : 'Valitse erä'}
+            </Text>
+            <Pressable
+              accessibilityLabel="Sulje laatikon valinta"
+              accessibilityRole="button"
+              hitSlop={10}
+              onPress={close}
+              style={orderStyles.manualBoxPickerClose}
+            >
+              <Ionicons color={colors.iconOnLightStrong} name="close" size={24} />
+            </Pressable>
+          </View>
 
           {selected ? (
             isLoading ? (

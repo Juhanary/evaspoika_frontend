@@ -33,7 +33,7 @@ import { submitWeighing } from '@/src/features/weighing/infrastructure/weighingA
 import { routes } from '@/src/shared/navigation/routes';
 import { colors } from '@/src/shared/constants/colors';
 import { components, screen } from '@/src/shared/styles/components';
-import { orderStyles, productStyles } from '@/src/shared/styles/orders';
+import { batchStyles, orderStyles, productStyles } from '@/src/shared/styles/orders';
 import { AppModal } from '@/src/shared/ui/AppModal/AppModal';
 import { Button } from '@/src/shared/ui/Button/ActionButton';
 import { EmptyState } from '@/src/shared/ui/EmptyState/EmptyState';
@@ -605,13 +605,6 @@ export default function ProductListScreen() {
             >
               <Ionicons color="rgba(0,0,0,0.65)" name="add-circle-outline" size={22} />
             </Pressable>
-            <Pressable
-              accessibilityLabel="Lisää erä"
-              onPress={() => setShowAddBatchModal(true)}
-              style={({ pressed }) => [productStyles.filterBtn, pressed && screen.pressed]}
-            >
-              <Ionicons color="rgba(0,0,0,0.65)" name="layers-outline" size={22} />
-            </Pressable>
             <View ref={filterBtnRef}>
               <Pressable
                 accessibilityLabel="Suodata tuotteita"
@@ -689,6 +682,13 @@ export default function ProductListScreen() {
               </Pressable>
             ))}
             <View style={productStyles.filterDropdownDivider} />
+            <Pressable
+              onPress={() => { setShowAddBatchModal(true); setShowFilterDropdown(false); }}
+              style={productStyles.filterDropdownItem}
+            >
+              <Ionicons color="rgba(0,0,0,0.65)" name="layers-outline" size={18} />
+              <Text style={productStyles.filterDropdownItemText}>Luo erä</Text>
+            </Pressable>
             <Pressable
               onPress={() => { setShowFilterDropdown(false); router.push(routes.splitBox); }}
               style={productStyles.filterDropdownItem}
@@ -978,6 +978,7 @@ const AddBoxesModal = ({
   products: Product[];
 }) => {
   const queryClient = useQueryClient();
+  const { data: batches } = useBatches();
   const [eanInput, setEanInput] = useState('');
   const [dateInput, setDateInput] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -1079,6 +1080,73 @@ const AddBoxesModal = ({
     }
   };
 
+  const addManualBox = () => {
+    const id = String(nextId.current++);
+    setPendingBoxes((prev) => [
+      ...prev,
+      {
+        id,
+        ean: '',
+        productId: null,
+        productName: '',
+        weightKg: 0,
+      },
+    ]);
+    setTimeout(() => setProductPickerFor(id), 0);
+  };
+
+  const savePendingBoxes = async (
+    productionDate: Date,
+    bestBefore: Date | null,
+  ) => {
+    setSaving(true);
+
+    // Sent one at a time, not with Promise.all: every box in a session normally
+    // shares (product, production_date), so parallel requests contend for the
+    // same row. Successful rows are dropped as they go, so retrying only sends
+    // what actually failed.
+    const failed: PendingBox[] = [];
+    let saved = 0;
+    let firstError: unknown = null;
+
+    for (const box of pendingBoxes) {
+      try {
+        await submitWeighing({
+          ...(box.ean ? { ean: box.ean } : { noEan: true }),
+          ...(box.productId ? { productId: box.productId } : {}),
+          ...(box.productName ? { name: box.productName } : {}),
+          weightKg: box.weightKg,
+          productionDate: formatDateIso(productionDate),
+          bestBefore: bestBefore ? formatDateIso(bestBefore) : undefined,
+        });
+        saved += 1;
+      } catch (err) {
+        failed.push(box);
+        firstError ??= err;
+      }
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ['batches'] });
+    await queryClient.invalidateQueries({ queryKey: ['batchEvents'] });
+
+    setPendingBoxes(failed);
+    setSaving(false);
+
+    if (failed.length === 0) {
+      setEanInput('');
+      onClose();
+      Alert.alert('Tallennettu', `${saved} laatikkoa lisätty järjestelmään.`);
+      return;
+    }
+
+    const detail = firstError instanceof Error ? `\n\n${firstError.message}` : '';
+    Alert.alert(
+      'Osa laatikoista jäi tallentamatta',
+      `${saved} laatikkoa tallennettiin, ${failed.length} epäonnistui. ` +
+        `Epäonnistuneet jäivät listalle — voit yrittää niitä uudelleen.${detail}`,
+    );
+  };
+
   const handleSave = async () => {
     if (!dateInput.trim()) {
       Alert.alert('Päivämäärä puuttuu', 'Kirjoita boksin päivämäärä ennen tallentamista.');
@@ -1124,55 +1192,34 @@ const AddBoxesModal = ({
       }
     }
 
-    setSaving(true);
+    const missingBatch = pendingBoxes.find((box) =>
+      box.productId != null &&
+      !(batches ?? []).some((batch) =>
+        !batch.deleted_at &&
+        batch.ProductId === box.productId &&
+        batch.production_date === formatDateIso(productionDate),
+      ),
+    );
 
-    // Sent one at a time, not with Promise.all: every box in a session normally
-    // shares (product, production_date), so parallel requests contend for the
-    // same row. A rejected Promise.all also left the successful writes in place
-    // with every row still on screen, so retrying re-sent — and double-counted —
-    // the boxes that had already landed. Successful rows are dropped as they go,
-    // so a retry only re-sends what actually failed.
-    const failed: PendingBox[] = [];
-    let saved = 0;
-    let firstError: unknown = null;
-
-    for (const box of pendingBoxes) {
-      try {
-        await submitWeighing({
-          ean: box.ean,
-          name: box.productName,
-          weightKg: box.weightKg,
-          productionDate: formatDateIso(productionDate),
-          bestBefore: bestBefore ? formatDateIso(bestBefore) : undefined,
-        });
-        saved += 1;
-      } catch (err) {
-        failed.push(box);
-        firstError ??= err;
-      }
-    }
-
-    await queryClient.invalidateQueries({ queryKey: ['batches'] });
-    // Prefix match: invalidates every batchEvents query (this screen's,
-    // ScreenLayout's inventory modal, per-batch logs), not one specific key.
-    await queryClient.invalidateQueries({ queryKey: ['batchEvents'] });
-
-    setPendingBoxes(failed);
-    setSaving(false);
-
-    if (failed.length === 0) {
-      setEanInput('');
-      onClose();
-      Alert.alert('Tallennettu', `${saved} laatikkoa lisätty järjestelmään.`);
+    if (missingBatch) {
+      Alert.alert(
+        'Erää ei löydy',
+        `Tuotteelle ${missingBatch.productName} ei ole erää päivälle ${dateInput.trim()}. ` +
+          'Haluatko tehdä tälle laatikolle uuden erän?',
+        [
+          { text: 'Peruuta', style: 'cancel' },
+          {
+            text: 'Tee uusi erä',
+            onPress: () => {
+              void savePendingBoxes(productionDate, bestBefore);
+            },
+          },
+        ],
+      );
       return;
     }
 
-    const detail = firstError instanceof Error ? `\n\n${firstError.message}` : '';
-    Alert.alert(
-      'Osa laatikoista jäi tallentamatta',
-      `${saved} laatikkoa tallennettiin, ${failed.length} epäonnistui. ` +
-        `Epäonnistuneet jäivät listalle — voit yrittää niitä uudelleen.${detail}`,
-    );
+    await savePendingBoxes(productionDate, bestBefore);
   };
 
   const totalWeightGrams = pendingBoxes.reduce((sum, b) => sum + Math.round(b.weightKg * 1000), 0);
@@ -1274,6 +1321,16 @@ const AddBoxesModal = ({
             </Text>
           </Pressable>
 
+          <Pressable
+            accessibilityLabel="Lisää laatikko manuaalisesti"
+            disabled={saving}
+            onPress={addManualBox}
+            style={batchStyles.abmAddBoxBtn}
+          >
+            <Ionicons color={colors.iconOnLightStrong} name="create-outline" size={22} />
+            <Text style={batchStyles.abmAddBoxBtnText}>LISÄÄ MANUAALISESTI</Text>
+          </Pressable>
+
           <View style={orderStyles.smTableHeader}>
             <View style={orderStyles.smDeleteCell} />
             <Text style={[orderStyles.smTableHeaderText, orderStyles.smProductCell]}>TUOTE</Text>
@@ -1315,9 +1372,21 @@ const AddBoxesModal = ({
                   </Text>
                   <Ionicons color="rgba(0,0,0,0.7)" name="chevron-down" size={14} />
                 </TouchableOpacity>
-                <Text style={[orderStyles.smTableRowText, orderStyles.smWeightCell]}>
-                  {item.weightKg.toFixed(3)} kg
-                </Text>
+                <TextInput
+                  editable={!saving}
+                  keyboardType="decimal-pad"
+                  onChangeText={(value) =>
+                    setPendingBoxes((prev) =>
+                      prev.map((box) =>
+                        box.id === item.id ? { ...box, weightKg: Number(value.replace(',', '.')) || 0 } : box,
+                      ),
+                    )
+                  }
+                  placeholder="0,000"
+                  placeholderTextColor={colors.inputPlaceholder}
+                  style={[orderStyles.smWeightInput, orderStyles.smWeightCell]}
+                  value={item.weightKg > 0 ? item.weightKg.toFixed(3) : ''}
+                />
               </View>
             )}
             showsVerticalScrollIndicator={false}

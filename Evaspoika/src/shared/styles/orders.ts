@@ -80,6 +80,30 @@ export const orderStyles = StyleSheet.create({
   customerRowSelected: {
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
+    manualBoxPickerHeader: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    manualBoxPickerBack: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: spacing.xs,
+      minWidth: 86,
+    },
+    manualBoxPickerBackText: {
+      color: colors.textSecondary,
+      fontFamily: typography.families.medium,
+      fontSize: typography.sizes.sm,
+    },
+    manualBoxPickerHeaderSpacer: {
+      minWidth: 86,
+    },
+    manualBoxPickerClose: {
+      minWidth: 30,
+      alignItems: 'flex-end' as const,
+    },
   selectedText: {
     color: colors.successText,
   },
