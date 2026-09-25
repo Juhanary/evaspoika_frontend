@@ -296,6 +296,26 @@ export const orderStyles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.sm,
   },
+  // Viimeisin muutos ei mennyt Netvisoriin — punainen, koska tämä on vika eikä
+  // työtehtävä kuten KOOSTETTAVA. Backend lähettää uudelleen itse.
+  odUnsentCard: {
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: radii.lg,
+    borderWidth: 2,
+    borderColor: colors.dangerDark,
+    padding: spacing.lg,
+    gap: spacing.xs,
+  },
+  odUnsentTitle: {
+    fontFamily: typography.families.semibold,
+    fontSize: typography.sizes.lg,
+    color: colors.dangerDark,
+  },
+  odUnsentText: {
+    fontFamily: typography.families.regular,
+    fontSize: typography.sizes.sm,
+    color: colors.textSubtle,
+  },
   odNetvisorHeader: {
     flexDirection: 'row' as const,
     alignItems: 'flex-start' as const,
@@ -427,6 +447,21 @@ export const orderStyles = StyleSheet.create({
     color: colors.white,
     fontFamily: typography.families.semibold,
     fontSize: typography.sizes.xs,
+  },
+  netvisorUnsentRow: {
+    backgroundColor: colors.dangerMid + '18',
+    borderWidth: 1,
+    borderColor: colors.dangerMid + '75',
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+  },
+  netvisorUnsentBadge: {
+    alignSelf: 'flex-start' as const,
+    backgroundColor: colors.dangerDark,
+    borderRadius: radii.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs / 2,
+    marginTop: spacing.xs,
   },
 
   // --- Scan modal (sm*) ---

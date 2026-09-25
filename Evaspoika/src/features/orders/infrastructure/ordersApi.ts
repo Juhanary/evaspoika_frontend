@@ -47,6 +47,7 @@ export function syncOrdersFromNetvisor() {
     total: number;
     imported: number;
     updated: number;
+    delivered: number;
     skipped: number;
     failed: number;
   }>(

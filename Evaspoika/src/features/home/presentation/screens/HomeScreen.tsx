@@ -41,6 +41,8 @@ const CLOSED_STATUSES = new Set([
   'cancelled',
   'canceled',
   'invoiced',
+  'billed',
+  'archived',
 ]);
 
 const normalizeStatus = (value?: string | null) =>
@@ -98,7 +100,7 @@ export default function HomeScreen() {
     syncingRef.current = true;
     setSyncing(true);
     try {
-      await Promise.all([
+      const [orderSync] = await Promise.all([
         syncOrdersFromNetvisor(),
         syncCustomersFromNetvisor(),
         syncNetvisorProducts(),
@@ -111,7 +113,9 @@ export default function HomeScreen() {
       ]);
       Alert.alert(
         'Päivitetty',
-        'Tilaukset, asiakkaat ja tuotteet päivitetty Netvisorista.',
+        `Tilaukset: ${orderSync.imported} uutta, ${orderSync.delivered} poistunut avoimista, ` +
+          `${orderSync.updated} päivitetty.\n` +
+          'Asiakkaat ja tuotteet päivitetty Netvisorista.',
       );
     } catch (err) {
       const msg = (() => {
@@ -361,7 +365,7 @@ export default function HomeScreen() {
                   <Ionicons
                     color="rgba(255,255,255,0.85)"
                     name="cloud-download-outline"
-                    size={s(20)}
+                    size={s(30)}
                   />
                 </Pressable>
               </View>
@@ -424,6 +428,16 @@ export default function HomeScreen() {
                           <Text numberOfLines={1} style={homeStyles.ordersRowName}>
                             {customerName ?? 'Tilaus'}
                           </Text>
+                          {order.manual_composition_required ? (
+                            <Text style={homeStyles.ordersRowPending}>
+                              KOOSTETTAVA: lisää Netvisorin rivien mukaiset laatikot
+                            </Text>
+                          ) : null}
+                          {order.netvisor_resend_required ? (
+                            <Text style={homeStyles.ordersRowUnsent}>
+                              LÄHETTÄMÄTTÄ NETVISORIIN: yritetään uudelleen automaattisesti
+                            </Text>
+                          ) : null}
                           <Text numberOfLines={2} style={homeStyles.ordersRowSummary}>
                             {summary ?? 'Ladataan tuotteita...'}
                           </Text>

@@ -19,6 +19,11 @@ export type Order = {
   netvisor_invoice_id?: string | null;
   netvisor_status?: string | null;
   manual_composition_required?: boolean;
+  /**
+   * Viimeisin muutos ei mennyt Netvisoriin. Rivit ovat tallessa backendissä, ja
+   * backend lähettää ne uudelleen noin 10 minuutin välein (retryFailedOrderSyncs).
+   */
+  netvisor_resend_required?: boolean;
   deleted_at?: string | null;
   deleted_by_user_id?: number | null;
   created_by?: string | null;

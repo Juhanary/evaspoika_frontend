@@ -20,11 +20,18 @@ export function useClosedOrders() {
   });
 }
 
+// Backend lähettää lähettämättömän muutoksen uudelleen noin 10 minuutin välein.
+// Avoinna oleva näyttö ei muuten hae tilausta uudestaan, joten "Lähettämättä
+// Netvisoriin" jäisi näkyviin vielä onnistuneen uudelleenlähetyksen jälkeen.
+const UNSENT_ORDER_REFETCH_MS = 60_000;
+
 export function useOrder(orderId?: number) {
   return useQuery({
     queryKey: ['orders', orderId ?? null],
     queryFn: () => fetchOrder(orderId as number),
     enabled: typeof orderId === 'number',
+    refetchInterval: (query) =>
+      query.state.data?.netvisor_resend_required ? UNSENT_ORDER_REFETCH_MS : false,
   });
 }
 

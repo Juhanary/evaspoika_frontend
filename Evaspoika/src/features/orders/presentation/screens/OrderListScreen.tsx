@@ -180,6 +180,7 @@ export default function OrderScreen() {
                 style={({ pressed }) => [
                   screen.listRow,
                   item.order.manual_composition_required && orderStyles.netvisorPendingRow,
+                  item.order.netvisor_resend_required && orderStyles.netvisorUnsentRow,
                   pressed && screen.pressed,
                 ]}
                 onPress={() => router.push(routes.orderDetail(item.order.id))}
@@ -210,10 +211,17 @@ export default function OrderScreen() {
                     }
                     return null;
                   })()}
-                  {!item.order.netvisor_invoice_id ? (
+                  {/* Rivillinen tilaus jonka lähetys kaatui on myös ilman avainta, mutta
+                      silloin syy ei ole rivien puute vaan lähetys — ks. merkki alla. */}
+                  {!item.order.netvisor_invoice_id && !item.order.netvisor_resend_required ? (
                     <Text style={orderStyles.statusWarningText}>
                       Ei Netvisorissa koska ei vielä tilausrivejä
                     </Text>
+                  ) : null}
+                  {item.order.netvisor_resend_required ? (
+                    <View style={orderStyles.netvisorUnsentBadge}>
+                      <Text style={orderStyles.netvisorPendingBadgeText}>LÄHETTÄMÄTTÄ NETVISORIIN</Text>
+                    </View>
                   ) : null}
                   {item.order.manual_composition_required ? (
                     <View style={orderStyles.netvisorPendingBadge}>

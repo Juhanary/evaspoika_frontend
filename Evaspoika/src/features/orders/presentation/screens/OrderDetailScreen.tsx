@@ -83,8 +83,26 @@ type ProductLineGroup = {
   batches: ProductBatchSummary[];
 };
 
+/**
+ * Backend merkitsee vastaukseen netvisorResendPending, kun muutos tallentui mutta
+ * sen lähetys Netvisoriin kaatui. Pelkkä 502 ei kerro tätä: rivin poisto palauttaa
+ * saman statuksen myös silloin kun mitään ei poistettu.
+ */
+function isNetvisorResendPending(err: unknown): err is ApiError {
+  if (!(err instanceof ApiError)) return false;
+  const payload = err.payload as Record<string, unknown> | null;
+  return payload?.netvisorResendPending === true;
+}
+
 export default function OrderDetailScreen({ orderId }: Props) {
   const queryClient = useQueryClient();
+  // Tilaus mukaan, koska sen netvisor_resend_required-merkintä muuttuu jokaisessa
+  // tallennuksessa — muuten "Lähettämättä"-merkki jäisi näkyviin tai puuttuisi.
+  const refreshOrderAndLines = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['orderLines', orderId], exact: true }),
+      queryClient.invalidateQueries({ queryKey: ['orders'] }),
+    ]);
   const { data: order, isLoading, error } = useOrder(orderId);
   const isManualComposition = order?.manual_composition_required === true;
   const { data: netvisorLines, isLoading: netvisorLinesLoading, error: netvisorLinesError } =
@@ -507,10 +525,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
         });
       }
 
-      await queryClient.invalidateQueries({
-        queryKey: ['orderLines', orderId],
-        exact: true,
-      });
+      await refreshOrderAndLines();
 
       setBatchPickerFor(null);
       setEanInput('');
@@ -518,11 +533,14 @@ export default function OrderDetailScreen({ orderId }: Props) {
       setShowScanModal(false);
       Alert.alert('Tallennettu', 'Lisäys tallennettu tilaukseen onnistuneesti.');
     } catch (saveError) {
-      if (saveError instanceof ApiError && saveError.status === 502) {
+      if (
+        isNetvisorResendPending(saveError) ||
+        (saveError instanceof ApiError && saveError.status === 502)
+      ) {
         setShowScanModal(false);
         setScannedBoxes([]);
         setEanInput('');
-        await queryClient.invalidateQueries({ queryKey: ['orderLines', orderId], exact: true });
+        await refreshOrderAndLines();
         const p = saveError.payload as Record<string, unknown> | null;
         const details = String(p?.details ?? p?.error ?? '');
         Alert.alert(
@@ -557,8 +575,19 @@ export default function OrderDetailScreen({ orderId }: Props) {
             setDeletingLineId(lineId);
             try {
               await deleteOrderLine(lineId);
-              await queryClient.invalidateQueries({ queryKey: ['orderLines', orderId], exact: true });
+              await refreshOrderAndLines();
             } catch (err) {
+              // Rivi poistui backendistä, vain Netvisor-lähetys jäi kesken. Aiemmin tämä
+              // näkyi otsikolla "Poisto epäonnistui" ja poistettu rivi jäi listaan.
+              if (isNetvisorResendPending(err)) {
+                await refreshOrderAndLines();
+                Alert.alert(
+                  'Tilausrivi poistettu',
+                  'Rivi on poistettu, mutta muutos ei vielä mennyt Netvisoriin. ' +
+                    'Järjestelmä lähettää sen automaattisesti noin 10 minuutin välein.',
+                );
+                return;
+              }
               const errMessage = (() => {
                 if (err instanceof ApiError) {
                   const p = err.payload as Record<string, unknown> | null;
@@ -611,6 +640,17 @@ export default function OrderDetailScreen({ orderId }: Props) {
           </Text>
           {dateLabel ? <Text style={orderStyles.odDateText}>{dateLabel}</Text> : null}
         </View>
+
+        {order?.netvisor_resend_required ? (
+          <View style={orderStyles.odUnsentCard}>
+            <Text style={orderStyles.odUnsentTitle}>LÄHETTÄMÄTTÄ NETVISORIIN</Text>
+            <Text style={orderStyles.odUnsentText}>
+              Viimeisin muutos ei mennyt Netvisoriin. Rivit ovat tallessa, eikä niitä
+              tarvitse lisätä uudelleen — järjestelmä lähettää ne automaattisesti noin
+              10 minuutin välein.
+            </Text>
+          </View>
+        ) : null}
 
         {isManualComposition ? (
           <View style={orderStyles.odNetvisorCard}>
