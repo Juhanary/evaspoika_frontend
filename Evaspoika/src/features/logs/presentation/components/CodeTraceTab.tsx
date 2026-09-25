@@ -10,6 +10,7 @@ import { useCodeTrace } from '@/src/features/trace/presentation/hooks/useTrace';
 import { colors } from '@/src/shared/constants/colors';
 import { logStyles as styles, traceStyles as trace } from '@/src/shared/styles/logs';
 import { formatDateFi, formatTimeFi } from '@/src/shared/utils/date';
+import { getOrderStatusLabel } from '@/src/shared/utils/orderStatus';
 import { formatKgLabel } from '@/src/shared/utils/weight';
 import type { BatchModalTarget } from './batchEventLog';
 
@@ -170,10 +171,7 @@ function CodeTraceResult({
             <KeyValue label="Tilauspäivä" value={formatDateFi(delivery.order?.order_date)} />
             <KeyValue label="Määrä" value={formatKgLabel(delivery.sold_weight)} />
             <KeyValue label="Laatikon EAN" value={delivery.box?.ean} />
-            <KeyValue
-              label="Tila"
-              value={delivery.order?.netvisor_status ?? delivery.order?.status}
-            />
+            <KeyValue label="Tila" value={getOrderStatusLabel(delivery.order)} />
             <KeyValue label="Lasku" value={delivery.order?.netvisor_invoice_id} />
             {delivery.is_queried_box ? (
               <KeyValue label="Osuma" value="Tämä on haettu laatikko" />

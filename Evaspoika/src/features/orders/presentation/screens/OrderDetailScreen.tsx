@@ -30,6 +30,7 @@ import { useProducts } from '@/src/features/products/presentation/hooks/useProdu
 import { colors } from '@/src/shared/constants/colors';
 import { formatKg, parseWeightToGrams } from '@/src/shared/utils/weight';
 import { formatDateFi } from '@/src/shared/utils/date';
+import { isAwaitingNetvisorResend } from '@/src/shared/utils/orderStatus';
 import { ApiError } from '@/src/infrastructure/api/error';
 import { components, screen } from '@/src/shared/styles/components';
 import { orderStyles } from '@/src/shared/styles/orders';
@@ -92,6 +93,19 @@ function isNetvisorResendPending(err: unknown): err is ApiError {
   if (!(err instanceof ApiError)) return false;
   const payload = err.payload as Record<string, unknown> | null;
   return payload?.netvisorResendPending === true;
+}
+
+/** Tallennettu rivi, jonka Netvisor-lähetys jäi kesken. 502 vanhaa backendiä varten. */
+function isSavedButUnsent(err: unknown): err is ApiError {
+  return isNetvisorResendPending(err) || (err instanceof ApiError && err.status === 502);
+}
+
+function describeSaveError(err: unknown): string {
+  if (err instanceof ApiError) {
+    const p = err.payload as Record<string, unknown> | null;
+    return String(p?.details ?? p?.error ?? err.message);
+  }
+  return err instanceof Error ? err.message : 'Tallennus epäonnistui';
 }
 
 export default function OrderDetailScreen({ orderId }: Props) {
@@ -510,53 +524,78 @@ export default function OrderDetailScreen({ orderId }: Props) {
       // netvisor_invoice_id ennen seuraavaa, jotta seuraavat tekevät "edit" eivätkä
       // luo uutta tilausta. Backend serialisoi tämän myös itse, mutta peräkkäin
       // lähettäminen välttää turhat rinnakkaiset edit-kutsut Netvisoriin.
+      //
+      // Jokainen erä käsitellään, vaikka Netvisor-lähetys kaatuisi: rivi on silloin jo
+      // tallessa backendissä, ja backend lähettää sen uudelleen itse. Aiemmin ensimmäinen
+      // kaatunut lähetys keskeytti silmukan — loput erät jäivät tallentamatta, lista
+      // tyhjennettiin ja ilmoitus väitti kaikkien olevan tallessa.
+      const savedBatchIds = new Set<number>();
+      let unsent: ApiError | null = null;
+      let failure: unknown = null;
       for (const [batchId, line] of linesByBatch) {
-        await createOrderLine({
-          orderId: orderId!,
-          batchId,
-          sold_weight: line.soldWeight,
-          // Despite the name, ORDER_LINE.price_per_gram holds euros per kilo —
-          // and it is an INTEGER column, so cents cannot survive here. The value
-          // is display-only; the invoice sent to Netvisor prices every line from
-          // Product.price_per_kg instead. Storing cents needs a backend column
-          // change (price_per_kg_cents), not a client-side workaround.
-          price_per_gram: Math.round(line.pricePerKg),
-          boxIds: line.boxIds,
-        });
+        try {
+          await createOrderLine({
+            orderId: orderId!,
+            batchId,
+            sold_weight: line.soldWeight,
+            // Despite the name, ORDER_LINE.price_per_gram holds euros per kilo —
+            // and it is an INTEGER column, so cents cannot survive here. The value
+            // is display-only; the invoice sent to Netvisor prices every line from
+            // Product.price_per_kg instead. Storing cents needs a backend column
+            // change (price_per_kg_cents), not a client-side workaround.
+            price_per_gram: Math.round(line.pricePerKg),
+            boxIds: line.boxIds,
+          });
+          savedBatchIds.add(batchId);
+        } catch (lineError) {
+          if (isSavedButUnsent(lineError)) {
+            savedBatchIds.add(batchId);
+            unsent = lineError;
+            continue;
+          }
+          failure = lineError;
+          break;
+        }
       }
 
       await refreshOrderAndLines();
+
+      if (failure) {
+        // Tallentuneet erät pois listasta: uusi yritys lisäisi ne muuten toiseen kertaan,
+        // ja backend torjuisi saman laatikon 409:llä.
+        setScannedBoxes((previous) =>
+          previous.filter(
+            (box) => box.selectedBatchId == null || !savedBatchIds.has(box.selectedBatchId),
+          ),
+        );
+        const errMessage = describeSaveError(failure);
+        if (savedBatchIds.size > 0) {
+          Alert.alert(
+            'Osa riveistä tallentui',
+            `${savedBatchIds.size} erää tallentui, mutta seuraavan tallennus epäonnistui:\n${errMessage}\n\nListassa ovat enää tallentamatta jääneet laatikot.`,
+          );
+        } else {
+          Alert.alert('Virhe', errMessage);
+        }
+        return;
+      }
 
       setBatchPickerFor(null);
       setEanInput('');
       setScannedBoxes([]);
       setShowScanModal(false);
-      Alert.alert('Tallennettu', 'Lisäys tallennettu tilaukseen onnistuneesti.');
-    } catch (saveError) {
-      if (
-        isNetvisorResendPending(saveError) ||
-        (saveError instanceof ApiError && saveError.status === 502)
-      ) {
-        setShowScanModal(false);
-        setScannedBoxes([]);
-        setEanInput('');
-        await refreshOrderAndLines();
-        const p = saveError.payload as Record<string, unknown> | null;
+      if (unsent) {
+        const p = unsent.payload as Record<string, unknown> | null;
         const details = String(p?.details ?? p?.error ?? '');
         Alert.alert(
           'Tilausrivit lisätty',
           `Rivit lisätty onnistuneesti, mutta Netvisor-synkronointi epäonnistui${details ? `:\n${details}` : '.'}\n\nJärjestelmä yrittää lähetystä uudelleen automaattisesti noin 10 minuutin välein. Rivit ovat tallessa — niitä ei tarvitse lisätä uudelleen.`,
         );
       } else {
-        const errMessage = (() => {
-          if (saveError instanceof ApiError) {
-            const p = saveError.payload as Record<string, unknown> | null;
-            return String(p?.details ?? p?.error ?? saveError.message);
-          }
-          return saveError instanceof Error ? saveError.message : 'Tallennus epäonnistui';
-        })();
-        Alert.alert('Virhe', errMessage);
+        Alert.alert('Tallennettu', 'Lisäys tallennettu tilaukseen onnistuneesti.');
       }
+    } catch (saveError) {
+      Alert.alert('Virhe', describeSaveError(saveError));
     } finally {
       setSaving(false);
     }
@@ -641,7 +680,7 @@ export default function OrderDetailScreen({ orderId }: Props) {
           {dateLabel ? <Text style={orderStyles.odDateText}>{dateLabel}</Text> : null}
         </View>
 
-        {order?.netvisor_resend_required ? (
+        {order && isAwaitingNetvisorResend(order) ? (
           <View style={orderStyles.odUnsentCard}>
             <Text style={orderStyles.odUnsentTitle}>LÄHETTÄMÄTTÄ NETVISORIIN</Text>
             <Text style={orderStyles.odUnsentText}>

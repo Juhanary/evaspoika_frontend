@@ -687,7 +687,7 @@ export default function ProductListScreen() {
               style={productStyles.filterDropdownItem}
             >
               <Ionicons color="rgba(0,0,0,0.65)" name="layers-outline" size={18} />
-              <Text style={productStyles.filterDropdownItemText}>Luo erä</Text>
+              <Text style={productStyles.filterDropdownItemText}>Luo uusi erä</Text>
             </Pressable>
             <Pressable
               onPress={() => { setShowFilterDropdown(false); router.push(routes.splitBox); }}

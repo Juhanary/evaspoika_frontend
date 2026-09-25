@@ -29,6 +29,7 @@ import { Button } from '@/src/shared/ui/Button/ActionButton';
 import { EmptyState } from '@/src/shared/ui/EmptyState/EmptyState';
 import { ScreenLayout } from '@/src/shared/ui/ScreenLayout/ScreenLayout';
 import { buildOrderLineSummary } from '@/src/shared/utils/orderSummary';
+import { isAwaitingNetvisorResend } from '@/src/shared/utils/orderStatus';
 import { formatKg } from '@/src/shared/utils/weight';
 import { homeStyles } from '@/src/shared/styles/home';
 
@@ -113,8 +114,10 @@ export default function HomeScreen() {
       ]);
       Alert.alert(
         'Päivitetty',
-        `Tilaukset: ${orderSync.imported} uutta, ${orderSync.delivered} poistunut avoimista, ` +
-          `${orderSync.updated} päivitetty.\n` +
+        `Tilaukset: ${orderSync.imported} uutta, ${orderSync.updated} päivitetty, ` +
+          `${orderSync.delivered} laskutettu, ` +
+          `${orderSync.removedInNetvisor ?? 0} poistettu Netvisorissa, ` +
+          `${orderSync.ordersToCompose ?? 0} koostettavaksi.\n` +
           'Asiakkaat ja tuotteet päivitetty Netvisorista.',
       );
     } catch (err) {
@@ -433,7 +436,7 @@ export default function HomeScreen() {
                               KOOSTETTAVA: lisää Netvisorin rivien mukaiset laatikot
                             </Text>
                           ) : null}
-                          {order.netvisor_resend_required ? (
+                          {isAwaitingNetvisorResend(order) ? (
                             <Text style={homeStyles.ordersRowUnsent}>
                               LÄHETTÄMÄTTÄ NETVISORIIN: yritetään uudelleen automaattisesti
                             </Text>

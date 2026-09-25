@@ -43,13 +43,19 @@ export function createOrder(input: CreateOrderInput) {
 // UI has no delete-order button either; a wrapper here would only invite one.
 
 export function syncOrdersFromNetvisor() {
+  // Backendin syncOrdersFromNetvisor-paluuarvo. Kaksi viimeistä puuttuvat vanhasta
+  // backendistä, joten ne ovat valinnaisia.
   return apiRequest<{
     total: number;
     imported: number;
     updated: number;
+    /** Laskutetuksi merkityt: kadonneet listalta, Netvisorissa tila laskutettu. */
     delivered: number;
-    skipped: number;
     failed: number;
+    /** Netvisorissa poistetut: poistettu myös täältä ja laatikot palautettu hyllylle. */
+    removedInNetvisor?: number;
+    /** Netvisorissa tuli uusi rivi: tilaus merkitty koostettavaksi. */
+    ordersToCompose?: number;
   }>(
     `${endpoints.netvisor}/sync-orders`,
     { method: 'POST', auth: 'netvisorWrite' },

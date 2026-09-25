@@ -8,6 +8,7 @@ import { logModalStyles as modalStyles, logStyles as styles } from '@/src/shared
 import { EmptyState } from '@/src/shared/ui/EmptyState/EmptyState';
 import { GlassModal, ModalRow } from '@/src/shared/ui/GlassModal/GlassModal';
 import { formatDateFi } from '@/src/shared/utils/date';
+import { getOrderStatusLabel } from '@/src/shared/utils/orderStatus';
 import { formatKgLabel } from '@/src/shared/utils/weight';
 import type { BatchModalTarget } from './batchEventLog';
 
@@ -28,11 +29,9 @@ const orderTitle = (order: CustomerOrder) =>
 // Tunniste kuuluu riville, mutta pienellä: Netvisorin laskunumerolla tilaus
 // löytyy kirjanpidosta, sovelluksen oma id ei auta ketään.
 const orderStatus = (order: CustomerOrder) => {
-  const status = order.netvisor_status ?? order.status ?? null;
   const parts = [
-    status,
+    getOrderStatusLabel(order),
     order.netvisor_invoice_id ? `lasku ${order.netvisor_invoice_id}` : null,
-    order.deleted_at ? 'poistettu' : null,
   ].filter(Boolean);
 
   return parts.length ? parts.join(' · ') : null;

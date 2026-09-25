@@ -11,24 +11,14 @@ import { useOrders } from '@/src/features/orders/presentation/hooks/useOrders';
 import { routes } from '@/src/shared/navigation/routes';
 import { Order } from '@/src/features/orders/domain/types';
 import { buildOrderLineSummary, EMPTY_ORDER_SUMMARY_LABEL } from '@/src/shared/utils/orderSummary';
+import {
+  getOrderStatusLabel,
+  isAwaitingInvoice,
+  isAwaitingNetvisorResend,
+} from '@/src/shared/utils/orderStatus';
 import { Button } from '@/src/shared/ui/Button/ActionButton';
 
 const CLOSED = new Set(['closed', 'completed', 'cancelled', 'canceled', 'invoiced', 'billed', 'archived']);
-
-const STATUS_LABELS: Record<string, string> = {
-  undelivered: 'Avoin',
-  delivered: 'Laskuttamaton',
-  billed: 'Laskutettu',
-  archived: 'Arkistoitu',
-  closed: 'Suljettu',
-  completed: 'Valmis',
-  cancelled: 'Peruttu',
-  canceled: 'Peruttu',
-  invoiced: 'Laskutettu',
-};
-
-const getStatusLabel = (status?: string | null) =>
-  status ? (STATUS_LABELS[status.toLowerCase()] ?? status) : null;
 
 const isOpen = (o: Order) =>
   !o.deleted_at &&
@@ -103,6 +93,7 @@ export default function OrderScreen() {
           formatOrderDate(order.order_date) ?? '',
           order.status ?? '',
           order.netvisor_status ?? '',
+          getOrderStatusLabel(order) ?? '',
         ].some((value) => value.toLowerCase().includes(normalizedQuery));
       });
   }, [customers, orders, query]);
@@ -180,7 +171,7 @@ export default function OrderScreen() {
                 style={({ pressed }) => [
                   screen.listRow,
                   item.order.manual_composition_required && orderStyles.netvisorPendingRow,
-                  item.order.netvisor_resend_required && orderStyles.netvisorUnsentRow,
+                  isAwaitingNetvisorResend(item.order) && orderStyles.netvisorUnsentRow,
                   pressed && screen.pressed,
                 ]}
                 onPress={() => router.push(routes.orderDetail(item.order.id))}
@@ -198,19 +189,13 @@ export default function OrderScreen() {
                     {formatOrderDate(item.order.order_date) ?? ''}
                   </Text>
                   <Text style={screen.listRowMetaSecondary}>
-                    {getStatusLabel(item.order.status ?? item.order.netvisor_status) ?? ''}
+                    {getOrderStatusLabel(item.order) ?? ''}
                   </Text>
-                  {(() => {
-                    const s = (item.order.status ?? item.order.netvisor_status ?? '').toLowerCase();
-                    if (s === 'delivered') {
-                      return (
-                        <Text style={orderStyles.statusWarningText}>
-                          Odottaa laskutusta
-                        </Text>
-                      );
-                    }
-                    return null;
-                  })()}
+                  {isAwaitingInvoice(item.order) ? (
+                    <Text style={orderStyles.statusWarningText}>
+                      Odottaa laskutusta
+                    </Text>
+                  ) : null}
                   {/* Rivillinen tilaus jonka lähetys kaatui on myös ilman avainta, mutta
                       silloin syy ei ole rivien puute vaan lähetys — ks. merkki alla. */}
                   {!item.order.netvisor_invoice_id && !item.order.netvisor_resend_required ? (
@@ -218,7 +203,7 @@ export default function OrderScreen() {
                       Ei Netvisorissa koska ei vielä tilausrivejä
                     </Text>
                   ) : null}
-                  {item.order.netvisor_resend_required ? (
+                  {isAwaitingNetvisorResend(item.order) ? (
                     <View style={orderStyles.netvisorUnsentBadge}>
                       <Text style={orderStyles.netvisorPendingBadgeText}>LÄHETTÄMÄTTÄ NETVISORIIN</Text>
                     </View>
